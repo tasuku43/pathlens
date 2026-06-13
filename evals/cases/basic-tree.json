@@ -1,0 +1,22 @@
+{
+  "name": "basic mixed workspace tree",
+  "fixture": "test/fixtures/sample-workspace",
+  "expect": {
+    "containsPaths": [
+      "README.md",
+      "index.html",
+      "src/app.ts",
+      "data/sample.json"
+    ],
+    "omitsPaths": [
+      "node_modules/ignored.js",
+      ".git/config"
+    ],
+    "viewerKinds": {
+      "README.md": "markdown",
+      "index.html": "html",
+      "src/app.ts": "code",
+      "data/sample.json": "json"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "name": "pathlens",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "description": "A live local viewer for Markdown, HTML, code, and assets.",
+  "bin": {
+    "pathlens": "dist/cli/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "dev:server": "tsx src/cli/main.ts . --port 4317",
+    "build": "tsc -p tsconfig.node.json && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "eval": "tsx evals/run-evals.ts",
+    "e2e": "vitest run test/e2e",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "validate:scaffold": "node scripts/validate-scaffold.mjs",
+    "check": "npm run validate:scaffold && npm run typecheck && npm run test && npm run eval && npm run e2e"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "shiki": "latest",
+    "marked": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest",
+    "tsx": "latest",
+    "vitest": "latest",
+    "eslint": "latest",
+    "prettier": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
