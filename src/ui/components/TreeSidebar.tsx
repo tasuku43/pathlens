@@ -5,10 +5,18 @@ import { iconForPath } from "../state/file-icons.js";
 interface Props {
   nodes: FsNode[];
   selectedPath: string | null;
+  changedPaths?: Set<string>;
+  removedPaths?: Set<string>;
   onSelect: (path: string) => void;
 }
 
-export function TreeSidebar({ nodes, selectedPath, onSelect }: Props) {
+export function TreeSidebar({
+  nodes,
+  selectedPath,
+  changedPaths = new Set(),
+  removedPaths = new Set(),
+  onSelect,
+}: Props) {
   return (
     <div className="tree">
       {nodes.map((node) => (
@@ -16,6 +24,8 @@ export function TreeSidebar({ nodes, selectedPath, onSelect }: Props) {
           key={node.path}
           node={node}
           selectedPath={selectedPath}
+          changedPaths={changedPaths}
+          removedPaths={removedPaths}
           onSelect={onSelect}
         />
       ))}
@@ -26,10 +36,14 @@ export function TreeSidebar({ nodes, selectedPath, onSelect }: Props) {
 function TreeNode({
   node,
   selectedPath,
+  changedPaths,
+  removedPaths,
   onSelect,
 }: {
   node: FsNode;
   selectedPath: string | null;
+  changedPaths: Set<string>;
+  removedPaths: Set<string>;
   onSelect: (path: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
@@ -51,6 +65,8 @@ function TreeNode({
                 key={child.path}
                 node={child}
                 selectedPath={selectedPath}
+                changedPaths={changedPaths}
+                removedPaths={removedPaths}
                 onSelect={onSelect}
               />
             ))}
@@ -61,9 +77,14 @@ function TreeNode({
   }
   return (
     <button
-      className={
-        node.path === selectedPath ? "tree-row file selected" : "tree-row file"
-      }
+      className={[
+        "tree-row file",
+        node.path === selectedPath ? "selected" : "",
+        changedPaths.has(node.path) ? "changed" : "",
+        removedPaths.has(node.path) ? "removed" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={() => onSelect(node.path)}
     >
       <span className="tree-twisty" />
@@ -71,6 +92,9 @@ function TreeNode({
         {iconForPath(node.path, node.viewerKind)}
       </span>
       <span>{node.name}</span>
+      {changedPaths.has(node.path) ? (
+        <span className="tree-badge">changed</span>
+      ) : null}
     </button>
   );
 }

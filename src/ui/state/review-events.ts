@@ -32,13 +32,14 @@ export function summarizeReviewEvents(events: ReviewEvent[]): FileReviewState {
   const latestByPath = new Map<string, ReviewEvent>();
 
   for (const item of events) {
-    if (!latestByPath.has(item.event.path)) latestByPath.set(item.event.path, item);
+    if (!latestByPath.has(item.event.path))
+      latestByPath.set(item.event.path, item);
     if (item.event.type === "unlink") {
       removedPaths.add(item.event.path);
       changedPaths.delete(item.event.path);
       continue;
     }
-    if (item.event.kind === "directory") continue;
+    if (item.event.type === "add" && item.event.kind === "directory") continue;
     changedPaths.add(item.event.path);
     removedPaths.delete(item.event.path);
   }
@@ -47,7 +48,8 @@ export function summarizeReviewEvents(events: ReviewEvent[]): FileReviewState {
 }
 
 export function eventLabel(event: FsEvent): string {
-  if (event.type === "add") return event.kind === "directory" ? "Added dir" : "Added";
+  if (event.type === "add")
+    return event.kind === "directory" ? "Added dir" : "Added";
   if (event.type === "unlink")
     return event.kind === "directory" ? "Removed dir" : "Removed";
   return "Changed";

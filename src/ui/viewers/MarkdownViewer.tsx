@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { marked } from "marked";
 import type { FilePayload } from "../../domain/fs-node.js";
 import {
@@ -6,12 +7,38 @@ import {
 } from "../state/outline.js";
 
 export function MarkdownViewer({ file }: { file: FilePayload }) {
+  const [mode, setMode] = useState<"rendered" | "source">("rendered");
   const html = renderMarkdownDocumentHtml(file.content);
   return (
-    <article
-      className="markdown markdown-document"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <section className="document-viewer">
+      <div className="viewer-toolbar">
+        <strong>{file.path}</strong>
+        <div className="segmented-control" aria-label="Markdown view mode">
+          <button
+            className={mode === "rendered" ? "active" : ""}
+            type="button"
+            onClick={() => setMode("rendered")}
+          >
+            Rendered
+          </button>
+          <button
+            className={mode === "source" ? "active" : ""}
+            type="button"
+            onClick={() => setMode("source")}
+          >
+            Source
+          </button>
+        </div>
+      </div>
+      {mode === "rendered" ? (
+        <article
+          className="markdown markdown-document"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        <pre className="markdown-source">{file.content}</pre>
+      )}
+    </section>
   );
 }
 

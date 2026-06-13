@@ -59,7 +59,10 @@ export function formatSelectedCodeWithLineNumbers(
   return `${formatLineReference(path, safeRange)}\n${selected}`;
 }
 
-export function buildCodeMetadata(file: FilePayload, selected: LineRange | null) {
+export function buildCodeMetadata(
+  file: FilePayload,
+  selected: LineRange | null,
+) {
   const lines = splitCodeLines(file.content);
   return {
     path: file.path,
@@ -67,7 +70,10 @@ export function buildCodeMetadata(file: FilePayload, selected: LineRange | null)
     lineCount: lines.length,
     symbols: detectCodeSymbols(file.path, file.content),
     selectedReference: selected
-      ? formatLineReference(file.path, normalizeLineRange(selected.start, selected.end, lines.length))
+      ? formatLineReference(
+          file.path,
+          normalizeLineRange(selected.start, selected.end, lines.length),
+        )
       : null,
   };
 }
@@ -94,9 +100,8 @@ export function detectCodeSymbols(path: string, content: string): CodeSymbol[] {
       return;
     }
 
-    const importMatch = /^import\s+(?:type\s+)?(.+?)\s+from\s+["'][^"']+["']/.exec(
-      trimmed,
-    );
+    const importMatch =
+      /^import\s+(?:type\s+)?(.+?)\s+from\s+["'][^"']+["']/.exec(trimmed);
     if (importMatch) {
       symbols.push({
         kind: "import",

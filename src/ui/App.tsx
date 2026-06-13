@@ -17,6 +17,12 @@ import {
 import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
+import type { LineRange } from "./state/code-viewer.js";
+import {
+  recordReviewEvent,
+  summarizeReviewEvents,
+  type ReviewEvent,
+} from "./state/review-events.js";
 import {
   closeOpenTab,
   markTabChanged,
@@ -63,7 +69,13 @@ export function App() {
   const [files, setFiles] = useState<Record<string, FilePayload>>({});
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
-  const [recentEvents, setRecentEvents] = useState<FsEvent[]>([]);
+  const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [codeSelections, setCodeSelections] = useState<
+    Record<string, LineRange | null>
+  >({});
+  const [refreshedFiles, setRefreshedFiles] = useState<Record<string, number>>(
+    {},
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
   const [draggingTab, setDraggingTab] = useState(false);
@@ -102,6 +114,10 @@ export function App() {
   const selectedPath = activePane?.activePath ?? null;
   const file = selectedPath ? (files[selectedPath] ?? null) : null;
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
+  const reviewState = useMemo(
+    () => summarizeReviewEvents(recentEvents),
+    [recentEvents],
+  );
 
   async function fetchFilePayload(path: string): Promise<FilePayload> {
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
@@ -162,6 +178,12 @@ export function App() {
     setPaletteOpen(false);
     setPaletteQuery("");
     void loadFile(path).catch((err) => setError(String(err)));
+  }
+
+  function openAllChangedFiles() {
+    for (const path of reviewState.changedPaths) {
+      void loadFile(path).catch((err) => setError(String(err)));
+    }
   }
 
   function moveTab(
@@ -321,12 +343,17 @@ export function App() {
     const events = new EventSource("/events");
     events.addEventListener("fs", (raw) => {
       const event = JSON.parse((raw as MessageEvent).data) as FsEvent;
-      setRecentEvents((items) => [event, ...items].slice(0, 20));
+      setRecentEvents((items) => recordReviewEvent(items, event));
 
       if (event.type === "change" && event.path === selectedPath) {
-        loadFile(event.path, layout.activePaneId).catch((err) =>
-          setError(String(err)),
-        );
+        loadFile(event.path, layout.activePaneId)
+          .then(() =>
+            setRefreshedFiles((items) => ({
+              ...items,
+              [event.path]: Date.now(),
+            })),
+          )
+          .catch((err) => setError(String(err)));
       } else if (event.type === "change") {
         setOpenTabs((tabs) => markTabChanged(tabs, event.path));
       }
@@ -384,6 +411,8 @@ export function App() {
             <TreeSidebar
               nodes={tree.nodes}
               selectedPath={selectedPath}
+              changedPaths={reviewState.changedPaths}
+              removedPaths={reviewState.removedPaths}
               onSelect={(path) =>
                 void loadFile(path).catch((err) => setError(String(err)))
               }
@@ -403,8 +432,16 @@ export function App() {
           file={file}
           outline={outline}
           events={recentEvents}
+          selectedCodeRange={
+            file?.path ? (codeSelections[file.path] ?? null) : null
+          }
+          refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
           activePaneId={layout.activePaneId}
           onOutlineSelect={jumpToOutline}
+          onOpenEventPath={(path) =>
+            void loadFile(path).catch((err) => setError(String(err)))
+          }
+          onOpenAllChanged={openAllChangedFiles}
           onTargetHoverChange={setInspectorTargetVisible}
           onRevealTarget={revealInspectorTarget}
         />
@@ -488,6 +525,19 @@ export function App() {
               file={paneFile}
               allowHtmlScripts={config?.allowHtmlScripts ?? false}
               theme={resolvedTheme}
+              selectedCodeRange={
+                paneFile?.path ? (codeSelections[paneFile.path] ?? null) : null
+              }
+              refreshedAt={
+                paneFile?.path ? refreshedFiles[paneFile.path] : undefined
+              }
+              onCodeSelectionChange={(range) => {
+                if (!paneFile?.path) return;
+                setCodeSelections((items) => ({
+                  ...items,
+                  [paneFile.path]: range,
+                }));
+              }}
             />
           )}
         </div>
