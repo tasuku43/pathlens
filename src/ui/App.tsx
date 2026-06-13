@@ -45,6 +45,7 @@ import {
 import { filterTreeToPaths, reviewArtifactResults } from "./state/files.js";
 import {
   mergeReviewChanges,
+  type DiffBaseState,
   type GitChangeReviewState,
 } from "./state/git-review.js";
 import {
@@ -86,6 +87,8 @@ export function App() {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
+  const [diffBases, setDiffBases] = useState<DiffBaseState | null>(null);
+  const [activeDiffBase, setActiveDiffBase] = useState("HEAD");
   const [activeDiff, setActiveDiff] = useState<TextDiff | null>(null);
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
@@ -137,11 +140,28 @@ export function App() {
     setGitReview((await response.json()) as GitChangeReviewState);
   }
 
-  async function showDiff(path: string) {
-    const response = await fetch(`/api/diff?path=${encodeURIComponent(path)}`);
+  async function loadDiffBases() {
+    const response = await fetch("/api/diff-bases");
+    if (!response.ok)
+      throw new Error(`diff bases request failed: ${response.status}`);
+    setDiffBases((await response.json()) as DiffBaseState);
+  }
+
+  async function showDiff(path: string, baseRef = activeDiffBase) {
+    const params = new URLSearchParams({ path, base: baseRef });
+    const response = await fetch(`/api/diff?${params.toString()}`);
     if (!response.ok)
       throw new Error(`diff request failed: ${response.status}`);
     setActiveDiff((await response.json()) as TextDiff);
+  }
+
+  function selectDiffBase(baseRef: string) {
+    setActiveDiffBase(baseRef);
+    if (activeDiff?.path) {
+      void showDiff(activeDiff.path, baseRef).catch((err) =>
+        setError(String(err)),
+      );
+    }
   }
 
   const panes = useMemo(() => flattenPanes(layout), [layout]);
@@ -558,6 +578,7 @@ export function App() {
     loadConfig().catch((err) => setError(String(err)));
     loadTree().catch((err) => setError(String(err)));
     loadGitReview().catch((err) => setError(String(err)));
+    loadDiffBases().catch((err) => setError(String(err)));
   }, []);
 
   useEffect(() => {
@@ -735,6 +756,8 @@ export function App() {
             outline={outline}
             events={recentEvents}
             gitReview={gitReview}
+            diffBases={diffBases}
+            activeDiffBase={activeDiffBase}
             reviewChanges={reviewChanges}
             activeDiff={activeDiff}
             reviewTargets={reviewTargets}
@@ -751,6 +774,7 @@ export function App() {
             onShowDiff={(path) =>
               void showDiff(path).catch((err) => setError(String(err)))
             }
+            onSelectDiffBase={selectDiffBase}
             onTargetHoverChange={setInspectorTargetVisible}
             onRevealTarget={revealInspectorTarget}
           />

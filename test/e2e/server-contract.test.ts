@@ -53,9 +53,14 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   );
   expect(changes.changes).toEqual([{ path: "README.md", status: "modified" }]);
 
-  const diff = await fetch(`${server.url}/api/diff?path=README.md`).then(
-    (res) => res.json(),
+  const bases = await fetch(`${server.url}/api/diff-bases`).then((res) =>
+    res.json(),
   );
+  expect(bases.options).toEqual([{ ref: "HEAD", label: "HEAD" }]);
+
+  const diff = await fetch(
+    `${server.url}/api/diff?path=README.md&base=HEAD`,
+  ).then((res) => res.json());
   expect(diff.content).toContain("+# E2E");
 
   const rejected = await fetch(
@@ -194,13 +199,20 @@ class StaticChangeReview implements ChangeReviewPort {
     };
   }
 
-  async readDiff(relativePath: string) {
+  async readDiff(relativePath: string, baseRef = "HEAD") {
     return {
       path: relativePath,
       status: "available" as const,
-      baseLabel: "HEAD",
+      baseLabel: baseRef,
       compareLabel: "working tree",
       content: "diff --git a/README.md b/README.md\n+# E2E",
+    };
+  }
+
+  async readDiffBases() {
+    return {
+      available: true,
+      options: [{ ref: "HEAD", label: "HEAD" }],
     };
   }
 }

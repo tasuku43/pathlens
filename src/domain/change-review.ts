@@ -12,6 +12,18 @@ export interface ChangeReviewSummary {
   changes: GitChange[];
 }
 
+export interface DiffBaseOption {
+  ref: string;
+  label: string;
+  subject?: string;
+}
+
+export interface DiffBaseSummary {
+  available: boolean;
+  reason?: string;
+  options: DiffBaseOption[];
+}
+
 export type DiffStatus = "available" | "too-large" | "binary" | "unavailable";
 
 export interface TextDiff {

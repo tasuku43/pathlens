@@ -1,4 +1,8 @@
-import type { ChangeReviewSummary, TextDiff } from "../domain/change-review.js";
+import type {
+  ChangeReviewSummary,
+  DiffBaseSummary,
+  TextDiff,
+} from "../domain/change-review.js";
 import type {
   FilePayload,
   FsEvent,
@@ -52,16 +56,27 @@ export class ViewerService {
     );
   }
 
-  readDiff(relativePath: string): Promise<TextDiff> {
+  readDiff(relativePath: string, baseRef?: string): Promise<TextDiff> {
     return (
-      this.changeReview?.readDiff(relativePath) ??
+      this.changeReview?.readDiff(relativePath, baseRef) ??
       Promise.resolve({
         path: relativePath,
         status: "unavailable",
-        baseLabel: "HEAD",
+        baseLabel: baseRef ?? "HEAD",
         compareLabel: "working tree",
         content: "",
         reason: "Git change review is unavailable for this workspace.",
+      })
+    );
+  }
+
+  readDiffBases(): Promise<DiffBaseSummary> {
+    return (
+      this.changeReview?.readDiffBases?.() ??
+      Promise.resolve({
+        available: false,
+        reason: "Git diff base selection is unavailable for this workspace.",
+        options: [],
       })
     );
   }

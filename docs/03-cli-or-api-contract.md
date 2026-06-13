@@ -94,9 +94,23 @@ Returns read-only Git working-tree review status when the selected root is insid
 
 Statuses are `added`, `modified`, `deleted`, or `renamed`.
 
-### `GET /api/diff?path=<relative-path>`
+### `GET /api/diff-bases`
 
-Returns a bounded read-only text diff for a changed file. The comparison is `HEAD` to the current working tree. Large and binary diffs are not returned; the response explains why.
+Returns recent read-only Git commit bases that the UI may use for diff comparison. The server only accepts bases from this allow-list.
+
+```json
+{
+  "available": true,
+  "options": [
+    { "ref": "HEAD", "label": "HEAD", "subject": "current commit" },
+    { "ref": "abc123...", "label": "HEAD~1", "subject": "previous commit" }
+  ]
+}
+```
+
+### `GET /api/diff?path=<relative-path>&base=<ref>`
+
+Returns a bounded read-only text diff for a changed file. The comparison is the selected allowed base ref to the current working tree. If `base` is omitted, `HEAD` is used. Large and binary diffs are not returned; the response explains why.
 
 ```json
 {

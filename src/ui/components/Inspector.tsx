@@ -5,6 +5,7 @@ import { iconForPath } from "../state/file-icons.js";
 import {
   changeStatusLabel,
   diffStatusLabel,
+  type DiffBaseState,
   type GitChangeReviewState,
   type ReviewChangeItem,
 } from "../state/git-review.js";
@@ -16,6 +17,8 @@ interface Props {
   outline: OutlineHeading[];
   events: ReviewEvent[];
   gitReview: GitChangeReviewState | null;
+  diffBases: DiffBaseState | null;
+  activeDiffBase: string;
   reviewChanges: ReviewChangeItem[];
   activeDiff: TextDiff | null;
   reviewTargets: FsNode[];
@@ -26,6 +29,7 @@ interface Props {
   onOpenEventPath: (path: string) => void;
   onOpenAllChanged: () => void;
   onShowDiff: (path: string) => void;
+  onSelectDiffBase: (baseRef: string) => void;
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
 }
@@ -35,6 +39,8 @@ export function Inspector({
   outline,
   events,
   gitReview,
+  diffBases,
+  activeDiffBase,
   reviewChanges,
   activeDiff,
   reviewTargets,
@@ -45,6 +51,7 @@ export function Inspector({
   onOpenEventPath,
   onOpenAllChanged,
   onShowDiff,
+  onSelectDiffBase,
   onTargetHoverChange,
   onRevealTarget,
 }: Props) {
@@ -248,6 +255,29 @@ export function Inspector({
 
         <h3 className="section-title">Diff preview</h3>
         <div className="diff-card">
+          <label className="diff-base-picker">
+            <span>Compare from</span>
+            <select
+              value={activeDiffBase}
+              disabled={!diffBases?.available || !diffBases.options.length}
+              onChange={(event) => onSelectDiffBase(event.currentTarget.value)}
+            >
+              {(diffBases?.options.length
+                ? diffBases.options
+                : [{ ref: "HEAD", label: "HEAD" }]
+              ).map((option) => (
+                <option key={option.ref} value={option.ref}>
+                  {option.label}
+                  {option.subject ? ` · ${option.subject}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          {diffBases && !diffBases.available ? (
+            <p className="muted">
+              {diffBases.reason ?? "Diff base selection is unavailable."}
+            </p>
+          ) : null}
           <div className="kv">
             <span>Status</span>
             <strong>{diffStatusLabel(activeDiff)}</strong>

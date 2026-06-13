@@ -213,7 +213,7 @@ docs/          product, architecture, requirements, and agent context
 - Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
 
-Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded text diff against `HEAD` for small files. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way, while Git status can surface renamed files in the changed-file list.
+Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. In Git worktrees, `pathlens` also reads uncommitted working-tree status and can show a bounded text diff from `HEAD` or another recent allowed commit base to the working tree. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way, while Git status can surface renamed files in the changed-file list.
 
 The sidebar avoids expanding every descendant in very large trees on first render. It auto-expands within a row budget, keeps selected and changed paths revealable by expanding their ancestors, and shows a small note when collapsed folders are hiding additional rows.
 
@@ -224,7 +224,7 @@ Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extensi
 ## Known Limitations
 
 - The Mermaid preview intentionally supports only simple flowchart arrows; source mode remains the fallback.
-- Git integration is read-only and limited to uncommitted working-tree status plus small text diffs against `HEAD`; it does not stage, commit, or browse full history.
+- Git integration is read-only and limited to uncommitted working-tree status plus small text diffs from recent commit bases; it does not stage, commit, or browse full history.
 - Large files are capped by the preview size limit and shown with a safe explanation.
 - Full tree virtualization and rich side-by-side diffs are deferred.
 

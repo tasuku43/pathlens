@@ -1,4 +1,8 @@
-import type { ChangeReviewSummary, TextDiff } from "../domain/change-review.js";
+import type {
+  ChangeReviewSummary,
+  DiffBaseSummary,
+  TextDiff,
+} from "../domain/change-review.js";
 import type {
   FilePayload,
   FsEvent,
@@ -20,7 +24,8 @@ export interface WatcherPort {
 
 export interface ChangeReviewPort {
   readChanges(): Promise<ChangeReviewSummary>;
-  readDiff(relativePath: string): Promise<TextDiff>;
+  readDiff(relativePath: string, baseRef?: string): Promise<TextDiff>;
+  readDiffBases?(): Promise<DiffBaseSummary>;
 }
 
 export interface ViewerServiceOptions {

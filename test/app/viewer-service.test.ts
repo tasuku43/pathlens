@@ -52,13 +52,19 @@ it("delegates Git review reads when the optional port is present", async () => {
         changes: [{ path: "README.md", status: "modified" }],
       };
     },
-    async readDiff(relativePath) {
+    async readDiff(relativePath, baseRef) {
       return {
         path: relativePath,
         status: "available",
-        baseLabel: "HEAD",
+        baseLabel: baseRef ?? "HEAD",
         compareLabel: "working tree",
         content: "diff",
+      };
+    },
+    async readDiffBases() {
+      return {
+        available: true,
+        options: [{ ref: "HEAD", label: "HEAD", subject: "initial" }],
       };
     },
   };
@@ -69,8 +75,12 @@ it("delegates Git review reads when the optional port is present", async () => {
     available: true,
     changes: [{ path: "README.md", status: "modified" }],
   });
-  await expect(service.readDiff("README.md")).resolves.toMatchObject({
+  await expect(service.readDiff("README.md", "HEAD")).resolves.toMatchObject({
     path: "README.md",
     status: "available",
+  });
+  await expect(service.readDiffBases()).resolves.toEqual({
+    available: true,
+    options: [{ ref: "HEAD", label: "HEAD", subject: "initial" }],
   });
 });

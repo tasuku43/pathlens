@@ -18,6 +18,9 @@ beforeEach(async () => {
   await writeFile(path.join(dir, "README.md"), "# Before\n");
   await git(["add", "README.md"]);
   await git(["commit", "-m", "initial"]);
+  await writeFile(path.join(dir, "README.md"), "# Middle\n");
+  await git(["add", "README.md"]);
+  await git(["commit", "-m", "middle"]);
 });
 
 afterEach(async () => {
@@ -39,13 +42,45 @@ it("reads uncommitted Git changes and small text diffs", async () => {
 
   const modified = await review.readDiff("README.md");
   expect(modified.status).toBe("available");
-  expect(modified.content).toContain("-# Before");
+  expect(modified.content).toContain("-# Middle");
   expect(modified.content).toContain("+# After");
 
   const added = await review.readDiff("report.csv");
   expect(added.status).toBe("available");
   expect(added.content).toContain("+++ b/report.csv");
   expect(added.content).toContain("+html,ok");
+});
+
+it("lists recent diff bases and compares from an allowed older commit", async () => {
+  await writeFile(path.join(dir, "README.md"), "# After\n");
+
+  const review = new GitChangeReview({ rootDir: dir });
+  const bases = await review.readDiffBases();
+
+  expect(bases.available).toBe(true);
+  expect(bases.options[0]).toMatchObject({
+    ref: "HEAD",
+    label: "HEAD",
+    subject: "middle",
+  });
+  expect(bases.options[1]).toMatchObject({
+    label: "HEAD~1",
+    subject: "initial",
+  });
+
+  const older = bases.options[1]!;
+  const diff = await review.readDiff("README.md", older.ref);
+  expect(diff.status).toBe("available");
+  expect(diff.baseLabel).toBe("HEAD~1");
+  expect(diff.content).toContain("-# Before");
+  expect(diff.content).toContain("+# After");
+
+  await expect(
+    review.readDiff("README.md", "main;rm -rf /"),
+  ).resolves.toMatchObject({
+    status: "unavailable",
+    reason: "Diff base is not an allowed recent commit.",
+  });
 });
 
 it("rejects paths outside the selected root", async () => {

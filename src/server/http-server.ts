@@ -83,9 +83,15 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname === "/api/diff-bases") {
+    sendJson(res, 200, await options.service.readDiffBases());
+    return;
+  }
+
   if (url.pathname === "/api/diff") {
     const requestedPath = url.searchParams.get("path") ?? "";
-    sendJson(res, 200, await options.service.readDiff(requestedPath));
+    const baseRef = url.searchParams.get("base") ?? undefined;
+    sendJson(res, 200, await options.service.readDiff(requestedPath, baseRef));
     return;
   }
 

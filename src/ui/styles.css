@@ -1271,6 +1271,22 @@ kbd {
   background: var(--panel);
   padding: 10px;
 }
+.diff-base-picker {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.diff-base-picker select {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--code);
+  color: var(--text);
+  padding: 7px 8px;
+  font: inherit;
+}
 .diff-preview {
   max-height: 320px;
   overflow: auto;

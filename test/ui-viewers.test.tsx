@@ -99,6 +99,14 @@ it("renders code metadata and actionable review events in the inspector", () => 
         available: true,
         changes: [{ path: "src/app.ts", status: "modified" }],
       }}
+      diffBases={{
+        available: true,
+        options: [
+          { ref: "HEAD", label: "HEAD", subject: "current" },
+          { ref: "abc123", label: "HEAD~1", subject: "previous" },
+        ],
+      }}
+      activeDiffBase="HEAD"
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
       ]}
@@ -125,6 +133,7 @@ it("renders code metadata and actionable review events in the inspector", () => 
       onOpenEventPath={() => undefined}
       onOpenAllChanged={() => undefined}
       onShowDiff={() => undefined}
+      onSelectDiffBase={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
     />,
@@ -137,6 +146,8 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("Changed files");
   expect(html).toContain("Git working tree");
   expect(html).toContain("-old");
+  expect(html).toContain("Compare from");
+  expect(html).toContain("HEAD~1");
   expect(html).toContain("Recent events");
   expect(html).toContain("Changed");
   expect(html).toContain("Review targets");

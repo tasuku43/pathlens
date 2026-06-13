@@ -7,6 +7,8 @@ import {
   buildAddedFileDiff,
   parseGitPorcelainStatus,
   type ChangeReviewSummary,
+  type DiffBaseOption,
+  type DiffBaseSummary,
   type GitChange,
   type TextDiff,
 } from "../domain/change-review.js";
@@ -51,9 +53,36 @@ export class GitChangeReview implements ChangeReviewPort {
     };
   }
 
-  async readDiff(relativePath: string): Promise<TextDiff> {
+  async readDiffBases(): Promise<DiffBaseSummary> {
+    const repo = await this.git(["rev-parse", "--show-toplevel"]);
+    if (!repo.ok) return { available: false, reason: repo.reason, options: [] };
+
+    const log = await this.git([
+      "log",
+      "--max-count=8",
+      "--format=%H%x00%h%x00%s%x00",
+    ]);
+    if (!log.ok) return { available: false, reason: log.reason, options: [] };
+
+    const commits = parseDiffBaseLog(log.stdout);
+    return {
+      available: true,
+      options: [
+        { ref: "HEAD", label: "HEAD", subject: commits[0]?.subject },
+        ...commits.slice(1).map((commit, index) => ({
+          ref: commit.sha,
+          label: index === 0 ? "HEAD~1" : commit.shortSha,
+          subject: commit.subject,
+        })),
+      ],
+    };
+  }
+
+  async readDiff(relativePath: string, baseRef = "HEAD"): Promise<TextDiff> {
     const resolved = this.resolveInsideRoot(relativePath);
     if (!resolved.ok) return unavailable(relativePath, resolved.reason);
+    const base = await this.resolveBaseRef(baseRef);
+    if (!base.ok) return unavailable(resolved.relativePath, base.reason);
 
     const changes = await this.readChanges();
     if (!changes.available)
@@ -71,14 +100,18 @@ export class GitChangeReview implements ChangeReviewPort {
         "No uncommitted Git change was found for this file.",
       );
 
-    if (change.status === "added") return this.readAddedDiff(change);
+    if (change.status === "added" && base.option.ref === "HEAD")
+      return this.readAddedDiff(change, base.option);
     if (change.status === "deleted" || change.status === "renamed")
-      return this.readGitDiff(change.path);
-    return this.readGitDiff(change.path);
+      return this.readGitDiff(change.path, base.option);
+    return this.readGitDiff(change.path, base.option);
   }
 
-  private async readGitDiff(relativePath: string): Promise<TextDiff> {
-    const diff = await this.git(["diff", "--", relativePath], {
+  private async readGitDiff(
+    relativePath: string,
+    base: DiffBaseOption,
+  ): Promise<TextDiff> {
+    const diff = await this.git(["diff", base.ref, "--", relativePath], {
       maxBuffer: this.maxDiffBytes + 64 * 1024,
     });
     if (!diff.ok) return unavailable(relativePath, diff.reason);
@@ -91,7 +124,7 @@ export class GitChangeReview implements ChangeReviewPort {
       return {
         path: relativePath,
         status: "too-large",
-        baseLabel: "HEAD",
+        baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
         reason: `Diff exceeds ${formatBytes(this.maxDiffBytes)}.`,
@@ -101,7 +134,7 @@ export class GitChangeReview implements ChangeReviewPort {
       return {
         path: relativePath,
         status: "binary",
-        baseLabel: "HEAD",
+        baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
         reason: "Binary diff is not shown in pathlens.",
@@ -109,13 +142,16 @@ export class GitChangeReview implements ChangeReviewPort {
     return {
       path: relativePath,
       status: "available",
-      baseLabel: "HEAD",
+      baseLabel: base.label,
       compareLabel: "working tree",
       content: diff.stdout,
     };
   }
 
-  private async readAddedDiff(change: GitChange): Promise<TextDiff> {
+  private async readAddedDiff(
+    change: GitChange,
+    base: DiffBaseOption,
+  ): Promise<TextDiff> {
     const resolved = this.resolveInsideRoot(change.path);
     if (!resolved.ok) return unavailable(change.path, resolved.reason);
     const stat = await fs.stat(resolved.absolutePath);
@@ -123,7 +159,7 @@ export class GitChangeReview implements ChangeReviewPort {
       return {
         path: change.path,
         status: "too-large",
-        baseLabel: "HEAD",
+        baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
         reason: `File exceeds ${formatBytes(this.maxDiffBytes)}.`,
@@ -134,7 +170,7 @@ export class GitChangeReview implements ChangeReviewPort {
       return {
         path: change.path,
         status: "binary",
-        baseLabel: "HEAD",
+        baseLabel: base.label,
         compareLabel: "working tree",
         content: "",
         reason: "Binary diff is not shown in pathlens.",
@@ -142,10 +178,27 @@ export class GitChangeReview implements ChangeReviewPort {
     return {
       path: change.path,
       status: "available",
-      baseLabel: "HEAD",
+      baseLabel: base.label,
       compareLabel: "working tree",
       content: buildAddedFileDiff(change.path, bytes.toString("utf8")),
     };
+  }
+
+  private async resolveBaseRef(
+    ref: string,
+  ): Promise<
+    { ok: true; option: DiffBaseOption } | { ok: false; reason: string }
+  > {
+    const bases = await this.readDiffBases();
+    if (!bases.available)
+      return { ok: false, reason: bases.reason ?? "Git base unavailable" };
+    const option = bases.options.find((item) => item.ref === ref);
+    if (!option)
+      return {
+        ok: false,
+        reason: "Diff base is not an allowed recent commit.",
+      };
+    return { ok: true, option };
   }
 
   private resolveInsideRoot(
@@ -202,6 +255,21 @@ function unavailable(pathname: string, reason: string): TextDiff {
     content: "",
     reason,
   };
+}
+
+function parseDiffBaseLog(
+  output: string,
+): { sha: string; shortSha: string; subject: string }[] {
+  const fields = output.split("\0").filter(Boolean);
+  const commits: { sha: string; shortSha: string; subject: string }[] = [];
+  for (let index = 0; index + 2 < fields.length; index += 3) {
+    commits.push({
+      sha: (fields[index] ?? "").trim(),
+      shortSha: (fields[index + 1] ?? "").trim(),
+      subject: (fields[index + 2] ?? "").trim(),
+    });
+  }
+  return commits.filter((commit) => commit.sha && commit.shortSha);
 }
 
 function formatBytes(size: number): string {
