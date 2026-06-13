@@ -1,4 +1,9 @@
+import { useEffect, useMemo, useState } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
+import {
+  clampPaletteSelection,
+  movePaletteSelection,
+} from "../state/command-palette.js";
 import { iconForPath } from "../state/file-icons.js";
 import { fuzzyFileResults } from "../state/files.js";
 
@@ -19,9 +24,15 @@ export function CommandPalette({
   onClose,
   onOpenPath,
 }: Props) {
-  if (!open) return null;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const results = useMemo(() => fuzzyFileResults(nodes, query), [nodes, query]);
+  const activeIndex = clampPaletteSelection(selectedIndex, results.length);
 
-  const results = fuzzyFileResults(nodes, query);
+  useEffect(() => {
+    if (open) setSelectedIndex(0);
+  }, [open]);
+
+  if (!open) return null;
 
   return (
     <div className="palette-overlay" role="presentation" onClick={onClose}>
@@ -37,23 +48,50 @@ export function CommandPalette({
             className="palette-input"
             placeholder="Open file or run command..."
             value={query}
-            onChange={(event) => onQueryChange(event.currentTarget.value)}
+            aria-activedescendant={
+              activeIndex >= 0 ? `palette-result-${activeIndex}` : undefined
+            }
+            onChange={(event) => {
+              setSelectedIndex(0);
+              onQueryChange(event.currentTarget.value);
+            }}
             onKeyDown={(event) => {
-              if (event.key === "Escape") onClose();
-              if (event.key === "Enter" && results[0])
-                onOpenPath(results[0].path);
+              if (event.key === "Escape") {
+                onClose();
+                return;
+              }
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                setSelectedIndex((index) =>
+                  movePaletteSelection(
+                    index,
+                    results.length,
+                    event.key === "ArrowDown" ? 1 : -1,
+                  ),
+                );
+                return;
+              }
+              if (event.key === "Enter" && activeIndex >= 0) {
+                onOpenPath(results[activeIndex].path);
+              }
             }}
           />
         </div>
         <div className="palette-body">
-          <div className="palette-results">
+          <div className="palette-results" role="listbox">
             {results.map((file, index) => (
               <button
+                id={`palette-result-${index}`}
                 key={file.path}
+                role="option"
                 className={
-                  index === 0 ? "palette-result active" : "palette-result"
+                  index === activeIndex
+                    ? "palette-result active"
+                    : "palette-result"
                 }
+                aria-selected={index === activeIndex}
                 onClick={() => onOpenPath(file.path)}
+                onMouseEnter={() => setSelectedIndex(index)}
               >
                 <span className="file-icon">
                   {iconForPath(file.path, file.viewerKind)}

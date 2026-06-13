@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import type { FilePayload, FsNode } from "../src/domain/fs-node.js";
 import { iconForPath, languageForPath } from "../src/ui/state/file-icons.js";
+import {
+  clampPaletteSelection,
+  movePaletteSelection,
+} from "../src/ui/state/command-palette.js";
 import { fuzzyFileResults } from "../src/ui/state/files.js";
 import {
   flattenPanes,
@@ -182,4 +186,13 @@ it("fuzzy-selects files by path subsequence", () => {
     "docs/architecture.md",
   ]);
   expect(fuzzyFileResults(nodes, "secu")[0]?.path).toBe("docs/security.md");
+});
+
+it("moves command palette selection with keyboard wrapping", () => {
+  expect(clampPaletteSelection(0, 0)).toBe(-1);
+  expect(clampPaletteSelection(8, 3)).toBe(2);
+  expect(movePaletteSelection(0, 3, 1)).toBe(1);
+  expect(movePaletteSelection(2, 3, 1)).toBe(0);
+  expect(movePaletteSelection(0, 3, -1)).toBe(2);
+  expect(movePaletteSelection(-1, 3, 1)).toBe(1);
 });

@@ -505,8 +505,7 @@ input {
   color: var(--muted);
   text-align: left;
 }
-.palette-result.active,
-.palette-result:hover {
+.palette-result.active {
   background: rgba(122, 162, 255, 0.16);
   color: var(--text);
 }
