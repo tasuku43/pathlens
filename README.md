@@ -23,11 +23,15 @@ Expected user experience:
 1. Run the CLI in or against a directory.
 2. A local server starts on localhost.
 3. The browser SPA shows a sidebar tree and main viewer.
-4. Markdown renders as HTML.
-5. HTML renders in a sandboxed iframe with local CSS and scripts enabled by default.
-6. Code renders with syntax highlighting.
-7. File changes update the currently open viewer without a full page reload.
-8. File additions, deletions, and renames update the sidebar tree dynamically.
+4. Markdown renders as a polished document by default, with a source toggle.
+5. HTML renders in a sandboxed iframe with local CSS and scripts enabled by default, with a source toggle and clear script status.
+6. Code renders in a read-only inspection view with syntax highlighting, stable line numbers, line-range selection, copyable line references, and lightweight symbols in the inspector.
+7. Text/log files use a readable monospace viewer with wrapping controls.
+8. Images preview with fit-to-screen and actual-size modes.
+9. JSON and structured text use safe formatted/readable code-style previews.
+10. File changes update the currently open viewer without a full page reload and mark inactive tabs as changed.
+11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically.
+12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly.
 
 ## Run With Docker
 
@@ -113,9 +117,9 @@ git push origin v0.1.0
 
 Manual workflow runs are available for validation builds. Provide a `release_tag` value matching `vMAJOR.MINOR.PATCH` only when intentionally publishing that tag; otherwise the workflow publishes a `sha-...` image tag.
 
-## Current scaffold status
+## Current product status
 
-This repository is an implementation scaffold, not a completed product. It contains the intended architecture, contracts, starter code, fixtures, tests, eval harness, documentation, and CI shape so an autonomous coding agent can implement against clear acceptance criteria.
+This repository is an active implementation of the local read-only viewer. It includes the CLI/server boundary, live tree and SSE plumbing, multi-file tabs, viewer dispatch, a polished code inspection surface, contextual inspector, fixture-driven evals, and server/UI tests. It is still intentionally scoped as a local viewer rather than an editor, IDE, Git client, hosted service, or LLM product.
 
 ## Technical direction
 
@@ -168,7 +172,18 @@ docs/          product, architecture, requirements, and agent context
 
 ## Product boundary
 
-`pathlens` is a local viewer, not an IDE, not a static-site generator, not a remote file browser, and not a hosted documentation platform. It should remain fast to start, local-first, and safe by default.
+`pathlens` is a local read-only viewer, not an IDE, not a static-site generator, not a Git client, not a remote file browser, not an LLM product, and not a hosted documentation platform. It should remain fast to start, local-first, and safe by default.
+
+## Viewer behavior
+
+- Markdown: rendered document by default, source toggle, document typography, tables, code blocks, callouts, and H1/H2 outline in the inspector.
+- HTML: sandboxed iframe preview by default, source toggle, local asset preview support, and visible script-mode status.
+- Code and JSON: syntax-highlighted read-only code viewer with line numbers, line/range selection, copyable references, copyable selected code with path and line numbers, current-scope hinting, and inspector metadata.
+- Text/log: monospaced read-only viewer with wrap/no-wrap toggle.
+- Images: fit-to-screen and actual-size preview modes with size metadata.
+- Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
+
+Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way.
 
 ## Handing this repository to a coding agent
 

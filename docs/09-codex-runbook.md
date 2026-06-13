@@ -48,6 +48,13 @@ A change is acceptable when all of these are true:
 7. Code highlighting and Markdown polish.
 8. Performance improvements.
 
+## Current polish pass notes
+
+- Preserve the read-only boundary: do not add file editing, Git actions, remote browsing, auth, cloud sync, or LLM features.
+- Code viewer behavior now includes line numbers, range selection, copyable references, selected-code copy, lightweight symbols, and current-scope hints.
+- The review queue is based on live filesystem events. Treat rename as add/remove unless the watcher contract is intentionally extended.
+- UI tests currently combine pure helper tests and render-to-static-markup tests; E2E tests cover server/API/SSE contracts.
+
 ## Reporting format for agents
 
 At the end of a run, report:

@@ -21,6 +21,8 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 3. Inspect source files with syntax highlighting.
 4. Watch a directory tree update during build or generation workflows.
 5. Open a file from the sidebar and keep the sidebar selection state stable across content updates.
+6. Select code lines or ranges and copy stable local references while staying in read-only mode.
+7. Review recent filesystem changes from a compact queue without adding Git or IDE workflows.
 
 ## Evaluation criteria
 
@@ -31,13 +33,24 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 - Stability: file event storms do not crash the server or UI.
 - Agent usability: tests/evals make the next correct implementation step obvious.
 
+## Current completed behaviors
+
+- Classic workspace layout with live tree, tabs, main viewer, right inspector, command palette, and status bar.
+- Markdown rendered/source views with H1/H2 outline.
+- Sandboxed HTML preview/source views with script mode visible.
+- Code Viewer Pro: syntax highlighting, line numbers, line/range selection, copy reference, copy selected code with path and line numbers, current-scope hinting, and code metadata/symbols in the inspector.
+- Text/log wrap controls, image fit/actual modes, and formatted JSON previews.
+- SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
+- Fixture eval coverage for mixed file opening and code references.
+
 ## Deferred extensions
 
 - Virtualized tree for very large workspaces.
 - Text diff patching for very large open files.
 - Mermaid support in Markdown.
 - Fuzzy file picker.
-- Git status badges.
+- First-class rename events beyond add/remove watcher semantics.
+- Lightweight before/after text diffs in the review queue.
 - Multi-pane viewing.
 - Pluggable viewer registry.
 

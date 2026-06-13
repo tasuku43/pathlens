@@ -46,6 +46,8 @@ Exercise the real CLI/server path:
 
 Fixture-driven evals encode product acceptance scenarios. They should be human-readable JSON files under `evals/cases/`.
 
+Current eval coverage includes the mixed sample workspace tree, default ignored directories, viewer kind dispatch, opening representative Markdown/HTML/code/text/image/JSON files through the filesystem adapter, and code line-reference formatting.
+
 ## Fixture addition process
 
 1. Add or update files under `test/fixtures/`.
@@ -69,6 +71,8 @@ A failure is a regression when:
 - safety checks are weaker,
 - public API shapes changed without docs/tests,
 - eval fixtures no longer pass.
+
+For UI-heavy behavior that is not yet covered by a browser automation harness, prefer pure state/helper tests and render-to-static-markup tests. Add E2E server coverage for contracts such as SSE event delivery and HTML sandbox headers.
 
 A failure may be an intentional contract change only when:
 

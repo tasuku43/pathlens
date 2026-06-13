@@ -17,6 +17,10 @@ A build is acceptable when a user can:
 9. Open Cmd/Ctrl + K and fuzzy-select a file.
 10. Save the active file externally and see the active viewer update without a full page reload.
 11. Add or remove a file externally and see the tree update.
+12. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
+13. Open recent changed files from a compact review queue.
+14. Toggle Markdown and HTML between rendered/preview and source modes.
+15. Keep image, text/log, and structured file previews readable without implying editing.
 
 ## Evaluation function
 
@@ -41,5 +45,8 @@ Add or update tests for:
 - SSE change event reloading the active file,
 - add/unlink event updating the tree,
 - HTML preview route preserving sandbox defaults.
+- code viewer line numbers, line selection, copy-reference formatting, and code inspector metadata.
+- recent review queue event rendering and SSE event transport.
+- JSON/structured formatting and text wrap behavior where feasible.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.

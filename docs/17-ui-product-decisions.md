@@ -68,6 +68,21 @@ The main viewer should dispatch by viewer kind:
 
 The active viewer should update without a full page refresh when the open file changes on disk.
 
+### Code Viewer Pro
+
+Code is treated as a read-only inspection surface, not an editor. The code viewer should provide:
+
+- stable line numbers,
+- click and shift-click line/range selection,
+- copyable `path:start-end` references,
+- copyable selected code with path and line numbers,
+- syntax highlighting,
+- a sticky current-scope hint using lightweight local detection,
+- subtle refreshed/changed status,
+- code metadata and lightweight symbols in the inspector.
+
+The implementation intentionally avoids editable textareas, project-wide indexing, language servers, and heavyweight parsers.
+
 ## Right inspector and outline
 
 The right inspector is useful for long Markdown files and for making live file state visible without cluttering the main viewer.
@@ -79,6 +94,8 @@ Requirements:
 - The inspector should show file type, path, watch status, and last update information.
 - Recent file events can be shown as a compact diagnostic/status feed.
 - For non-Markdown files, the inspector can show file metadata and related actions instead of an outline.
+- For code files, the inspector shows language, line count, selected range, lightweight symbols, and recent filesystem events.
+- The review queue is a live filesystem review surface, not a Git UI. Rename may appear as add/remove when that is the watcher signal available.
 
 ## Command palette
 

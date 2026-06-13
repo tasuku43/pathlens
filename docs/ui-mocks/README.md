@@ -42,3 +42,5 @@ Early implementation should prioritize:
 4. Right outline for Markdown H1/H2 headings and file metadata.
 5. Cmd/Ctrl + K command palette for file open and actions.
 6. SSE-driven live updates without full page refresh.
+
+The React implementation now adds a more specific code inspection mode on top of this mock direction: line numbers, read-only line range selection, copyable local references, a sticky current-scope hint, and code metadata/symbols in the inspector. The static mock remains the layout reference rather than a complete inventory of newer viewer controls.
