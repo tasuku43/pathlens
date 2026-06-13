@@ -14,6 +14,7 @@ import {
   changeStatusLabel,
   diffStatusLabel,
   mergeReviewChanges,
+  parseUnifiedDiff,
 } from "../src/ui/state/git-review.js";
 import {
   buildPaletteItems,
@@ -276,6 +277,32 @@ it("merges Git working tree changes with live review events", () => {
       content: "diff",
     }),
   ).toBe("HEAD -> working tree");
+});
+
+it("parses unified diff lines for review rendering", () => {
+  expect(
+    parseUnifiedDiff(
+      [
+        "diff --git a/README.md b/README.md",
+        "index 123..456 100644",
+        "--- a/README.md",
+        "+++ b/README.md",
+        "@@ -2,2 +2,2 @@",
+        " context",
+        "-old",
+        "+new",
+      ].join("\n"),
+    ),
+  ).toEqual([
+    { kind: "meta", text: "diff --git a/README.md b/README.md" },
+    { kind: "meta", text: "index 123..456 100644" },
+    { kind: "meta", text: "--- a/README.md" },
+    { kind: "meta", text: "+++ b/README.md" },
+    { kind: "hunk", text: "@@ -2,2 +2,2 @@" },
+    { kind: "context", text: "context", oldLine: 2, newLine: 2 },
+    { kind: "remove", text: "old", oldLine: 3 },
+    { kind: "add", text: "new", newLine: 3 },
+  ]);
 });
 
 it("resolves theme preference from system or explicit choices", () => {

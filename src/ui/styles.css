@@ -1294,12 +1294,47 @@ kbd {
   border-radius: 7px;
   background: var(--code);
   color: var(--text);
-  padding: 10px;
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 11px;
   line-height: 1.55;
+}
+.diff-line {
+  display: grid;
+  grid-template-columns: 34px 34px minmax(0, 1fr);
+  gap: 7px;
+  padding: 1px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 45%, transparent);
+}
+.diff-line code {
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
   white-space: pre;
+}
+.diff-line-no {
+  color: var(--subtle);
+  text-align: right;
+  user-select: none;
+}
+.diff-line.meta code,
+.diff-line.hunk code {
+  color: var(--muted);
+}
+.diff-line.hunk {
+  background: var(--accent-soft);
+}
+.diff-line.add {
+  background: color-mix(in srgb, #9ece6a 14%, transparent);
+}
+.diff-line.remove {
+  background: color-mix(in srgb, #f7768e 14%, transparent);
+}
+.diff-line.add code {
+  color: #9ece6a;
+}
+.diff-line.remove code {
+  color: #f7768e;
 }
 
 @media (max-width: 1040px) {

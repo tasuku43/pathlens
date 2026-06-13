@@ -115,7 +115,7 @@ it("renders code metadata and actionable review events in the inspector", () => 
         status: "available",
         baseLabel: "HEAD",
         compareLabel: "working tree",
-        content: "-old\n+new",
+        content: "@@ -1 +1 @@\n-old\n+new",
       }}
       selectedCodeRange={{ start: 2, end: 2 }}
       activePaneId="main"
@@ -145,7 +145,9 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("start");
   expect(html).toContain("Changed files");
   expect(html).toContain("Git working tree");
-  expect(html).toContain("-old");
+  expect(html).toContain("diff-line remove");
+  expect(html).toContain(">old</code>");
+  expect(html).toContain("diff-line add");
   expect(html).toContain("Compare from");
   expect(html).toContain("HEAD~1");
   expect(html).toContain("Recent events");

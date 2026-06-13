@@ -5,6 +5,7 @@ import { iconForPath } from "../state/file-icons.js";
 import {
   changeStatusLabel,
   diffStatusLabel,
+  parseUnifiedDiff,
   type DiffBaseState,
   type GitChangeReviewState,
   type ReviewChangeItem,
@@ -64,6 +65,10 @@ export function Inspector({
       item.event.type === "change" ||
       (item.event.type === "add" && item.event.kind === "file"),
   );
+  const parsedDiff =
+    activeDiff?.status === "available"
+      ? parseUnifiedDiff(activeDiff.content)
+      : [];
 
   return (
     <aside className="inspector">
@@ -286,12 +291,21 @@ export function Inspector({
             <p className="muted">{activeDiff.reason}</p>
           ) : null}
           {activeDiff?.status === "available" ? (
-            <pre
+            <div
               className="diff-preview"
               aria-label={`Diff for ${activeDiff.path}`}
             >
-              {activeDiff.content}
-            </pre>
+              {parsedDiff.map((line, index) => (
+                <div
+                  className={`diff-line ${line.kind}`}
+                  key={`${line.kind}-${index}-${line.oldLine ?? ""}-${line.newLine ?? ""}`}
+                >
+                  <span className="diff-line-no old">{line.oldLine ?? ""}</span>
+                  <span className="diff-line-no new">{line.newLine ?? ""}</span>
+                  <code>{line.text}</code>
+                </div>
+              ))}
+            </div>
           ) : null}
         </div>
 
