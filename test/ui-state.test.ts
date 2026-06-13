@@ -56,6 +56,7 @@ import {
 } from "../src/ui/state/viewer-mode.js";
 import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
 import {
+  boundedVisibleTreeRows,
   countTreeNodes,
   ensureVisibleAncestors,
   initialExpandedPaths,
@@ -658,6 +659,21 @@ it("limits initial tree expansion while keeping important paths visible", () => 
   expect(
     ensureVisibleAncestors(new Set<string>(), ["reports/deep/summary.html"]),
   ).toEqual(new Set(["reports", "reports/deep"]));
+
+  const bounded = boundedVisibleTreeRows(
+    nodes,
+    new Set(["src", "reports", "reports/deep"]),
+    {
+      maxRows: 5,
+      forceVisiblePaths: ["reports/deep/summary.html"],
+    },
+  );
+
+  expect(bounded.totalVisibleRows).toBe(24);
+  expect(bounded.omittedRows).toBeGreaterThan(0);
+  expect(bounded.rows.map((row) => row.node.path)).toContain(
+    "reports/deep/summary.html",
+  );
 });
 
 it("models source toggles only for rendered viewers", () => {

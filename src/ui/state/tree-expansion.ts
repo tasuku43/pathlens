@@ -5,6 +5,17 @@ export interface TreeExpansionOptions {
   forceVisiblePaths?: Iterable<string>;
 }
 
+export interface VisibleTreeRow {
+  node: FsNode;
+  depth: number;
+}
+
+export interface BoundedVisibleTreeRows {
+  rows: VisibleTreeRow[];
+  totalVisibleRows: number;
+  omittedRows: number;
+}
+
 export function initialExpandedPaths(
   nodes: FsNode[],
   options: TreeExpansionOptions = {},
@@ -66,6 +77,62 @@ export function visibleTreeRows(
     }
   }
   return count;
+}
+
+export function boundedVisibleTreeRows(
+  nodes: FsNode[],
+  expandedPaths: Set<string>,
+  options: {
+    maxRows?: number;
+    forceVisiblePaths?: Iterable<string>;
+  } = {},
+): BoundedVisibleTreeRows {
+  const maxRows = options.maxRows ?? 800;
+  const allRows = flattenVisibleTreeRows(nodes, expandedPaths);
+  const forcedPaths = new Set(options.forceVisiblePaths ?? []);
+  const forcedAncestors = ancestorDirectoryPaths(forcedPaths);
+
+  if (allRows.length <= maxRows) {
+    return {
+      rows: allRows,
+      totalVisibleRows: allRows.length,
+      omittedRows: 0,
+    };
+  }
+
+  const rows = allRows.filter(
+    (row, index) =>
+      index < maxRows ||
+      forcedPaths.has(row.node.path) ||
+      forcedAncestors.has(row.node.path),
+  );
+
+  return {
+    rows,
+    totalVisibleRows: allRows.length,
+    omittedRows: allRows.length - rows.length,
+  };
+}
+
+function flattenVisibleTreeRows(
+  nodes: FsNode[],
+  expandedPaths: Set<string>,
+  depth = 0,
+): VisibleTreeRow[] {
+  const rows: VisibleTreeRow[] = [];
+  for (const node of nodes) {
+    rows.push({ node, depth });
+    if (node.kind === "directory" && expandedPaths.has(node.path)) {
+      rows.push(
+        ...flattenVisibleTreeRows(
+          node.children ?? [],
+          expandedPaths,
+          depth + 1,
+        ),
+      );
+    }
+  }
+  return rows;
 }
 
 function ancestorDirectoryPaths(paths: Iterable<string>): Set<string> {

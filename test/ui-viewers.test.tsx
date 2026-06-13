@@ -181,6 +181,14 @@ it("renders CSV files as a bounded review table", () => {
 });
 
 it("renders a bounded tree with a large-workspace hint", () => {
+  const largeChildren = Array.from({ length: 1000 }, (_, index) => ({
+    id: `src/file-${index}.ts`,
+    path: `src/file-${index}.ts`,
+    name: `file-${index}.ts`,
+    kind: "file" as const,
+    parentPath: "src",
+    viewerKind: "code" as const,
+  }));
   const html = renderToStaticMarkup(
     <TreeSidebar
       nodes={[
@@ -190,23 +198,17 @@ it("renders a bounded tree with a large-workspace hint", () => {
           name: "src",
           kind: "directory",
           parentPath: null,
-          children: Array.from({ length: 400 }, (_, index) => ({
-            id: `src/file-${index}.ts`,
-            path: `src/file-${index}.ts`,
-            name: `file-${index}.ts`,
-            kind: "file" as const,
-            parentPath: "src",
-            viewerKind: "code" as const,
-          })),
+          children: largeChildren,
         },
       ]}
-      selectedPath={null}
+      selectedPath="src/file-999.ts"
       onSelect={() => undefined}
     />,
   );
 
-  expect(html).toContain("Showing 1 of 401 rows");
-  expect(html).toContain("Expand folders as needed");
+  expect(html).toContain("Rendering 801 of 1001 visible rows");
+  expect(html).toContain("file-999.ts");
+  expect(html).not.toContain("file-998.ts");
 });
 
 it("renders simple Mermaid flowcharts without script execution", () => {

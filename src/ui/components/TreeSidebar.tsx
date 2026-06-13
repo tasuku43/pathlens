@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
 import { iconForPath } from "../state/file-icons.js";
 import {
+  boundedVisibleTreeRows,
   countTreeNodes,
   ensureVisibleAncestors,
   initialExpandedPaths,
-  visibleTreeRows,
 } from "../state/tree-expansion.js";
 
 interface Props {
@@ -41,27 +41,39 @@ export function TreeSidebar({
   }, [forceVisiblePaths, nodes]);
 
   const totalRows = useMemo(() => countTreeNodes(nodes), [nodes]);
-  const visibleRows = useMemo(
-    () => visibleTreeRows(nodes, expandedPaths),
-    [expandedPaths, nodes],
+  const boundedRows = useMemo(
+    () =>
+      boundedVisibleTreeRows(nodes, expandedPaths, {
+        forceVisiblePaths,
+      }),
+    [expandedPaths, forceVisiblePaths, nodes],
   );
 
   return (
     <>
-      {totalRows > visibleRows ? (
+      {totalRows > boundedRows.totalVisibleRows ? (
         <div className="tree-perf-note">
-          Showing {visibleRows} of {totalRows} rows. Expand folders as needed.
+          Showing {boundedRows.totalVisibleRows} of {totalRows} rows. Expand
+          folders as needed.
+        </div>
+      ) : null}
+      {boundedRows.omittedRows > 0 ? (
+        <div className="tree-perf-note">
+          Rendering {boundedRows.rows.length} of {boundedRows.totalVisibleRows}{" "}
+          visible rows. Narrow with changed-only view or collapse a folder to
+          see more.
         </div>
       ) : null}
       <div className="tree">
-        {nodes.map((node) => (
-          <TreeNode
-            key={node.path}
+        {boundedRows.rows.map(({ node, depth }) => (
+          <TreeRow
+            depth={depth}
+            expanded={node.kind === "directory" && expandedPaths.has(node.path)}
+            key={`${node.path}:${depth}`}
             node={node}
             selectedPath={selectedPath}
             changedPaths={changedPaths}
             removedPaths={removedPaths}
-            expandedPaths={expandedPaths}
             onToggleDirectory={(path) =>
               setExpandedPaths((current) => togglePath(current, path))
             }
@@ -73,52 +85,38 @@ export function TreeSidebar({
   );
 }
 
-function TreeNode({
+function TreeRow({
   node,
+  depth,
+  expanded,
   selectedPath,
   changedPaths,
   removedPaths,
-  expandedPaths,
   onToggleDirectory,
   onSelect,
 }: {
   node: FsNode;
+  depth: number;
+  expanded: boolean;
   selectedPath: string | null;
   changedPaths: Set<string>;
   removedPaths: Set<string>;
-  expandedPaths: Set<string>;
   onToggleDirectory: (path: string) => void;
   onSelect: (path: string) => void;
 }) {
+  const indent = { paddingLeft: `${8 + depth * 14}px` };
   if (node.kind === "directory") {
-    const expanded = expandedPaths.has(node.path);
     return (
-      <div className="tree-node">
-        <button
-          className="tree-row dir"
-          onClick={() => onToggleDirectory(node.path)}
-        >
-          <span className="tree-twisty">{expanded ? "▾" : "▸"}</span>
-          <span className="file-icon">📁</span>
-          <span>{node.name}</span>
-        </button>
-        {expanded && (
-          <div className="tree-children">
-            {node.children?.map((child) => (
-              <TreeNode
-                key={child.path}
-                node={child}
-                selectedPath={selectedPath}
-                changedPaths={changedPaths}
-                removedPaths={removedPaths}
-                expandedPaths={expandedPaths}
-                onToggleDirectory={onToggleDirectory}
-                onSelect={onSelect}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        className="tree-row dir"
+        data-tree-path={node.path}
+        onClick={() => onToggleDirectory(node.path)}
+        style={indent}
+      >
+        <span className="tree-twisty">{expanded ? "▾" : "▸"}</span>
+        <span className="file-icon">📁</span>
+        <span>{node.name}</span>
+      </button>
     );
   }
   return (
@@ -133,6 +131,7 @@ function TreeNode({
         .filter(Boolean)
         .join(" ")}
       onClick={() => onSelect(node.path)}
+      style={indent}
     >
       <span className="tree-twisty" />
       <span className="file-icon">

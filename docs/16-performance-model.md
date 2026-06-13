@@ -17,12 +17,13 @@ Use watcher events as the primary signal. Use hashes and versions as validation 
 - Refetch the tree on add/remove events.
 - Preserve selected and expanded state in the UI.
 - Bound initial sidebar expansion so large trees do not mount every descendant on first render.
-- Keep ancestors of selected and changed files expanded so review targets remain reachable even when the rest of a large tree is collapsed.
+- Cap rendered visible sidebar rows after large folders are expanded, while keeping selected and changed paths plus their ancestors rendered.
+- Keep ancestors of selected and changed files expanded so review targets remain reachable even when the rest of a large tree is collapsed or omitted from the current render window.
 
 ## Future behavior
 
 - Normalize tree state by path.
 - Apply semantic tree events.
-- Virtualize visible tree rows.
+- Replace the bounded visible-row cap with smooth virtualization for very large trees.
 - Add large-file partial loading.
 - Add text diff patching only where profiling shows it matters.
