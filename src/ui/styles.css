@@ -349,7 +349,6 @@ input {
 }
 
 .empty-viewer,
-.markdown,
 .unsupported {
   max-width: 860px;
   margin: 0 auto;
@@ -360,15 +359,8 @@ input {
   margin: 0;
 }
 .markdown {
-  width: min(100%, 790px);
-  max-width: 790px;
-  padding: 44px 58px 56px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, var(--panel), var(--panel) 78%, var(--panel-2)),
-    var(--panel);
-  box-shadow: 0 22px 70px var(--shadow);
+  width: 100%;
+  margin: 0;
   color: var(--text);
   line-height: 1.78;
 }
@@ -388,7 +380,6 @@ input {
   scroll-margin-top: 72px;
 }
 .markdown h1 {
-  max-width: 720px;
   margin: 0 0 18px;
   padding-bottom: 18px;
   border-bottom: 1px solid var(--line);
@@ -772,9 +763,6 @@ kbd {
   .inspector {
     display: none;
   }
-  .markdown {
-    padding: 32px 34px 42px;
-  }
   .markdown h1 {
     font-size: 34px;
   }
@@ -783,9 +771,6 @@ kbd {
 @media (max-width: 720px) {
   .viewer-pane {
     padding: 14px;
-  }
-  .markdown {
-    padding: 24px 20px 32px;
   }
   .markdown h1 {
     font-size: 30px;
