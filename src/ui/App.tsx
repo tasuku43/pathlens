@@ -18,6 +18,7 @@ import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
 import type { LineRange } from "./state/code-viewer.js";
+import type { CommandActionId } from "./state/command-actions.js";
 import {
   recordReviewEvent,
   summarizeReviewEvents,
@@ -40,6 +41,7 @@ import {
   type SplitDirection,
   type SplitEdge,
 } from "./state/editor-layout.js";
+import { filterTreeToPaths, reviewArtifactResults } from "./state/files.js";
 import {
   isThemePreference,
   nextThemePreference,
@@ -61,6 +63,13 @@ import {
   type RecentFile,
   type StoredWorkspaceSessionV1,
 } from "./state/workspace-session.js";
+import {
+  defaultViewerMode,
+  modeLabel,
+  nextViewerMode,
+  supportsSourceToggle,
+  type ViewerMode,
+} from "./state/viewer-mode.js";
 
 export function App() {
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
@@ -68,8 +77,12 @@ export function App() {
   const [layout, setLayout] = useState(initialEditorLayout);
   const [files, setFiles] = useState<Record<string, FilePayload>>({});
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
+  const [closedTabs, setClosedTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
+    {},
+  );
   const [codeSelections, setCodeSelections] = useState<
     Record<string, LineRange | null>
   >({});
@@ -90,6 +103,8 @@ export function App() {
   );
   const [systemTheme, setSystemTheme] =
     useState<ResolvedTheme>(readSystemTheme);
+  const [inspectorVisible, setInspectorVisible] = useState(true);
+  const [treeChangedOnly, setTreeChangedOnly] = useState(false);
   const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +133,20 @@ export function App() {
     () => summarizeReviewEvents(recentEvents),
     [recentEvents],
   );
+  const sidebarNodes = useMemo(
+    () =>
+      treeChangedOnly && tree
+        ? filterTreeToPaths(tree.nodes, reviewState.changedPaths)
+        : (tree?.nodes ?? []),
+    [reviewState.changedPaths, tree, treeChangedOnly],
+  );
+  const reviewTargets = useMemo(
+    () => reviewArtifactResults(tree?.nodes ?? []),
+    [tree],
+  );
+  const activeViewerMode = file
+    ? (viewerModes[file.path] ?? defaultViewerMode(file))
+    : undefined;
 
   async function fetchFilePayload(path: string): Promise<FilePayload> {
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
@@ -154,6 +183,20 @@ export function App() {
   }
 
   function closeTab(path: string, paneId = layout.activePaneId) {
+    const closed = openTabs.find(
+      (tab) => tab.path === path && tab.paneId === paneId,
+    );
+    if (closed) {
+      setClosedTabs((tabs) =>
+        [
+          closed,
+          ...tabs.filter(
+            (tab) =>
+              !(tab.path === closed.path && tab.paneId === closed.paneId),
+          ),
+        ].slice(0, 12),
+      );
+    }
     setOpenTabs((tabs) => {
       const pane = panes.find((item) => item.id === paneId);
       const result = closeOpenTab(tabs, path, pane?.activePath ?? null, paneId);
@@ -184,6 +227,94 @@ export function App() {
     for (const path of reviewState.changedPaths) {
       void loadFile(path).catch((err) => setError(String(err)));
     }
+  }
+
+  function openFirstChangedFile() {
+    const firstRecentChanged = recentEvents.find(
+      (item) =>
+        (item.event.type === "change" ||
+          (item.event.type === "add" && item.event.kind === "file")) &&
+        reviewState.changedPaths.has(item.event.path),
+    )?.event.path;
+    const path = firstRecentChanged ?? [...reviewState.changedPaths][0];
+    if (path) void loadFile(path).catch((err) => setError(String(err)));
+  }
+
+  function openFirstRecentFile() {
+    const path = recentFiles[0]?.path;
+    if (path) void loadFile(path).catch((err) => setError(String(err)));
+  }
+
+  function reopenLastClosedTab() {
+    const tab = closedTabs[0];
+    if (!tab) return;
+    setClosedTabs((tabs) => tabs.slice(1));
+    void loadFile(tab.path, tab.paneId).catch((err) => setError(String(err)));
+  }
+
+  function toggleActiveViewerMode() {
+    const next = nextViewerMode(file, activeViewerMode);
+    if (!file || !next) return;
+    setViewerModes((items) => ({ ...items, [file.path]: next }));
+  }
+
+  function revealActiveInTree() {
+    if (!selectedPath) return;
+    setTreeChangedOnly(false);
+    window.setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(
+        `[data-tree-path="${cssEscape(selectedPath)}"]`,
+      );
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      row?.focus();
+    }, 0);
+  }
+
+  function focusOutline() {
+    const outlineLink = document.querySelector<HTMLElement>(".outline a");
+    outlineLink?.focus();
+  }
+
+  async function copyActiveLocalUrl() {
+    if (!selectedPath) return;
+    await copyToClipboard(localUrlForPath(selectedPath));
+  }
+
+  async function exportCurrentContext() {
+    const context = [
+      `root: ${config?.root ?? "unknown"}`,
+      `active: ${selectedPath ?? "none"}`,
+      `tabs: ${openTabs.map((tab) => `${tab.paneId}:${tab.path}`).join(", ") || "none"}`,
+      `recent events: ${
+        recentEvents
+          .slice(0, 8)
+          .map((item) => `${item.event.type}:${item.event.path}`)
+          .join(", ") || "none"
+      }`,
+    ].join("\n");
+    await copyToClipboard(context);
+  }
+
+  function runCommandAction(id: CommandActionId) {
+    if (id === "open-changed-file") openFirstChangedFile();
+    else if (id === "reveal-in-tree") revealActiveInTree();
+    else if (id === "toggle-source-rendered") toggleActiveViewerMode();
+    else if (id === "copy-local-url")
+      void copyActiveLocalUrl().catch((err) => setError(String(err)));
+    else if (id === "focus-outline") focusOutline();
+    else if (id === "toggle-inspector")
+      setInspectorVisible((visible) => !visible);
+    else if (id === "split-right" && selectedPath)
+      splitTab(selectedPath, layout.activePaneId, layout.activePaneId, "right");
+    else if (id === "close-tab" && selectedPath)
+      closeTab(selectedPath, layout.activePaneId);
+    else if (id === "reopen-last-closed-tab") reopenLastClosedTab();
+    else if (id === "open-recent-file") openFirstRecentFile();
+    else if (id === "show-keyboard-shortcuts") setPaletteQuery("");
+    else if (id === "export-current-context")
+      void exportCurrentContext().catch((err) => setError(String(err)));
+
+    if (id !== "show-keyboard-shortcuts") setPaletteOpen(false);
   }
 
   function moveTab(
@@ -229,6 +360,106 @@ export function App() {
     if (file.viewerKind !== "markdown") return [];
     return extractMarkdownOutline(file.content);
   }, [file]);
+
+  const commandActions = useMemo(
+    () => [
+      {
+        id: "open-changed-file" as const,
+        label: "Open changed file",
+        detail: `${reviewState.changedPaths.size} changed files`,
+        keywords: ["review", "changed", "recent", "open"],
+        disabled: reviewState.changedPaths.size === 0,
+      },
+      {
+        id: "reveal-in-tree" as const,
+        label: "Reveal in tree",
+        detail: selectedPath ?? "No active file",
+        keywords: ["tree", "sidebar", "show"],
+        disabled: !selectedPath,
+      },
+      {
+        id: "toggle-source-rendered" as const,
+        label: "Toggle source/rendered",
+        detail:
+          file && supportsSourceToggle(file)
+            ? `Current: ${modeLabel(activeViewerMode ?? defaultViewerMode(file))}`
+            : "Markdown and HTML only",
+        keywords: ["source", "rendered", "preview", "mode"],
+        disabled: !supportsSourceToggle(file),
+      },
+      {
+        id: "copy-local-url" as const,
+        label: "Copy local URL",
+        detail: selectedPath ?? "No active file",
+        keywords: ["copy", "url", "link"],
+        disabled: !selectedPath,
+      },
+      {
+        id: "focus-outline" as const,
+        label: "Focus outline",
+        detail: outline.length ? `${outline.length} headings` : "No outline",
+        keywords: ["outline", "headings", "inspector"],
+        disabled: outline.length === 0 || !inspectorVisible,
+      },
+      {
+        id: "toggle-inspector" as const,
+        label: inspectorVisible ? "Hide inspector" : "Show inspector",
+        detail: "Toggle right inspector",
+        keywords: ["inspector", "right", "metadata"],
+      },
+      {
+        id: "split-right" as const,
+        label: "Split right",
+        detail: selectedPath ?? "No active file",
+        keywords: ["split", "pane", "compare"],
+        disabled: !selectedPath,
+      },
+      {
+        id: "close-tab" as const,
+        label: "Close tab",
+        detail: selectedPath ?? "No active tab",
+        keywords: ["close", "tab"],
+        disabled: !selectedPath,
+      },
+      {
+        id: "reopen-last-closed-tab" as const,
+        label: "Reopen last closed tab",
+        detail: closedTabs[0]?.path ?? "No closed tab",
+        keywords: ["reopen", "closed", "tab"],
+        disabled: closedTabs.length === 0,
+      },
+      {
+        id: "open-recent-file" as const,
+        label: "Open recent file",
+        detail: recentFiles[0]?.path ?? "No recent file",
+        keywords: ["recent", "history", "open"],
+        disabled: recentFiles.length === 0,
+      },
+      {
+        id: "show-keyboard-shortcuts" as const,
+        label: "Show keyboard shortcuts",
+        detail: "Cmd/Ctrl K, Enter, Esc, line selection",
+        keywords: ["keyboard", "shortcuts", "help"],
+      },
+      {
+        id: "export-current-context" as const,
+        label: "Export current context",
+        detail: "Copy root, active file, tabs, and recent events",
+        keywords: ["copy", "context", "export", "review"],
+      },
+    ],
+    [
+      activeViewerMode,
+      closedTabs,
+      file,
+      inspectorVisible,
+      outline.length,
+      recentEvents,
+      recentFiles,
+      reviewState.changedPaths,
+      selectedPath,
+    ],
+  );
 
   function jumpToOutline(id: string) {
     const pane = document.querySelector<HTMLElement>(
@@ -293,6 +524,7 @@ export function App() {
       setOpenTabs(restored.openTabs);
       setLayout(restored.layout);
       setRecentFiles(restored.recentFiles);
+      setInspectorVisible(restored.inspectorVisible);
       void hydrateRestoredFiles(restored.layout.root).catch((err) =>
         setError(String(err)),
       );
@@ -308,9 +540,17 @@ export function App() {
         openTabs,
         layout,
         recentFiles,
+        inspectorVisible,
       }),
     );
-  }, [config, workspaceSessionReady, openTabs, layout, recentFiles]);
+  }, [
+    config,
+    workspaceSessionReady,
+    openTabs,
+    layout,
+    recentFiles,
+    inspectorVisible,
+  ]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: light)");
@@ -401,15 +641,25 @@ export function App() {
         </button>
       </header>
 
-      <div className="workbench">
+      <div
+        className={
+          inspectorVisible ? "workbench" : "workbench inspector-hidden"
+        }
+      >
         <aside className="sidebar">
           <div className="panel-title">
             <span>Explorer</span>
-            <span className="pill">live</span>
+            <button
+              className={treeChangedOnly ? "pill active" : "pill"}
+              type="button"
+              onClick={() => setTreeChangedOnly((value) => !value)}
+            >
+              {treeChangedOnly ? "changed" : "live"}
+            </button>
           </div>
           {tree ? (
             <TreeSidebar
-              nodes={tree.nodes}
+              nodes={sidebarNodes}
               selectedPath={selectedPath}
               changedPaths={reviewState.changedPaths}
               removedPaths={reviewState.removedPaths}
@@ -428,23 +678,26 @@ export function App() {
           </div>
         </main>
 
-        <Inspector
-          file={file}
-          outline={outline}
-          events={recentEvents}
-          selectedCodeRange={
-            file?.path ? (codeSelections[file.path] ?? null) : null
-          }
-          refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
-          activePaneId={layout.activePaneId}
-          onOutlineSelect={jumpToOutline}
-          onOpenEventPath={(path) =>
-            void loadFile(path).catch((err) => setError(String(err)))
-          }
-          onOpenAllChanged={openAllChangedFiles}
-          onTargetHoverChange={setInspectorTargetVisible}
-          onRevealTarget={revealInspectorTarget}
-        />
+        {inspectorVisible ? (
+          <Inspector
+            file={file}
+            outline={outline}
+            events={recentEvents}
+            reviewTargets={reviewTargets}
+            selectedCodeRange={
+              file?.path ? (codeSelections[file.path] ?? null) : null
+            }
+            refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
+            activePaneId={layout.activePaneId}
+            onOutlineSelect={jumpToOutline}
+            onOpenEventPath={(path) =>
+              void loadFile(path).catch((err) => setError(String(err)))
+            }
+            onOpenAllChanged={openAllChangedFiles}
+            onTargetHoverChange={setInspectorTargetVisible}
+            onRevealTarget={revealInspectorTarget}
+          />
+        ) : null}
       </div>
 
       <footer className="statusbar">
@@ -459,9 +712,11 @@ export function App() {
         open={paletteOpen}
         query={paletteQuery}
         nodes={tree?.nodes ?? []}
+        actions={commandActions}
         onQueryChange={setPaletteQuery}
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
+        onRunAction={runCommandAction}
       />
     </div>
   );
@@ -528,6 +783,11 @@ export function App() {
               selectedCodeRange={
                 paneFile?.path ? (codeSelections[paneFile.path] ?? null) : null
               }
+              viewerMode={
+                paneFile
+                  ? (viewerModes[paneFile.path] ?? defaultViewerMode(paneFile))
+                  : undefined
+              }
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
@@ -536,6 +796,13 @@ export function App() {
                 setCodeSelections((items) => ({
                   ...items,
                   [paneFile.path]: range,
+                }));
+              }}
+              onViewerModeChange={(mode) => {
+                if (!paneFile?.path) return;
+                setViewerModes((items) => ({
+                  ...items,
+                  [paneFile.path]: mode,
                 }));
               }}
             />
@@ -657,4 +924,21 @@ function readSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: light)").matches
     ? "light"
     : "dark";
+}
+
+function localUrlForPath(path: string): string {
+  const encoded = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return new URL(`/preview/raw/${encoded}`, window.location.href).toString();
+}
+
+async function copyToClipboard(value: string): Promise<void> {
+  await navigator.clipboard.writeText(value);
+}
+
+function cssEscape(value: string): string {
+  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
+  return value.replace(/["\\]/g, "\\$&");
 }

@@ -37,7 +37,7 @@ export class NodeFileSystem implements FileSystemPort {
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
     this.includeExtensions = options.includeExtensions;
     this.maxFileSizeBytes = options.maxFileSizeBytes ?? 1024 * 1024;
-    this.allowHtmlScripts = options.allowHtmlScripts ?? true;
+    this.allowHtmlScripts = options.allowHtmlScripts ?? false;
     this.version = options.version ?? 1;
   }
 
@@ -181,7 +181,11 @@ function mimeTypeFor(
   if (viewerKind === "markdown") return "text/markdown; charset=utf-8";
   if (viewerKind === "html") return "text/html; charset=utf-8";
   if (viewerKind === "json") return "application/json; charset=utf-8";
-  if (viewerKind === "code" || viewerKind === "text")
+  if (
+    viewerKind === "code" ||
+    viewerKind === "text" ||
+    viewerKind === "mermaid"
+  )
     return "text/plain; charset=utf-8";
   if (extension === ".png") return "image/png";
   if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";

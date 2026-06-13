@@ -77,6 +77,7 @@ function TreeNode({
   }
   return (
     <button
+      data-tree-path={node.path}
       className={[
         "tree-row file",
         node.path === selectedPath ? "selected" : "",

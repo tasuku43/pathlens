@@ -2,7 +2,7 @@
 
 A live local viewer for Markdown, HTML, code, and assets.
 
-`pathlens` is a CLI-launched local web app. It serves a selected directory, opens a browser-based SPA, renders a live file tree in the sidebar, and previews Markdown, HTML, source code, plain text, images, and structured files in the main pane.
+`pathlens` is a CLI-launched local web app for reviewing local files and generated artifacts. It serves a selected directory, opens a browser-based SPA, renders a live file tree in the sidebar, and previews Markdown, HTML, source code, plain text, images, JSON, CSV/TSV, SVG, Mermaid, logs, and other structured files in the main pane.
 
 ## Why this exists
 
@@ -15,7 +15,7 @@ pathlens .
 pathlens ./docs
 pathlens ./dist --open
 pathlens . --include md,html,ts,tsx,json,css,png,jpg
-pathlens . --no-html-scripts
+pathlens . --allow-html-scripts
 ```
 
 Expected user experience:
@@ -24,14 +24,19 @@ Expected user experience:
 2. A local server starts on localhost.
 3. The browser SPA shows a sidebar tree and main viewer.
 4. Markdown renders as a polished document by default, with a source toggle.
-5. HTML renders in a sandboxed iframe with local CSS and scripts enabled by default, with a source toggle and clear script status.
+5. HTML renders in a sandboxed iframe with local CSS enabled and scripts disabled by default, with a source toggle and clear script status.
 6. Code renders in a read-only inspection view with syntax highlighting, stable line numbers, line-range selection, copyable line references, and lightweight symbols in the inspector.
 7. Text/log files use a readable monospace viewer with wrapping controls.
 8. Images preview with fit-to-screen and actual-size modes.
-9. JSON and structured text use safe formatted/readable code-style previews.
+9. JSON uses an expandable tree/source viewer; CSV/TSV uses a table/source viewer; Mermaid uses a lightweight safe preview/source viewer.
 10. File changes update the currently open viewer without a full page reload and mark inactive tabs as changed.
 11. File additions, deletions, and rename-like add/remove pairs update the sidebar tree dynamically.
-12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly.
+12. Recent filesystem events appear in a compact review queue so changed files can be opened quickly, and the tree can be filtered to changed files only.
+13. Generated-review targets under directories such as `dist/`, `build/`, `reports/`, `coverage/`, `screenshots/`, and `docs/` are surfaced in the inspector.
+
+## What pathlens is not
+
+`pathlens` is not an IDE, editor, Git staging tool, remote file browser, cloud sync service, static-site generator, hosted documentation platform, or LLM product. It focuses on reading, comparing, checking, and following local output as it changes.
 
 ## Run With Docker
 
@@ -51,6 +56,8 @@ http://127.0.0.1:4317
 ```
 
 The Docker image defaults to serving `/workspace` and binding `0.0.0.0` inside the container so the published port works from the host. The CLI default outside Docker remains `127.0.0.1`.
+
+Because the mount is read-only, pathlens can still restore browser UI state: open tabs, split panes, recent files, and inspector visibility are stored in browser `localStorage`, scoped by the absolute served root and pruned after 30 days. File contents are never stored in the session.
 
 ### Build The Docker Image Locally
 
@@ -99,6 +106,24 @@ npm install
 npm run build
 node dist/cli/main.js . --open
 ```
+
+### HTML script safety
+
+HTML preview is sandboxed and script execution is disabled by default. Local CSS and images can still load through pathlens preview routes so generated reports remain useful. When a generated artifact genuinely needs JavaScript, opt in explicitly:
+
+```bash
+pathlens ./dist --open --allow-html-scripts
+```
+
+When scripts are allowed, the UI shows `scripts on` in the HTML toolbar and the preview CSP permits inline scripts inside the sandboxed iframe. Only use this for local artifacts you trust.
+
+## Keyboard Flow
+
+- `Cmd/Ctrl+K`: open the command palette.
+- `Enter`: open the selected file or run the selected command.
+- `Esc`: close the palette.
+- Palette commands include open changed file, reveal in tree, toggle source/rendered, copy local URL, focus outline, toggle inspector, split right, close tab, reopen last closed tab, open recent file, show keyboard shortcuts, and export current context.
+- In code viewers, click a line number to select a line; shift-click extends the selected range.
 
 ## Release Images
 
@@ -177,13 +202,27 @@ docs/          product, architecture, requirements, and agent context
 ## Viewer behavior
 
 - Markdown: rendered document by default, source toggle, document typography, tables, code blocks, callouts, and H1/H2 outline in the inspector.
-- HTML: sandboxed iframe preview by default, source toggle, local asset preview support, and visible script-mode status.
-- Code and JSON: syntax-highlighted read-only code viewer with line numbers, line/range selection, copyable references, copyable selected code with path and line numbers, current-scope hinting, and inspector metadata.
+- HTML: sandboxed iframe preview by default, source toggle, local asset preview support, scripts disabled unless explicitly allowed, and visible script-mode status.
+- Code: syntax-highlighted read-only code viewer with line numbers, line/range selection, copyable references, copyable selected code with path and line numbers, current-scope hinting, and inspector metadata.
+- JSON: expandable tree/source viewer.
+- CSV/TSV: bounded table/source viewer for local reports and exports.
+- Mermaid: lightweight safe preview/source viewer for simple flowchart files.
 - Text/log: monospaced read-only viewer with wrap/no-wrap toggle.
-- Images: fit-to-screen and actual-size preview modes with size metadata.
+- Images/SVG: fit-to-screen and actual-size preview modes with size metadata; SVG renders as an image so scripts stay inactive.
 - Large or unsupported files: safe fallback that explains why a richer preview is unavailable.
 
 Recent filesystem events are shown as a compact review queue. Change events refresh the active file and mark inactive tabs/changed tree rows; add/remove events refresh the tree. Rename is currently represented by watcher add/remove semantics when the underlying platform reports it that way.
+
+## Adding a Viewer
+
+Viewer selection starts in `src/domain/viewer-kind.ts`. Add or adjust an extension there, then implement a browser-only component under `src/ui/viewers/` and dispatch it from `src/ui/components/FileViewer.tsx`. Keep filesystem reads in `src/infra`, keep viewer logic read-only, add at least one focused test, and update eval fixtures when the viewer changes product coverage.
+
+## Known Limitations
+
+- The Mermaid preview intentionally supports only simple flowchart arrows; source mode remains the fallback.
+- The review queue is based on filesystem watcher events, not a full Git history browser.
+- Large files are capped by the preview size limit and shown with a safe explanation.
+- Tree virtualization and rich text diffs are deferred.
 
 ## Handing this repository to a coding agent
 

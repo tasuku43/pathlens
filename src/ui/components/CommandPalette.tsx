@@ -1,31 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FsNode } from "../../domain/fs-node.js";
+import type {
+  CommandAction,
+  CommandActionId,
+  PaletteItem,
+} from "../state/command-actions.js";
+import { buildPaletteItems } from "../state/command-actions.js";
 import {
   clampPaletteSelection,
   movePaletteSelection,
 } from "../state/command-palette.js";
 import { iconForPath } from "../state/file-icons.js";
-import { fuzzyFileResults } from "../state/files.js";
 
 interface Props {
   open: boolean;
   query: string;
   nodes: FsNode[];
+  actions: CommandAction[];
   onQueryChange: (query: string) => void;
   onClose: () => void;
   onOpenPath: (path: string) => void;
+  onRunAction: (id: CommandActionId) => void;
 }
 
 export function CommandPalette({
   open,
   query,
   nodes,
+  actions,
   onQueryChange,
   onClose,
   onOpenPath,
+  onRunAction,
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const results = useMemo(() => fuzzyFileResults(nodes, query), [nodes, query]);
+  const results = useMemo(
+    () => buildPaletteItems(nodes, actions, query, 12),
+    [nodes, actions, query],
+  );
   const activeIndex = clampPaletteSelection(selectedIndex, results.length);
 
   useEffect(() => {
@@ -72,17 +84,18 @@ export function CommandPalette({
                 return;
               }
               if (event.key === "Enter" && activeIndex >= 0) {
-                onOpenPath(results[activeIndex].path);
+                runItem(results[activeIndex], onOpenPath, onRunAction);
               }
             }}
           />
         </div>
         <div className="palette-body">
           <div className="palette-results" role="listbox">
-            {results.map((file, index) => (
+            {results.map((item, index) => (
               <button
+                disabled={item.kind === "action" && item.disabled}
                 id={`palette-result-${index}`}
-                key={file.path}
+                key={item.id}
                 role="option"
                 className={
                   index === activeIndex
@@ -90,17 +103,21 @@ export function CommandPalette({
                     : "palette-result"
                 }
                 aria-selected={index === activeIndex}
-                onClick={() => onOpenPath(file.path)}
+                onClick={() => runItem(item, onOpenPath, onRunAction)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
                 <span className="file-icon">
-                  {iconForPath(file.path, file.viewerKind)}
+                  {item.kind === "file"
+                    ? iconForPath(item.path, item.viewerKind)
+                    : "CMD"}
                 </span>
                 <span>
-                  <strong>{file.path}</strong>
-                  <small>{file.viewerKind ?? "file"}</small>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
                 </span>
-                <span className="palette-type">Open</span>
+                <span className="palette-type">
+                  {item.kind === "file" ? "Open" : "Run"}
+                </span>
               </button>
             ))}
             {!results.length && (
@@ -108,10 +125,6 @@ export function CommandPalette({
             )}
           </div>
           <aside className="palette-help">
-            <p>
-              Command K is modal. It should preserve the sidebar, tabs, viewer,
-              and outline state underneath.
-            </p>
             <div>
               <span>Open</span>
               <kbd>Enter</kbd>
@@ -129,4 +142,16 @@ export function CommandPalette({
       </section>
     </div>
   );
+}
+
+function runItem(
+  item: PaletteItem,
+  onOpenPath: (path: string) => void,
+  onRunAction: (id: CommandActionId) => void,
+) {
+  if (item.kind === "file") {
+    onOpenPath(item.path);
+    return;
+  }
+  if (!item.disabled) onRunAction(item.id);
 }

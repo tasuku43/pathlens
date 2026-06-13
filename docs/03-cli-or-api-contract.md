@@ -8,14 +8,14 @@ pathlens [root] --port 4317
 pathlens [root] --host 127.0.0.1
 pathlens [root] --open
 pathlens [root] --include md,html,ts,tsx,json
-pathlens [root] --no-html-scripts
+pathlens [root] --allow-html-scripts
 ```
 
 Default root: `.`
 
 Default host: `127.0.0.1`
 
-Default security posture: local-only, sandboxed HTML preview, local CSS and scripts enabled for practical artifact inspection. Use `--no-html-scripts` to disable script execution while keeping stylesheet preview support.
+Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
 ## HTTP API
 
@@ -68,7 +68,7 @@ Returns viewer configuration needed by the SPA.
 ```json
 {
   "root": "/absolute/served/root",
-  "allowHtmlScripts": true,
+  "allowHtmlScripts": false,
   "maxFileSizeBytes": 1048576
 }
 ```

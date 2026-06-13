@@ -119,11 +119,25 @@ input {
 .theme-button {
   cursor: pointer;
 }
+.pill {
+  cursor: default;
+}
+button.pill {
+  cursor: pointer;
+}
+.pill.active {
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+  color: var(--accent);
+}
 
 .workbench {
   min-height: 0;
   display: grid;
   grid-template-columns: 280px minmax(420px, 1fr) 280px;
+}
+.workbench.inspector-hidden {
+  grid-template-columns: 280px minmax(420px, 1fr);
 }
 
 .sidebar,
@@ -961,6 +975,35 @@ input {
   cursor: default;
   opacity: 0.62;
 }
+.review-target {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 7px 8px;
+  text-align: left;
+}
+.review-target:hover {
+  border-color: var(--line);
+  background: var(--accent-faint);
+}
+.review-target span:not(.file-icon) {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-target small {
+  color: var(--subtle);
+}
 
 .palette-overlay {
   position: fixed;
@@ -1021,6 +1064,10 @@ input {
   background: var(--accent-soft);
   color: var(--text);
 }
+.palette-result:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
 .palette-result small {
   display: block;
   color: var(--subtle);
@@ -1047,6 +1094,121 @@ kbd {
   border: 1px solid var(--line);
   padding: 2px 7px;
   border-radius: 7px;
+}
+
+.csv-viewer {
+  display: grid;
+  gap: 14px;
+}
+.csv-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.csv-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.csv-table th,
+.csv-table td {
+  max-width: 360px;
+  overflow: hidden;
+  border-right: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--soft-line);
+  padding: 9px 11px;
+  text-align: left;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.csv-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.json-viewer,
+.mermaid-viewer {
+  display: grid;
+  gap: 14px;
+}
+.json-tree {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--code);
+  padding: 12px;
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.json-node {
+  color: var(--text);
+  line-height: 1.7;
+}
+.json-node summary {
+  cursor: pointer;
+}
+.json-children {
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 1px solid var(--soft-line);
+}
+.json-key {
+  color: var(--accent);
+  margin-right: 8px;
+}
+.json-value {
+  color: var(--muted);
+}
+.json-value.string {
+  color: #9ece6a;
+}
+.json-value.number {
+  color: #ff9e64;
+}
+.json-value.boolean {
+  color: #bb9af7;
+}
+.json-value.null {
+  color: var(--subtle);
+}
+.mermaid-stage {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 14px;
+}
+.mermaid-svg {
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+}
+.mermaid-node rect {
+  fill: var(--panel-2);
+  stroke: var(--accent-line);
+}
+.mermaid-node text,
+.mermaid-label {
+  fill: var(--text);
+  font-size: 13px;
+}
+.mermaid-edge {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  marker-end: url("#pathlens-arrow");
+}
+.mermaid-svg marker path {
+  fill: var(--accent);
 }
 
 @media (max-width: 1040px) {

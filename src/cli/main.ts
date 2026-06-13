@@ -41,7 +41,7 @@ export function parseArgs(argv: string[]): CliOptions {
     host: "127.0.0.1",
     port: 4317,
     open: false,
-    allowHtmlScripts: true,
+    allowHtmlScripts: false,
   };
   const positional: string[] = [];
 
@@ -138,7 +138,7 @@ function exitCodeForSignal(signal: NodeJS.Signals): number {
 
 function printHelp(): void {
   console.log(
-    `pathlens - live local viewer for Markdown, HTML, code, and assets\n\nUsage:\n  pathlens [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--no-html-scripts]\n`,
+    `pathlens - live local viewer for Markdown, HTML, code, and assets\n\nUsage:\n  pathlens [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--allow-html-scripts]\n`,
   );
 }
 

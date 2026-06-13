@@ -91,11 +91,10 @@ it("exposes server-safe viewer config", () => {
   const fs = new NodeFileSystem({
     rootDir: dir,
     maxFileSizeBytes: 4,
-    allowHtmlScripts: true,
   });
   expect(fs.getConfig()).toEqual({
     root: path.resolve(dir),
-    allowHtmlScripts: true,
+    allowHtmlScripts: false,
     maxFileSizeBytes: 4,
   });
 });

@@ -7,7 +7,13 @@ import {
   CodeViewer,
   extractHighlightedLines,
 } from "../src/ui/viewers/CodeViewer.js";
+import { CsvViewer, parseDelimitedText } from "../src/ui/viewers/CsvViewer.js";
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
+import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
+import {
+  MermaidViewer,
+  parseMermaidEdges,
+} from "../src/ui/viewers/MermaidViewer.js";
 
 const codeFile: FilePayload = {
   path: "src/app.ts",
@@ -59,24 +65,21 @@ it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
   expect(html).toContain("/preview/html?path=index.html");
 });
 
-it("dispatches JSON files through formatted read-only code view", () => {
+it("dispatches JSON files through a tree view with source fallback", () => {
   const html = renderToStaticMarkup(
-    <FileViewer
+    <JsonViewer
       file={{
         ...codeFile,
         path: "data/sample.json",
         viewerKind: "json",
-        content: '{"ok":true}',
+        content: '{"ok":true,"items":[1]}',
       }}
-      allowHtmlScripts={false}
-      theme="dark"
-      selectedCodeRange={null}
-      onCodeSelectionChange={() => undefined}
     />,
   );
 
   expect(html).toContain("data/sample.json");
-  expect(html).toContain('"ok": true');
+  expect(html).toContain("JSON tree");
+  expect(html).toContain("items");
 });
 
 it("renders code metadata and actionable review events in the inspector", () => {
@@ -93,6 +96,16 @@ it("renders code metadata and actionable review events in the inspector", () => 
       ]}
       selectedCodeRange={{ start: 2, end: 2 }}
       activePaneId="main"
+      reviewTargets={[
+        {
+          id: "reports/index.html",
+          path: "reports/index.html",
+          name: "index.html",
+          kind: "file",
+          parentPath: null,
+          viewerKind: "html",
+        },
+      ]}
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onOpenAllChanged={() => undefined}
@@ -107,4 +120,48 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("start");
   expect(html).toContain("Review queue");
   expect(html).toContain("Changed");
+  expect(html).toContain("Review targets");
+  expect(html).toContain("reports/index.html");
+});
+
+it("renders CSV files as a bounded review table", () => {
+  expect(parseDelimitedText('name,value\n"hello, world",2\n').rows).toEqual([
+    ["hello, world", "2"],
+  ]);
+
+  const html = renderToStaticMarkup(
+    <CsvViewer
+      file={{
+        ...codeFile,
+        path: "reports/results.csv",
+        viewerKind: "text",
+        content: "name,value\nok,true\n",
+      }}
+    />,
+  );
+
+  expect(html).toContain("reports/results.csv");
+  expect(html).toContain("<th>name</th>");
+  expect(html).toContain("<td>true</td>");
+});
+
+it("renders simple Mermaid flowcharts without script execution", () => {
+  expect(parseMermaidEdges("graph TD\nA[Start] -->|ok| B[Done]")).toEqual([
+    { from: "Start", label: "ok", to: "Done" },
+  ]);
+
+  const html = renderToStaticMarkup(
+    <MermaidViewer
+      file={{
+        ...codeFile,
+        path: "docs/flow.mmd",
+        viewerKind: "mermaid",
+        content: "graph TD\nA[Start] --> B[Done]\n",
+      }}
+    />,
+  );
+
+  expect(html).toContain("Safe Mermaid preview");
+  expect(html).toContain("Start");
+  expect(html).toContain("Done");
 });

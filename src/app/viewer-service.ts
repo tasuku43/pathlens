@@ -32,7 +32,7 @@ export class ViewerService {
     return (
       this.fileSystem.getConfig?.() ?? {
         root: ".",
-        allowHtmlScripts: true,
+        allowHtmlScripts: false,
         maxFileSizeBytes: 1024 * 1024,
       }
     );

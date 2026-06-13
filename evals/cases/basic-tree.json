@@ -10,7 +10,9 @@
       "assets/logo.svg",
       "config.yaml",
       "preview/styled.html",
-      "preview/style.css"
+      "preview/style.css",
+      "reports/results.csv",
+      "docs/flow.mmd"
     ],
     "omitsPaths": ["node_modules/ignored.js", ".git/config"],
     "viewerKinds": {
@@ -21,7 +23,9 @@
       "assets/logo.svg": "image",
       "config.yaml": "code",
       "preview/styled.html": "html",
-      "preview/style.css": "code"
+      "preview/style.css": "code",
+      "reports/results.csv": "text",
+      "docs/flow.mmd": "mermaid"
     },
     "openablePaths": [
       "README.md",
@@ -29,7 +33,9 @@
       "src/app.ts",
       "data/sample.json",
       "assets/logo.svg",
-      "config.yaml"
+      "config.yaml",
+      "reports/results.csv",
+      "docs/flow.mmd"
     ],
     "codeReference": {
       "path": "src/app.ts",

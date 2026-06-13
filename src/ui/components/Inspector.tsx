@@ -1,5 +1,6 @@
-import type { FilePayload } from "../../domain/fs-node.js";
+import type { FilePayload, FsNode } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
+import { iconForPath } from "../state/file-icons.js";
 import type { OutlineHeading } from "../state/outline.js";
 import { eventLabel, type ReviewEvent } from "../state/review-events.js";
 
@@ -7,6 +8,7 @@ interface Props {
   file: FilePayload | null;
   outline: OutlineHeading[];
   events: ReviewEvent[];
+  reviewTargets: FsNode[];
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -21,6 +23,7 @@ export function Inspector({
   file,
   outline,
   events,
+  reviewTargets,
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -155,6 +158,30 @@ export function Inspector({
               </p>
             )}
           </>
+        )}
+
+        <h3 className="section-title">Review targets</h3>
+        {reviewTargets.length ? (
+          reviewTargets.slice(0, 6).map((target) => (
+            <button
+              className="review-target"
+              key={target.path}
+              onClick={() => onOpenEventPath(target.path)}
+              type="button"
+            >
+              <span className="file-icon">
+                {iconForPath(target.path, target.viewerKind)}
+              </span>
+              <span>{target.path}</span>
+              <small>
+                {target.mtimeMs
+                  ? new Date(target.mtimeMs).toLocaleTimeString()
+                  : target.viewerKind}
+              </small>
+            </button>
+          ))
+        ) : (
+          <p className="muted">No generated-review targets detected yet.</p>
         )}
 
         <div className="section-title with-action">

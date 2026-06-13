@@ -19,7 +19,12 @@ export function ImageViewer({ file }: { file: FilePayload }) {
     <section className="image-viewer">
       <div className="viewer-toolbar">
         <strong>{file.path}</strong>
-        <span>{formatBytes(file.size)}</span>
+        <span>
+          {formatBytes(file.size)}
+          {file.mimeType === "image/svg+xml"
+            ? " · SVG as image, scripts inactive"
+            : ""}
+        </span>
         <div className="segmented-control" aria-label="Image size mode">
           <button
             className={fit === "fit" ? "active" : ""}

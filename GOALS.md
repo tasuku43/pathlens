@@ -37,9 +37,11 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 
 - Classic workspace layout with live tree, tabs, main viewer, right inspector, command palette, and status bar.
 - Markdown rendered/source views with H1/H2 outline.
-- Sandboxed HTML preview/source views with script mode visible.
+- Sandboxed HTML preview/source views with scripts disabled by default, explicit opt-in, and script mode visible.
 - Code Viewer Pro: syntax highlighting, line numbers, line/range selection, copy reference, copy selected code with path and line numbers, current-scope hinting, and code metadata/symbols in the inspector.
-- Text/log wrap controls, image fit/actual modes, and formatted JSON previews.
+- Text/log wrap controls, image fit/actual modes, JSON tree/source, CSV table/source, and lightweight Mermaid previews.
+- Command palette actions for changed files, reveal in tree, source/rendered toggles, local URLs, outline focus, inspector visibility, split right, close/reopen tab, recent files, shortcuts, and context export.
+- Generated-review target surfacing for common output directories such as reports, coverage, screenshots, docs, dist, and build.
 - SSE-driven recent event queue, active-file refresh markers, inactive changed-tab markers, and tree refresh on add/remove events.
 - Fixture eval coverage for mixed file opening and code references.
 
@@ -47,7 +49,7 @@ and use the browser UI to inspect a mixed directory without refreshing the page 
 
 - Virtualized tree for very large workspaces.
 - Text diff patching for very large open files.
-- Mermaid support in Markdown.
+- Full Mermaid rendering in Markdown.
 - Fuzzy file picker.
 - First-class rename events beyond add/remove watcher semantics.
 - Lightweight before/after text diffs in the review queue.

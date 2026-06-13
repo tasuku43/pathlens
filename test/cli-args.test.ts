@@ -11,13 +11,18 @@ it("parses documented CLI switches", () => {
     "--open",
     "--include",
     "md,.html,ts",
-    "--no-html-scripts",
+    "--allow-html-scripts",
   ]);
 
   expect(args.root).toBe("docs");
   expect(args.host).toBe("127.0.0.1");
   expect(args.port).toBe(5000);
   expect(args.open).toBe(true);
-  expect(args.allowHtmlScripts).toBe(false);
+  expect(args.allowHtmlScripts).toBe(true);
   expect(args.includeExtensions).toEqual(new Set(["md", "html", "ts"]));
+});
+
+it("keeps HTML scripts disabled unless explicitly allowed", () => {
+  expect(parseArgs([]).allowHtmlScripts).toBe(false);
+  expect(parseArgs(["--no-html-scripts"]).allowHtmlScripts).toBe(false);
 });

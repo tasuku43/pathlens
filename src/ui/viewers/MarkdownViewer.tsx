@@ -5,10 +5,27 @@ import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
+import type { ViewerMode } from "../state/viewer-mode.js";
 
-export function MarkdownViewer({ file }: { file: FilePayload }) {
-  const [mode, setMode] = useState<"rendered" | "source">("rendered");
+export function MarkdownViewer({
+  file,
+  mode: controlledMode,
+  onModeChange,
+}: {
+  file: FilePayload;
+  mode?: ViewerMode;
+  onModeChange?: (mode: ViewerMode) => void;
+}) {
+  const [localMode, setLocalMode] = useState<"rendered" | "source">("rendered");
+  const mode =
+    controlledMode === "source" || controlledMode === "rendered"
+      ? controlledMode
+      : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
+  const setMode = (nextMode: "rendered" | "source") => {
+    setLocalMode(nextMode);
+    onModeChange?.(nextMode);
+  };
   return (
     <section className="document-viewer">
       <div className="viewer-toolbar">

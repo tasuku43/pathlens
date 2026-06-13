@@ -1,14 +1,27 @@
 import { useState } from "react";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ViewerMode } from "../state/viewer-mode.js";
 
 export function HtmlViewer({
   file,
   allowHtmlScripts,
+  mode: controlledMode,
+  onModeChange,
 }: {
   file: FilePayload;
   allowHtmlScripts: boolean;
+  mode?: ViewerMode;
+  onModeChange?: (mode: ViewerMode) => void;
 }) {
-  const [mode, setMode] = useState<"preview" | "source">("preview");
+  const [localMode, setLocalMode] = useState<"preview" | "source">("preview");
+  const mode =
+    controlledMode === "source" || controlledMode === "preview"
+      ? controlledMode
+      : localMode;
+  const setMode = (nextMode: "preview" | "source") => {
+    setLocalMode(nextMode);
+    onModeChange?.(nextMode);
+  };
   return (
     <section className="html-viewer">
       <div className="viewer-toolbar">

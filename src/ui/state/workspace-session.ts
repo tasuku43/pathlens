@@ -17,6 +17,7 @@ export interface WorkspaceSessionState {
   openTabs: OpenTab[];
   layout: EditorLayout;
   recentFiles: RecentFile[];
+  inspectorVisible: boolean;
 }
 
 export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
@@ -24,6 +25,13 @@ export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
   root: string;
   updatedAt: number;
 }
+
+type StoredWorkspaceSessionInputV1 = Omit<
+  StoredWorkspaceSessionV1,
+  "inspectorVisible"
+> & {
+  inspectorVisible?: boolean;
+};
 
 export const workspaceSessionStorageKey = "pathlens.workspaceSession.v1";
 export const workspaceSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
@@ -62,6 +70,7 @@ export function buildWorkspaceSession(
     })),
     layout: state.openTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
+    inspectorVisible: state.inspectorVisible,
   };
 }
 
@@ -72,7 +81,10 @@ export function parseWorkspaceSession(
   try {
     const value = JSON.parse(raw) as unknown;
     if (!isStoredWorkspaceSession(value)) return null;
-    return value;
+    return {
+      ...value,
+      inspectorVisible: value.inspectorVisible ?? true,
+    };
   } catch {
     return null;
   }
@@ -94,7 +106,12 @@ export function restoreWorkspaceSession(
   );
   const layout = sanitizeLayout(stored.layout, openTabs);
 
-  return { openTabs, layout, recentFiles };
+  return {
+    openTabs,
+    layout,
+    recentFiles,
+    inspectorVisible: stored.inspectorVisible,
+  };
 }
 
 export function recordRecentFile(
@@ -185,7 +202,7 @@ function trimRecentFiles(recentFiles: RecentFile[]): RecentFile[] {
 
 function isStoredWorkspaceSession(
   value: unknown,
-): value is StoredWorkspaceSessionV1 {
+): value is StoredWorkspaceSessionInputV1 {
   if (!isRecord(value)) return false;
   return (
     value.version === 1 &&
@@ -195,7 +212,9 @@ function isStoredWorkspaceSession(
     value.openTabs.every(isOpenTab) &&
     isEditorLayout(value.layout) &&
     Array.isArray(value.recentFiles) &&
-    value.recentFiles.every(isRecentFile)
+    value.recentFiles.every(isRecentFile) &&
+    (typeof value.inspectorVisible === "boolean" ||
+      value.inspectorVisible === undefined)
   );
 }
 

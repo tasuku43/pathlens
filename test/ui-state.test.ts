@@ -5,7 +5,16 @@ import {
   clampPaletteSelection,
   movePaletteSelection,
 } from "../src/ui/state/command-palette.js";
-import { fuzzyFileResults } from "../src/ui/state/files.js";
+import {
+  filterTreeToPaths,
+  fuzzyFileResults,
+  reviewArtifactResults,
+} from "../src/ui/state/files.js";
+import {
+  buildPaletteItems,
+  filterCommandActions,
+  type CommandAction,
+} from "../src/ui/state/command-actions.js";
 import {
   flattenPanes,
   initialEditorLayout,
@@ -33,6 +42,11 @@ import {
   workspaceSessionStorageKeyForRoot,
   workspaceSessionTtlMs,
 } from "../src/ui/state/workspace-session.js";
+import {
+  defaultViewerMode,
+  nextViewerMode,
+  supportsSourceToggle,
+} from "../src/ui/state/viewer-mode.js";
 import { inspectorTargetLabel } from "../src/ui/components/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
@@ -252,6 +266,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "README.md", viewerKind: "markdown", lastOpenedAt: now - 1 },
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
+      inspectorVisible: false,
     },
     now,
   );
@@ -274,6 +289,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
     { id: "pane-1", activePath: "docs/guide.md" },
   ]);
   expect(restored?.layout.activePaneId).toBe("pane-1");
+  expect(restored?.inspectorVisible).toBe(false);
   expect(restoreWorkspaceSession(stored, "/other", new Set(), now)).toBeNull();
   expect(
     restoreWorkspaceSession(
@@ -295,6 +311,7 @@ it("resets persisted layout when the last tab is closed but keeps recents", () =
       recentFiles: [
         { path: "README.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
+      inspectorVisible: true,
     },
     now,
   );
@@ -336,6 +353,7 @@ it("parses stored workspace sessions defensively", () => {
             ],
             layout: setPaneActivePath(initialEditorLayout, "main", "README.md"),
             recentFiles: [],
+            inspectorVisible: true,
           },
           1,
         ),
@@ -372,4 +390,97 @@ it("scopes persisted workspace sessions by root path", () => {
   expect(workspaceSessionStorageKeyForRoot("/tmp/a project")).toBe(
     "pathlens.workspaceSession.v1:%2Ftmp%2Fa%20project",
   );
+});
+
+it("restores older workspace sessions with inspector visible by default", () => {
+  const raw = JSON.stringify({
+    version: 1,
+    root: "/workspace",
+    updatedAt: 1,
+    openTabs: [],
+    layout: initialEditorLayout,
+    recentFiles: [],
+  });
+
+  expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
+});
+
+it("builds command palette items from read-only actions and files", () => {
+  const actions: CommandAction[] = [
+    {
+      id: "toggle-inspector",
+      label: "Toggle inspector",
+      detail: "Toggle right inspector",
+      keywords: ["right", "metadata"],
+    },
+    {
+      id: "close-tab",
+      label: "Close tab",
+      detail: "No active tab",
+      keywords: ["tab"],
+      disabled: true,
+    },
+  ];
+  const nodes: FsNode[] = [
+    {
+      id: "reports/index.html",
+      path: "reports/index.html",
+      name: "index.html",
+      kind: "file",
+      parentPath: null,
+      viewerKind: "html",
+    },
+  ];
+
+  expect(filterCommandActions(actions, "inspect")[0]?.id).toBe(
+    "toggle-inspector",
+  );
+  expect(
+    buildPaletteItems(nodes, actions, "index").map((item) => item.id),
+  ).toContain("file:reports/index.html");
+});
+
+it("filters the tree to changed paths and ranks generated review targets", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "reports",
+      path: "reports",
+      name: "reports",
+      kind: "directory",
+      parentPath: null,
+      children: [
+        {
+          id: "reports/index.html",
+          path: "reports/index.html",
+          name: "index.html",
+          kind: "file",
+          parentPath: "reports",
+          viewerKind: "html",
+          mtimeMs: 2,
+        },
+        {
+          id: "reports/raw.bin",
+          path: "reports/raw.bin",
+          name: "raw.bin",
+          kind: "file",
+          parentPath: "reports",
+          viewerKind: "unsupported",
+          mtimeMs: 1,
+        },
+      ],
+    },
+  ];
+
+  expect(
+    JSON.stringify(filterTreeToPaths(nodes, new Set(["reports/index.html"]))),
+  ).toContain("reports/index.html");
+  expect(reviewArtifactResults(nodes)[0]?.path).toBe("reports/index.html");
+});
+
+it("models source toggles only for rendered viewers", () => {
+  expect(defaultViewerMode({ viewerKind: "markdown" })).toBe("rendered");
+  expect(defaultViewerMode({ viewerKind: "html" })).toBe("preview");
+  expect(supportsSourceToggle({ viewerKind: "json" })).toBe(false);
+  expect(nextViewerMode({ viewerKind: "markdown" }, "rendered")).toBe("source");
+  expect(nextViewerMode({ viewerKind: "html" }, "source")).toBe("preview");
 });

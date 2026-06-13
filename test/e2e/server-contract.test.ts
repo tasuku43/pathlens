@@ -39,7 +39,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   const config = await fetch(`${server.url}/api/config`).then((res) =>
     res.json(),
   );
-  expect(config.allowHtmlScripts).toBe(true);
+  expect(config.allowHtmlScripts).toBe(false);
 
   const file = await fetch(`${server.url}/api/file?path=README.md`).then(
     (res) => res.json(),
@@ -61,7 +61,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
     "style-src 'self' 'unsafe-inline'",
   );
   expect(preview.headers.get("content-security-policy")).toContain(
-    "script-src 'self' 'unsafe-inline'",
+    "script-src 'none'",
   );
   const previewHtml = await preview.text();
   expect(previewHtml).toContain('<base href="/preview/raw/">');
@@ -73,15 +73,15 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(await css.text()).toContain("rgb(255, 0, 0)");
 }, 10000);
 
-it("disables preview scripts when explicitly requested", async () => {
+it("allows preview scripts only when explicitly requested", async () => {
   const service = new ViewerService({
-    fileSystem: new NodeFileSystem({ rootDir: dir, allowHtmlScripts: false }),
+    fileSystem: new NodeFileSystem({ rootDir: dir, allowHtmlScripts: true }),
   });
   server = await startHttpServer({
     host: "127.0.0.1",
     port: 0,
     service,
-    allowHtmlScripts: false,
+    allowHtmlScripts: true,
   });
 
   const preview = await fetch(`${server.url}/preview/html?path=index.html`);
@@ -90,7 +90,7 @@ it("disables preview scripts when explicitly requested", async () => {
     "style-src 'self' 'unsafe-inline'",
   );
   expect(preview.headers.get("content-security-policy")).toContain(
-    "script-src 'none'",
+    "script-src 'self' 'unsafe-inline'",
   );
 
   const js = await fetch(`${server.url}/preview/raw/app.js`);

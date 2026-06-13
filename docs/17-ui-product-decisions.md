@@ -104,13 +104,21 @@ Cmd/Ctrl + K should open a modal command palette on top of the normal workspace.
 Initial commands:
 
 - Open file by fuzzy path search.
-- Open result in current tab.
-- Open result in a new tab.
-- Focus tree.
-- Focus outline.
+- Open changed file from the review queue.
+- Reveal active file in the tree.
 - Toggle rendered/source mode when supported.
+- Copy a local raw preview URL.
+- Focus outline.
+- Toggle inspector.
+- Split right for side-by-side reading.
+- Close tab and reopen the last closed tab.
+- Open recent file.
+- Show keyboard shortcuts.
+- Export current context.
 
 The palette should close on Escape and preserve the current workspace state.
+
+Palette commands stay read-only. They move focus, change viewing mode, copy local context, and arrange panes; they do not edit, stage, commit, or mutate files.
 
 ## Product intent
 

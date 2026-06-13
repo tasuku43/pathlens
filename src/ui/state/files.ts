@@ -27,6 +27,39 @@ export function fuzzyFileResults(
     .map((result) => result.file);
 }
 
+export function filterTreeToPaths(
+  nodes: FsNode[],
+  paths: Set<string>,
+): FsNode[] {
+  if (!paths.size) return [];
+  return nodes.flatMap((node) => {
+    if (node.kind === "file") return paths.has(node.path) ? [node] : [];
+    const children = filterTreeToPaths(node.children ?? [], paths);
+    return children.length ? [{ ...node, children }] : [];
+  });
+}
+
+export function reviewArtifactResults(nodes: FsNode[], limit = 8): FsNode[] {
+  return flattenFiles(nodes)
+    .map((file) => ({
+      file,
+      score: reviewArtifactScore(file),
+    }))
+    .filter((result) => result.score > 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        (b.file.mtimeMs ?? 0) - (a.file.mtimeMs ?? 0) ||
+        a.file.path.localeCompare(b.file.path),
+    )
+    .slice(0, limit)
+    .map((result) => result.file);
+}
+
+export function isReviewArtifactPath(path: string): boolean {
+  return reviewArtifactScore({ path } as FsNode) > 0;
+}
+
 function fuzzyScore(path: string, terms: string[]): number {
   let score = 0;
   for (const term of terms) {
@@ -51,4 +84,44 @@ function isSubsequence(needle: string, haystack: string): boolean {
     if (cursor === needle.length) return true;
   }
   return false;
+}
+
+function reviewArtifactScore(file: FsNode): number {
+  const path = file.path.toLowerCase();
+  const extension = path.includes(".") ? path.slice(path.lastIndexOf(".")) : "";
+  let score = 0;
+
+  if (
+    /(^|\/)(dist|build|reports|coverage|screenshots|docs|storybook|public)(\/|$)/.test(
+      path,
+    )
+  ) {
+    score += 80;
+  }
+  if (
+    new Set([
+      ".html",
+      ".md",
+      ".json",
+      ".csv",
+      ".tsv",
+      ".log",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".webp",
+      ".svg",
+    ]).has(extension)
+  ) {
+    score += 30;
+  }
+  if (
+    /(report|summary|index|coverage|screenshot|artifact|output|preview)/.test(
+      path,
+    )
+  ) {
+    score += 20;
+  }
+
+  return score;
 }

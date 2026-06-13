@@ -5,6 +5,7 @@ export type ViewerKind =
   | "text"
   | "image"
   | "json"
+  | "mermaid"
   | "unsupported";
 
 const markdownExtensions = new Set([".md", ".markdown", ".mdown"]);
@@ -18,6 +19,7 @@ const imageExtensions = new Set([
   ".svg",
 ]);
 const jsonExtensions = new Set([".json", ".jsonc"]);
+const mermaidExtensions = new Set([".mmd", ".mermaid"]);
 const textExtensions = new Set([".txt", ".log", ".csv", ".tsv"]);
 const codeBasenames = new Set(["dockerfile"]);
 const codeExtensions = new Set([
@@ -57,6 +59,7 @@ export function classifyViewer(path: string): ViewerKind {
   if (htmlExtensions.has(extension)) return "html";
   if (imageExtensions.has(extension)) return "image";
   if (jsonExtensions.has(extension)) return "json";
+  if (mermaidExtensions.has(extension)) return "mermaid";
   if (textExtensions.has(extension)) return "text";
   if (codeBasenames.has(basename)) return "code";
   if (codeExtensions.has(extension)) return "code";

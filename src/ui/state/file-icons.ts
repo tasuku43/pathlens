@@ -11,6 +11,7 @@ export function iconForPath(
   if (viewerKind === "html") return "🌐";
   if (viewerKind === "image") return "🖼️";
   if (viewerKind === "json") return "{}";
+  if (viewerKind === "mermaid") return "MRM";
   if (basename === "dockerfile") return "DOCK";
   if (extension === "yml" || extension === "yaml") return "YAML";
   if (extension === "ts" || extension === "tsx") return "TS";
@@ -51,6 +52,8 @@ export function languageForPath(
     kt: "kotlin",
     log: "log",
     md: "markdown",
+    mermaid: "mermaid",
+    mmd: "mermaid",
     py: "python",
     rb: "ruby",
     rs: "rust",
