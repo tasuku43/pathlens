@@ -2,9 +2,12 @@ import { execFile } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { inflate } from "node:zlib";
 import type { ChangeReviewPort } from "../app/contracts.js";
 import {
   buildAddedFileDiff,
+  buildDeletedFileDiff,
+  buildFullFileDiff,
   parseGitPorcelainStatus,
   type ChangeReviewSummary,
   type DiffBaseOption,
@@ -19,22 +22,26 @@ import {
 } from "../domain/path-policy.js";
 
 const execFileAsync = promisify(execFile);
+const inflateAsync = promisify(inflate);
 
 export interface GitChangeReviewOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
   maxDiffBytes?: number;
+  gitCommands?: string[];
 }
 
 export class GitChangeReview implements ChangeReviewPort {
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
   private readonly maxDiffBytes: number;
+  private readonly gitCommands: string[];
 
   constructor(options: GitChangeReviewOptions) {
     this.rootDir = path.resolve(options.rootDir);
     this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
     this.maxDiffBytes = options.maxDiffBytes ?? 256 * 1024;
+    this.gitCommands = options.gitCommands ?? defaultGitCommands;
   }
 
   async readChanges(): Promise<ChangeReviewSummary> {
@@ -85,6 +92,9 @@ export class GitChangeReview implements ChangeReviewPort {
     if (!base.ok) return unavailable(resolved.relativePath, base.reason);
 
     const changes = await this.readChanges();
+    if (!changes.available && isGitExecutableMissingReason(changes.reason)) {
+      return this.readHeadDiffWithoutGit(resolved.relativePath, base.option);
+    }
     if (!changes.available)
       return unavailable(
         resolved.relativePath,
@@ -111,9 +121,12 @@ export class GitChangeReview implements ChangeReviewPort {
     relativePath: string,
     base: DiffBaseOption,
   ): Promise<TextDiff> {
-    const diff = await this.git(["diff", base.ref, "--", relativePath], {
-      maxBuffer: this.maxDiffBytes + 64 * 1024,
-    });
+    const diff = await this.git(
+      ["diff", "--unified=1000000", base.ref, "--", relativePath],
+      {
+        maxBuffer: this.maxDiffBytes * 4 + 64 * 1024,
+      },
+    );
     if (!diff.ok) return unavailable(relativePath, diff.reason);
     if (!diff.stdout.trim())
       return unavailable(
@@ -189,6 +202,12 @@ export class GitChangeReview implements ChangeReviewPort {
   ): Promise<
     { ok: true; option: DiffBaseOption } | { ok: false; reason: string }
   > {
+    if (ref === "HEAD") {
+      return {
+        ok: true,
+        option: { ref: "HEAD", label: "HEAD" },
+      };
+    }
     const bases = await this.readDiffBases();
     if (!bases.available)
       return { ok: false, reason: bases.reason ?? "Git base unavailable" };
@@ -228,21 +247,110 @@ export class GitChangeReview implements ChangeReviewPort {
     args: string[],
     options: { maxBuffer?: number } = {},
   ): Promise<{ ok: true; stdout: string } | { ok: false; reason: string }> {
+    let lastError: unknown = null;
+    for (const command of this.gitCommands) {
+      const result = await this.tryGit(command, args, options);
+      if (result.ok) return result;
+      lastError = result.error;
+      if (!isCommandNotFound(result.error)) {
+        return { ok: false, reason: gitErrorReason(result.error) };
+      }
+    }
+    return {
+      ok: false,
+      reason: gitErrorReason(lastError),
+    };
+  }
+
+  private async tryGit(
+    command: string,
+    args: string[],
+    options: { maxBuffer?: number },
+  ): Promise<{ ok: true; stdout: string } | { ok: false; error: unknown }> {
     try {
-      const result = await execFileAsync("git", args, {
+      const result = await execFileAsync(command, args, {
         cwd: this.rootDir,
         encoding: "utf8",
         maxBuffer: options.maxBuffer ?? 512 * 1024,
       });
       return { ok: true, stdout: result.stdout };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("not a git repository"))
-        return { ok: false, reason: "This workspace is not a Git repository." };
-      if (message.includes("maxBuffer"))
-        return { ok: false, reason: "Git output exceeded the review limit." };
-      return { ok: false, reason: message };
+      return { ok: false, error };
     }
+  }
+
+  private async readHeadDiffWithoutGit(
+    relativePath: string,
+    base: DiffBaseOption,
+  ): Promise<TextDiff> {
+    const head = await readHeadBlob(this.rootDir, relativePath);
+    if (!head.ok) return unavailable(relativePath, head.reason);
+    const resolved = this.resolveInsideRoot(relativePath);
+    if (!resolved.ok) return unavailable(relativePath, resolved.reason);
+
+    let workingBytes: Buffer | null = null;
+    try {
+      workingBytes = await fs.readFile(resolved.absolutePath);
+    } catch (error) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code?: unknown }).code)
+          : "";
+      if (code !== "ENOENT") return unavailable(relativePath, String(error));
+    }
+
+    const headBytes = head.content;
+    if (headBytes.includes(0) || workingBytes?.includes(0)) {
+      return {
+        path: relativePath,
+        status: "binary",
+        baseLabel: base.label,
+        compareLabel: "working tree",
+        content: "",
+        reason: "Binary diff is not shown in pathlens.",
+      };
+    }
+
+    if (!workingBytes) {
+      return {
+        path: relativePath,
+        status: "available",
+        baseLabel: base.label,
+        compareLabel: "working tree",
+        content: buildDeletedFileDiff(relativePath, headBytes.toString("utf8")),
+      };
+    }
+
+    if (headBytes.equals(workingBytes)) {
+      return unavailable(
+        relativePath,
+        "No uncommitted Git change was found for this file.",
+      );
+    }
+
+    const totalBytes = headBytes.byteLength + workingBytes.byteLength;
+    if (totalBytes > this.maxDiffBytes) {
+      return {
+        path: relativePath,
+        status: "too-large",
+        baseLabel: base.label,
+        compareLabel: "working tree",
+        content: "",
+        reason: `Diff exceeds ${formatBytes(this.maxDiffBytes)}.`,
+      };
+    }
+
+    return {
+      path: relativePath,
+      status: "available",
+      baseLabel: base.label,
+      compareLabel: "working tree",
+      content: buildFullFileDiff(
+        relativePath,
+        headBytes.toString("utf8"),
+        workingBytes.toString("utf8"),
+      ),
+    };
   }
 }
 
@@ -276,4 +384,189 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function gitErrorReason(error: unknown): string {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+  const message = error instanceof Error ? error.message : String(error);
+  if (code === "ENOENT" || message.includes("ENOENT"))
+    return "Git executable was not found. Install Git or start pathlens with Git on PATH.";
+  if (message.includes("not a git repository"))
+    return "This workspace is not a Git repository.";
+  if (message.includes("maxBuffer"))
+    return "Git output exceeded the review limit.";
+  return message;
+}
+
+function isCommandNotFound(error: unknown): boolean {
+  return gitErrorReason(error).startsWith("Git executable was not found.");
+}
+
+function isGitExecutableMissingReason(reason?: string): boolean {
+  return reason?.startsWith("Git executable was not found.") ?? false;
+}
+
+const defaultGitCommands = [
+  "git",
+  "/usr/bin/git",
+  "/opt/homebrew/bin/git",
+  "/usr/local/bin/git",
+];
+
+async function readHeadBlob(
+  rootDir: string,
+  relativePath: string,
+): Promise<{ ok: true; content: Buffer } | { ok: false; reason: string }> {
+  const gitDir = await resolveGitDir(rootDir);
+  if (!gitDir.ok) return gitDir;
+  const headCommit = await readHeadCommit(gitDir.path);
+  if (!headCommit.ok) return headCommit;
+  const commit = await readGitObject(gitDir.path, headCommit.sha);
+  if (!commit.ok) return commit;
+  if (commit.type !== "commit")
+    return { ok: false, reason: "HEAD does not point to a commit." };
+
+  const treeSha = /^tree ([0-9a-f]{40})$/m.exec(
+    commit.content.toString("utf8"),
+  )?.[1];
+  if (!treeSha) return { ok: false, reason: "HEAD commit has no tree." };
+
+  const blobSha = await findBlobInTree(gitDir.path, treeSha, relativePath);
+  if (!blobSha.ok) return blobSha;
+  const blob = await readGitObject(gitDir.path, blobSha.sha);
+  if (!blob.ok) return blob;
+  if (blob.type !== "blob")
+    return { ok: false, reason: "HEAD path is not a file." };
+  return { ok: true, content: blob.content };
+}
+
+async function resolveGitDir(
+  rootDir: string,
+): Promise<{ ok: true; path: string } | { ok: false; reason: string }> {
+  const dotGit = path.join(rootDir, ".git");
+  try {
+    const stat = await fs.stat(dotGit);
+    if (stat.isDirectory()) return { ok: true, path: dotGit };
+    const content = await fs.readFile(dotGit, "utf8");
+    const gitDir = /^gitdir:\s*(.+)$/m.exec(content)?.[1]?.trim();
+    if (!gitDir) return { ok: false, reason: "Git metadata was not found." };
+    return {
+      ok: true,
+      path: path.resolve(rootDir, gitDir),
+    };
+  } catch {
+    return { ok: false, reason: "This workspace is not a Git repository." };
+  }
+}
+
+async function readHeadCommit(
+  gitDir: string,
+): Promise<{ ok: true; sha: string } | { ok: false; reason: string }> {
+  const head = (await fs.readFile(path.join(gitDir, "HEAD"), "utf8")).trim();
+  if (/^[0-9a-f]{40}$/.test(head)) return { ok: true, sha: head };
+  const ref = /^ref:\s*(.+)$/.exec(head)?.[1]?.trim();
+  if (!ref) return { ok: false, reason: "Git HEAD is invalid." };
+  const refPath = path.join(gitDir, ref);
+  try {
+    const sha = (await fs.readFile(refPath, "utf8")).trim();
+    if (/^[0-9a-f]{40}$/.test(sha)) return { ok: true, sha };
+  } catch {
+    const packed = await readPackedRef(gitDir, ref);
+    if (packed) return { ok: true, sha: packed };
+  }
+  return { ok: false, reason: "Git HEAD ref was not found." };
+}
+
+async function readPackedRef(
+  gitDir: string,
+  ref: string,
+): Promise<string | null> {
+  try {
+    const packed = await fs.readFile(path.join(gitDir, "packed-refs"), "utf8");
+    for (const line of packed.split(/\r?\n/)) {
+      if (line.startsWith("#") || !line.trim()) continue;
+      const [sha, name] = line.split(" ");
+      if (name === ref && sha && /^[0-9a-f]{40}$/.test(sha)) return sha;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function readGitObject(
+  gitDir: string,
+  sha: string,
+): Promise<
+  { ok: true; type: string; content: Buffer } | { ok: false; reason: string }
+> {
+  const loosePath = path.join(gitDir, "objects", sha.slice(0, 2), sha.slice(2));
+  let inflated: Buffer;
+  try {
+    inflated = await inflateAsync(await fs.readFile(loosePath));
+  } catch {
+    return {
+      ok: false,
+      reason:
+        "Git object is packed; Git CLI is required for this repository state.",
+    };
+  }
+  const nul = inflated.indexOf(0);
+  if (nul < 0) return { ok: false, reason: "Git object is invalid." };
+  const header = inflated.subarray(0, nul).toString("utf8");
+  const type = header.split(" ")[0] ?? "";
+  return { ok: true, type, content: inflated.subarray(nul + 1) };
+}
+
+async function findBlobInTree(
+  gitDir: string,
+  treeSha: string,
+  relativePath: string,
+): Promise<{ ok: true; sha: string } | { ok: false; reason: string }> {
+  const segments = relativePath.split("/").filter(Boolean);
+  let currentTree = treeSha;
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const tree = await readGitObject(gitDir, currentTree);
+    if (!tree.ok) return tree;
+    if (tree.type !== "tree")
+      return { ok: false, reason: "Git tree is invalid." };
+    const entry = parseTreeEntries(tree.content).find(
+      (item) => item.name === segments[index],
+    );
+    if (!entry)
+      return {
+        ok: false,
+        reason: "No committed Git version was found for this file.",
+      };
+    if (index === segments.length - 1) {
+      if (!entry.mode.startsWith("100"))
+        return { ok: false, reason: "HEAD path is not a file." };
+      return { ok: true, sha: entry.sha };
+    }
+    currentTree = entry.sha;
+  }
+
+  return { ok: false, reason: "file path is required" };
+}
+
+function parseTreeEntries(
+  content: Buffer,
+): { mode: string; name: string; sha: string }[] {
+  const entries: { mode: string; name: string; sha: string }[] = [];
+  let offset = 0;
+  while (offset < content.length) {
+    const space = content.indexOf(32, offset);
+    const nul = content.indexOf(0, space + 1);
+    if (space < 0 || nul < 0 || nul + 21 > content.length) break;
+    const mode = content.subarray(offset, space).toString("utf8");
+    const name = content.subarray(space + 1, nul).toString("utf8");
+    const sha = content.subarray(nul + 1, nul + 21).toString("hex");
+    entries.push({ mode, name, sha });
+    offset = nul + 21;
+  }
+  return entries;
 }

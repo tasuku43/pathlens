@@ -99,7 +99,7 @@ export function diffStatusLabel(diff: TextDiff | null): string {
 
 export function parseUnifiedDiff(
   content: string,
-  maxLines = 220,
+  maxLines = Number.POSITIVE_INFINITY,
 ): ParsedDiffLine[] {
   const parsed: ParsedDiffLine[] = [];
   let oldLine = 0;

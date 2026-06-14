@@ -89,6 +89,10 @@ export function App() {
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
+  const [diffEnabled, setDiffEnabled] = useState<Record<string, boolean>>({});
+  const [diffFocusByPath, setDiffFocusByPath] = useState<
+    Record<string, boolean>
+  >({});
   const [viewerModes, setViewerModes] = useState<Record<string, ViewerMode>>(
     {},
   );
@@ -162,9 +166,16 @@ export function App() {
   const selectedPath = activePane?.activePath ?? null;
   const file = selectedPath ? (files[selectedPath] ?? null) : null;
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
-  const reviewState = useMemo(
-    () => summarizeReviewEvents(recentEvents),
+  const recentActivityEvents = useMemo(
+    () =>
+      recentEvents.filter(
+        (item) => Date.now() - item.receivedAt <= recentEventWindowMs,
+      ),
     [recentEvents],
+  );
+  const reviewState = useMemo(
+    () => summarizeReviewEvents(recentActivityEvents),
+    [recentActivityEvents],
   );
   const reviewChanges = useMemo(
     () => mergeReviewChanges(reviewState, gitReview),
@@ -192,19 +203,35 @@ export function App() {
     return (await response.json()) as FilePayload;
   }
 
-  async function loadFile(path: string, paneId = layout.activePaneId) {
+  async function loadFile(
+    path: string,
+    paneId = layout.activePaneId,
+  ): Promise<FilePayload> {
     setLayout((current) => setPaneActivePath(current, paneId, path));
     setError(null);
     const payload = await fetchFilePayload(path);
     setFiles((items) => ({ ...items, [payload.path]: payload }));
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId));
     setRecentFiles((items) => recordRecentFile(items, payload));
+    return payload;
   }
 
   async function openHeadDiff(path: string, paneId = layout.activePaneId) {
-    await loadFile(path, paneId);
-    setViewerModes((items) => ({ ...items, [path]: "diff" }));
+    const payload = await loadFile(path, paneId);
+    if (!supportsDiffMode(payload)) return;
+    setDiffEnabled((items) => ({ ...items, [path]: true }));
     await loadHeadDiff(path);
+  }
+
+  function toggleHeadDiff(path = selectedPath) {
+    if (!path) return;
+    const target = files[path];
+    if (target && !supportsDiffMode(target)) return;
+    const nextEnabled = !diffEnabled[path];
+    setDiffEnabled((items) => ({ ...items, [path]: nextEnabled }));
+    if (nextEnabled) {
+      void loadHeadDiff(path).catch((err) => setError(String(err)));
+    }
   }
 
   async function hydrateRestoredFiles(restoredLayout: EditorLayoutNode) {
@@ -349,8 +376,7 @@ export function App() {
 
   function runCommandAction(id: CommandActionId) {
     if (id === "open-changed-file") openFirstChangedFile();
-    else if (id === "show-diff" && selectedPath)
-      void openHeadDiff(selectedPath).catch((err) => setError(String(err)));
+    else if (id === "show-diff" && selectedPath) toggleHeadDiff(selectedPath);
     else if (id === "reveal-in-tree") revealActiveInTree();
     else if (id === "toggle-source-rendered") toggleActiveViewerMode();
     else if (id === "copy-local-url")
@@ -426,7 +452,7 @@ export function App() {
       },
       {
         id: "show-diff" as const,
-        label: "Show diff from HEAD",
+        label: "Toggle diff from HEAD",
         detail: selectedPath ?? "No active file",
         keywords: ["review", "diff", "change", "git"],
         disabled:
@@ -502,7 +528,7 @@ export function App() {
       {
         id: "show-keyboard-shortcuts" as const,
         label: "Show keyboard shortcuts",
-        detail: "Cmd/Ctrl K, Enter, Esc, line selection",
+        detail: "Cmd/Ctrl K, Cmd/Ctrl D, Enter, Esc, line selection",
         keywords: ["keyboard", "shortcuts", "help"],
       },
       {
@@ -590,6 +616,7 @@ export function App() {
       setLayout(restored.layout);
       setRecentFiles(restored.recentFiles);
       setInspectorVisible(restored.inspectorVisible);
+      setDiffFocusByPath(restored.diffFocusByPath ?? {});
       void hydrateRestoredFiles(restored.layout.root).catch((err) =>
         setError(String(err)),
       );
@@ -606,6 +633,7 @@ export function App() {
         layout,
         recentFiles,
         inspectorVisible,
+        diffFocusByPath,
       }),
     );
   }, [
@@ -615,6 +643,7 @@ export function App() {
     layout,
     recentFiles,
     inspectorVisible,
+    diffFocusByPath,
   ]);
 
   useEffect(() => {
@@ -638,11 +667,15 @@ export function App() {
         event.preventDefault();
         setPaletteOpen((value) => !value);
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        toggleHeadDiff();
+      }
       if (event.key === "Escape") setPaletteOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [selectedPath, diffEnabled]);
 
   useEffect(() => {
     const events = new EventSource("/events");
@@ -658,11 +691,6 @@ export function App() {
               [event.path]: Date.now(),
             })),
           )
-          .then(() => {
-            if (viewerModes[event.path] === "diff")
-              return loadHeadDiff(event.path);
-            return undefined;
-          })
           .catch((err) => setError(String(err)));
       } else if (event.type === "change") {
         setOpenTabs((tabs) => markTabChanged(tabs, event.path));
@@ -672,9 +700,12 @@ export function App() {
         loadTree().catch((err) => setError(String(err)));
       }
       loadGitReview().catch((err) => setError(String(err)));
+      if (diffEnabled[event.path]) {
+        loadHeadDiff(event.path).catch((err) => setError(String(err)));
+      }
     });
     return () => events.close();
-  }, [selectedPath, layout.activePaneId, viewerModes]);
+  }, [selectedPath, layout.activePaneId, diffEnabled]);
 
   useEffect(() => {
     if (!manualDraggedTab) return;
@@ -765,9 +796,6 @@ export function App() {
               void loadFile(path).catch((err) => setError(String(err)))
             }
             onOpenAllChanged={openAllChangedFiles}
-            onShowDiff={(path) =>
-              void openHeadDiff(path).catch((err) => setError(String(err)))
-            }
             onTargetHoverChange={setInspectorTargetVisible}
             onRevealTarget={revealInspectorTarget}
           />
@@ -867,6 +895,12 @@ export function App() {
               diffLoading={
                 paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
               }
+              diffEnabled={
+                paneFile?.path ? Boolean(diffEnabled[paneFile.path]) : false
+              }
+              diffFocusChanges={
+                paneFile?.path ? Boolean(diffFocusByPath[paneFile.path]) : false
+              }
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
@@ -883,16 +917,17 @@ export function App() {
                   ...items,
                   [paneFile.path]: mode,
                 }));
-                if (mode === "diff")
-                  void loadHeadDiff(paneFile.path).catch((err) =>
-                    setError(String(err)),
-                  );
               }}
-              onReloadDiff={() => {
+              onDiffToggle={() => {
                 if (!paneFile?.path) return;
-                void loadHeadDiff(paneFile.path).catch((err) =>
-                  setError(String(err)),
-                );
+                toggleHeadDiff(paneFile.path);
+              }}
+              onDiffFocusChange={(focusChanges) => {
+                if (!paneFile?.path) return;
+                setDiffFocusByPath((items) => ({
+                  ...items,
+                  [paneFile.path]: focusChanges,
+                }));
               }}
             />
           )}
@@ -1031,3 +1066,5 @@ function cssEscape(value: string): string {
   if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
   return value.replace(/["\\]/g, "\\$&");
 }
+
+const recentEventWindowMs = 5 * 60 * 1000;

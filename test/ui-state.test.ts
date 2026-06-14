@@ -354,6 +354,25 @@ it("parses unified diff lines for review rendering", () => {
   ]);
 });
 
+it("parses full-file diffs without truncating by default", () => {
+  const diff = [
+    "@@ -1,260 +1,260 @@",
+    ...Array.from({ length: 260 }, (_, index) => ` line ${index + 1}`),
+  ].join("\n");
+
+  const parsed = parseUnifiedDiff(diff);
+
+  expect(parsed.at(-1)).toEqual({
+    kind: "context",
+    text: "line 260",
+    oldLine: 260,
+    newLine: 260,
+  });
+  expect(parseUnifiedDiff(diff, 2).at(-1)?.text).toBe(
+    "... diff truncated after 2 rendered lines",
+  );
+});
+
 it("builds side-by-side rows for add-only and remove-only diff blocks", () => {
   expect(
     buildSideBySideDiffRows([
@@ -471,6 +490,41 @@ it("resets persisted layout when the last tab is closed but keeps recents", () =
   ]);
 });
 
+it("persists focused diff settings by file path in workspace sessions", () => {
+  const now = 250_000;
+  const stored = buildWorkspaceSession(
+    "/workspace",
+    {
+      openTabs: [
+        { path: "README.md", viewerKind: "markdown", paneId: "main" },
+        { path: "src/app.ts", viewerKind: "code", paneId: "main" },
+      ],
+      layout: setPaneActivePath(initialEditorLayout, "main", "README.md"),
+      recentFiles: [],
+      inspectorVisible: true,
+      diffFocusByPath: {
+        "README.md": true,
+        "src/app.ts": false,
+        "missing.md": true,
+      },
+    },
+    now,
+  );
+  const restored = restoreWorkspaceSession(
+    stored,
+    "/workspace",
+    new Set(["README.md", "src/app.ts"]),
+    now,
+  );
+
+  expect(stored.diffFocusByPath).toEqual({
+    "README.md": true,
+    "src/app.ts": false,
+    "missing.md": true,
+  });
+  expect(restored?.diffFocusByPath).toEqual({ "README.md": true });
+});
+
 it("tracks recently opened files independently from restored tabs", () => {
   const recent = recordRecentFile(
     [
@@ -551,6 +605,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   });
 
   expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
+  expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });
 
 it("builds command palette items from read-only actions and files", () => {

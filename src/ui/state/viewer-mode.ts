@@ -1,6 +1,6 @@
 import type { FilePayload } from "../../domain/fs-node.js";
 
-export type ViewerMode = "rendered" | "preview" | "source" | "diff";
+export type ViewerMode = "rendered" | "preview" | "source";
 
 export function defaultViewerMode(
   file: Pick<FilePayload, "viewerKind">,
@@ -42,6 +42,5 @@ export function nextViewerMode(
 export function modeLabel(mode: ViewerMode): string {
   if (mode === "rendered") return "Rendered";
   if (mode === "preview") return "Preview";
-  if (mode === "diff") return "Diff from HEAD";
   return "Source";
 }

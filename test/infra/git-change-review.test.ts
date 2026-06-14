@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { GitChangeReview } from "../../src/infra/git-change-review.js";
+import {
+  GitChangeReview,
+  gitErrorReason,
+} from "../../src/infra/git-change-review.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -90,6 +93,44 @@ it("rejects paths outside the selected root", async () => {
     status: "unavailable",
     reason: "path escapes root",
   });
+});
+
+it("falls back when git is not available at the first command name", async () => {
+  await writeFile(path.join(dir, "README.md"), "# After\n");
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: ["pathlens-missing-git-command", "git"],
+  });
+
+  await expect(review.readDiff("README.md")).resolves.toMatchObject({
+    status: "available",
+  });
+});
+
+it("reads HEAD diffs without a Git executable for tracked loose objects", async () => {
+  await writeFile(path.join(dir, "README.md"), "# After\n");
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: ["pathlens-missing-git-command"],
+  });
+
+  const diff = await review.readDiff("README.md");
+  expect(diff.status).toBe("available");
+  expect(diff.reason).toBeUndefined();
+  expect(diff.content).toContain("-# Middle");
+  expect(diff.content).toContain("+# After");
+});
+
+it("does not expose raw spawn ENOENT errors", () => {
+  expect(
+    gitErrorReason(
+      Object.assign(new Error("spawn git ENOENT"), { code: "ENOENT" }),
+    ),
+  ).toBe(
+    "Git executable was not found. Install Git or start pathlens with Git on PATH.",
+  );
 });
 
 async function git(args: string[]): Promise<void> {

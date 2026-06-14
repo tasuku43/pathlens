@@ -18,10 +18,11 @@ A build is acceptable when a user can:
 10. Save the active file externally and see the active viewer update without a full page reload.
 11. Add or remove a file externally and see the tree update.
 12. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
-13. Open recent changed files from a compact review queue.
+13. Use Recent events as the compact review queue for files with recent filesystem activity or a HEAD diff.
 14. Toggle Markdown and HTML between rendered/preview and source modes.
-15. Switch changed Markdown, HTML, and source/code files into a read-only diff-from-`HEAD` viewer mode.
-16. Keep image, text/log, and structured file previews readable without implying editing.
+15. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
+16. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
+17. Keep image, text/log, and structured file previews readable without implying editing.
 
 ## Evaluation function
 
@@ -49,6 +50,6 @@ Add or update tests for:
 - code viewer line numbers, line selection, copy-reference formatting, and code inspector metadata.
 - recent review queue event rendering and SSE event transport.
 - JSON/structured formatting and text wrap behavior where feasible.
-- diff-from-`HEAD` viewer mode rendering inside the open file surface, including rendered Markdown/HTML diffs.
+- diff-from-`HEAD` toggle rendering inside the open file surface, including inline source/code diffs, rendered Markdown/HTML diffs, and shortcut behavior.
 
 Add an E2E test that starts the server against a fixture directory and verifies the UI can load the tree, open a Markdown file, open an HTML file, and receive at least one simulated filesystem event.

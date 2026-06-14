@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 import { DiffViewer } from "./DiffViewer.js";
 
@@ -10,42 +11,34 @@ export function HtmlViewer({
   mode: controlledMode,
   diff,
   diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  theme = "dark",
   onModeChange,
-  onReloadDiff,
+  onDiffToggle,
+  onDiffFocusChange,
 }: {
   file: FilePayload;
   allowHtmlScripts: boolean;
   mode?: ViewerMode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  theme?: ResolvedTheme;
   onModeChange?: (mode: ViewerMode) => void;
-  onReloadDiff?: () => void;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("preview");
   const mode =
-    controlledMode === "source" ||
-    controlledMode === "preview" ||
-    controlledMode === "diff"
+    controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
       : localMode;
   const setMode = (nextMode: ViewerMode) => {
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
-
-  if (mode === "diff") {
-    return (
-      <DiffViewer
-        path={file.path}
-        diff={diff ?? null}
-        loading={diffLoading}
-        renderKind="html"
-        sourceMode="preview"
-        onModeChange={setMode}
-        onReload={onReloadDiff}
-      />
-    );
-  }
 
   return (
     <section className="html-viewer">
@@ -54,27 +47,44 @@ export function HtmlViewer({
         <span className="sandbox-status">
           sandboxed · scripts {allowHtmlScripts ? "on" : "off"}
         </span>
-        <div className="segmented-control" aria-label="HTML view mode">
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="HTML view mode">
+            <button
+              className={mode === "preview" ? "active" : ""}
+              type="button"
+              onClick={() => setMode("preview")}
+            >
+              Preview
+            </button>
+            <button
+              className={mode === "source" ? "active" : ""}
+              type="button"
+              onClick={() => setMode("source")}
+            >
+              Source
+            </button>
+          </div>
           <button
-            className={mode === "preview" ? "active" : ""}
+            aria-pressed={Boolean(diffEnabled)}
+            className={`diff-toggle${diffEnabled ? " active" : ""}`}
             type="button"
-            onClick={() => setMode("preview")}
+            onClick={onDiffToggle}
           >
-            Preview
-          </button>
-          <button
-            className={mode === "source" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("source")}
-          >
-            Source
-          </button>
-          <button type="button" onClick={() => setMode("diff")}>
             Diff from HEAD
           </button>
         </div>
       </div>
-      {mode === "preview" ? (
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind={mode === "source" ? "source" : "html"}
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : mode === "preview" ? (
         <iframe
           className="html-frame"
           title={file.path}

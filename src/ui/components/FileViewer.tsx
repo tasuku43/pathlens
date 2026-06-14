@@ -21,10 +21,13 @@ export function FileViewer({
   viewerMode,
   diff,
   diffLoading,
+  diffEnabled,
+  diffFocusChanges,
   refreshedAt,
   onCodeSelectionChange,
   onViewerModeChange,
-  onReloadDiff,
+  onDiffToggle,
+  onDiffFocusChange,
 }: {
   file: FilePayload | null;
   allowHtmlScripts: boolean;
@@ -33,10 +36,13 @@ export function FileViewer({
   viewerMode?: ViewerMode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
   refreshedAt?: number;
   onCodeSelectionChange: (range: LineRange | null) => void;
   onViewerModeChange?: (mode: ViewerMode) => void;
-  onReloadDiff?: () => void;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
 }) {
   if (!file)
     return <div className="empty-viewer">Select a file from the tree.</div>;
@@ -62,8 +68,12 @@ export function FileViewer({
         mode={viewerMode}
         diff={diff}
         diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
+        theme={theme}
         onModeChange={onViewerModeChange}
-        onReloadDiff={onReloadDiff}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
       />
     );
   if (file.viewerKind === "html")
@@ -74,8 +84,12 @@ export function FileViewer({
         mode={viewerMode}
         diff={diff}
         diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
+        theme={theme}
         onModeChange={onViewerModeChange}
-        onReloadDiff={onReloadDiff}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
       />
     );
   if (file.viewerKind === "json") return <JsonViewer file={file} />;
@@ -87,12 +101,13 @@ export function FileViewer({
         theme={theme}
         selectedRange={selectedCodeRange}
         refreshedAt={refreshedAt}
-        mode={viewerMode}
         diff={diff}
         diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
         onSelectionChange={onCodeSelectionChange}
-        onModeChange={onViewerModeChange}
-        onReloadDiff={onReloadDiff}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
       />
     );
   if (file.viewerKind === "text" && isDelimitedPath(file.path))

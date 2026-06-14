@@ -18,6 +18,7 @@ export interface WorkspaceSessionState {
   layout: EditorLayout;
   recentFiles: RecentFile[];
   inspectorVisible: boolean;
+  diffFocusByPath?: Record<string, boolean>;
 }
 
 export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
@@ -28,8 +29,9 @@ export interface StoredWorkspaceSessionV1 extends WorkspaceSessionState {
 
 type StoredWorkspaceSessionInputV1 = Omit<
   StoredWorkspaceSessionV1,
-  "inspectorVisible"
+  "diffFocusByPath" | "inspectorVisible"
 > & {
+  diffFocusByPath?: Record<string, boolean>;
   inspectorVisible?: boolean;
 };
 
@@ -71,6 +73,7 @@ export function buildWorkspaceSession(
     layout: state.openTabs.length > 0 ? state.layout : initialEditorLayout,
     recentFiles: trimRecentFiles(state.recentFiles),
     inspectorVisible: state.inspectorVisible,
+    diffFocusByPath: state.diffFocusByPath ?? {},
   };
 }
 
@@ -83,6 +86,7 @@ export function parseWorkspaceSession(
     if (!isStoredWorkspaceSession(value)) return null;
     return {
       ...value,
+      diffFocusByPath: value.diffFocusByPath ?? {},
       inspectorVisible: value.inspectorVisible ?? true,
     };
   } catch {
@@ -105,12 +109,18 @@ export function restoreWorkspaceSession(
     stored.recentFiles.filter((file) => validPaths.has(file.path)),
   );
   const layout = sanitizeLayout(stored.layout, openTabs);
+  const diffFocusByPath = Object.fromEntries(
+    Object.entries(stored.diffFocusByPath ?? {}).filter(
+      ([path, enabled]) => validPaths.has(path) && enabled,
+    ),
+  );
 
   return {
     openTabs,
     layout,
     recentFiles,
     inspectorVisible: stored.inspectorVisible,
+    diffFocusByPath,
   };
 }
 
@@ -213,8 +223,19 @@ function isStoredWorkspaceSession(
     isEditorLayout(value.layout) &&
     Array.isArray(value.recentFiles) &&
     value.recentFiles.every(isRecentFile) &&
+    (value.diffFocusByPath === undefined ||
+      isBooleanRecord(value.diffFocusByPath)) &&
     (typeof value.inspectorVisible === "boolean" ||
       value.inspectorVisible === undefined)
+  );
+}
+
+function isBooleanRecord(value: unknown): value is Record<string, boolean> {
+  return (
+    isRecord(value) &&
+    Object.entries(value).every(
+      ([key, item]) => typeof key === "string" && typeof item === "boolean",
+    )
   );
 }
 

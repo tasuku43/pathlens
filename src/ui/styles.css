@@ -437,6 +437,21 @@ button.pill {
   cursor: default;
   opacity: 0.55;
 }
+.diff-toggle {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.diff-toggle.active,
+.diff-toggle[aria-pressed="true"] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .segmented-control {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1277,22 +1292,19 @@ kbd {
 }
 
 .change-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
   margin-bottom: 6px;
 }
-.change-open,
-.diff-button {
+.change-open {
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--text);
   border-radius: 8px;
 }
 .change-open {
+  width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 4px 8px;
   padding: 8px;
   text-align: left;
@@ -1311,11 +1323,6 @@ kbd {
   grid-column: 2;
   color: var(--subtle);
 }
-.diff-button {
-  padding: 0 9px;
-  font-size: 12px;
-}
-.diff-button:disabled,
 .change-open:disabled {
   cursor: default;
   opacity: 0.45;
@@ -1460,10 +1467,72 @@ kbd {
   gap: 10px;
   min-height: 100%;
 }
+.code-pro .diff-viewer {
+  min-height: 0;
+}
 .diff-viewer .diff-preview {
   flex: 1;
+  min-width: 0;
   max-height: none;
   min-height: 360px;
+  overflow: auto;
+}
+.code-pro .diff-viewer .diff-preview {
+  margin: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--soft-line);
+}
+.diff-inline {
+  min-width: 0;
+  padding: 10px 0 18px;
+  tab-size: 2;
+}
+.diff-inline-row {
+  display: grid;
+  grid-template-columns: 64px minmax(max-content, 1fr);
+  width: fit-content;
+  min-width: 100%;
+  min-height: 23px;
+  border-left: 3px solid transparent;
+  color: var(--text);
+}
+.diff-inline-row > code {
+  display: block;
+  min-width: 0;
+  overflow: visible;
+  padding: 0 18px;
+  white-space: pre;
+}
+.diff-inline-row .diff-line-no {
+  border-right: 1px solid var(--soft-line);
+  font-size: 12px;
+  padding: 0 12px 0 8px;
+}
+.diff-inline-row.context:hover {
+  background: var(--soft-line);
+}
+.diff-inline-row.add {
+  border-left-color: #43d9a3;
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+.diff-inline-row.remove {
+  border-left-color: #f7768e;
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+.diff-inline-row.add > code {
+  color: #9ece6a;
+}
+.diff-inline-row.remove > code {
+  color: #f7768e;
+}
+.diff-inline-row.meta,
+.diff-inline-row.hunk {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+.diff-inline-row.meta > code,
+.diff-inline-row.hunk > code {
+  color: var(--muted);
 }
 .diff-viewer-status {
   display: flex;
@@ -1477,12 +1546,61 @@ kbd {
   font-size: 12px;
   padding: 8px 10px;
 }
-.diff-viewer-status strong {
+.diff-viewer-status-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+.diff-viewer-status-main strong {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.diff-focus-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.diff-focus-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.diff-inline-row.gap {
+  min-height: 32px;
+  align-items: center;
+  background: var(--panel);
+  border-left-color: transparent;
+}
+.diff-inline-row.gap > code {
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 18px;
+  white-space: normal;
+}
+.diff-gap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.diff-gap::before,
+.diff-gap::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--soft-line);
 }
 .rendered-diff {
   display: grid;
@@ -1539,6 +1657,165 @@ kbd {
 .rendered-diff-frame {
   width: 100%;
   height: 220px;
+}
+.rendered-markdown-diff {
+  min-width: 0;
+  overflow: visible;
+  padding: 0;
+}
+.rendered-markdown-diff-block {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+.rendered-markdown-diff
+  > .rendered-markdown-diff-block:first-child
+  > :first-child {
+  margin-top: 0;
+}
+.rendered-markdown-diff
+  > .rendered-markdown-diff-block:last-child
+  > :last-child {
+  margin-bottom: 0;
+}
+.rendered-markdown-diff-block.add
+  > :is(blockquote, .markdown-callout, .markdown-table-wrap),
+.rendered-markdown-diff-block.add li {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+.rendered-markdown-diff-block.remove
+  > :is(blockquote, .markdown-callout, .markdown-table-wrap),
+.rendered-markdown-diff-block.remove li {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+.rendered-markdown-diff-block.add.markdown-block-flow,
+.rendered-markdown-diff-block.remove.markdown-block-flow {
+  margin: 14px 0;
+}
+.rendered-markdown-diff-block.add.markdown-block-heading,
+.rendered-markdown-diff-block.remove.markdown-block-heading {
+  margin: 30px 0 14px;
+}
+.rendered-markdown-diff-block.add.markdown-block-flow > p,
+.rendered-markdown-diff-block.remove.markdown-block-flow > p,
+.rendered-markdown-diff-block.add.markdown-block-heading > :is(h1, h2, h3, h4),
+.rendered-markdown-diff-block.remove.markdown-block-heading
+  > :is(h1, h2, h3, h4) {
+  display: inline;
+  margin: 0;
+  padding: 0.08em 0.18em;
+  border-radius: 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.rendered-markdown-diff-block.add.markdown-block-flow > p,
+.rendered-markdown-diff-block.add.markdown-block-heading > :is(h1, h2, h3, h4) {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+.rendered-markdown-diff-block.remove.markdown-block-flow > p,
+.rendered-markdown-diff-block.remove.markdown-block-heading
+  > :is(h1, h2, h3, h4) {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+.rendered-markdown-code-line {
+  border-radius: 4px;
+  padding: 0 0.35em;
+}
+.rendered-markdown-code-line.add {
+  background: color-mix(in srgb, #43d9a3 18%, transparent);
+}
+.rendered-markdown-code-line.remove {
+  background: color-mix(in srgb, #f7768e 18%, transparent);
+}
+.rendered-markdown-diff-block.add li,
+.rendered-markdown-diff-block.remove li {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 5px;
+  padding-right: 0.35em;
+}
+.rendered-inline-diff .diff-inline-row {
+  align-items: stretch;
+  grid-template-columns: 64px minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+}
+.rendered-diff-line {
+  min-width: 0;
+  overflow: visible;
+  padding: 7px 16px;
+}
+.rendered-diff-line.empty {
+  min-height: 20px;
+}
+.rendered-inline-diff .markdown-document {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.rendered-inline-diff .markdown-document > :first-child {
+  margin-top: 0;
+}
+.rendered-inline-diff .markdown-document > :last-child {
+  margin-bottom: 0;
+}
+.rendered-inline-diff .markdown-document h1 {
+  font-size: 20px;
+}
+.rendered-inline-diff .markdown-document h2 {
+  font-size: 17px;
+}
+.rendered-inline-diff .markdown-document p,
+.rendered-inline-diff .markdown-document ul,
+.rendered-inline-diff .markdown-document ol {
+  margin: 0;
+}
+.rendered-inline-diff .markdown-document ul,
+.rendered-inline-diff .markdown-document ol {
+  padding-left: 18px;
+}
+.rendered-inline-diff .markdown-document li + li {
+  margin-top: 4px;
+}
+.rendered-inline-diff .markdown-document code:not(pre code) {
+  white-space: normal;
+}
+.rendered-inline-diff .markdown-document pre {
+  max-width: 100%;
+  overflow: auto;
+}
+.rendered-inline-diff .rendered-diff-frame {
+  display: block;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+.rendered-html-diff {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.rendered-html-diff-block {
+  border-radius: 8px;
+  padding: 0;
+}
+.rendered-html-diff-block.add {
+  background: color-mix(in srgb, #43d9a3 14%, transparent);
+}
+.rendered-html-diff-block.remove {
+  background: color-mix(in srgb, #f7768e 14%, transparent);
+}
+.rendered-html-diff-frame {
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
 }
 
 @media (max-width: 1040px) {

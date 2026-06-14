@@ -6,6 +6,7 @@ import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
 } from "../state/outline.js";
+import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 import { DiffViewer } from "./DiffViewer.js";
 import { renderMermaidPreviewHtml } from "./MermaidViewer.js";
@@ -15,21 +16,27 @@ export function MarkdownViewer({
   mode: controlledMode,
   diff,
   diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  theme = "dark",
   onModeChange,
-  onReloadDiff,
+  onDiffToggle,
+  onDiffFocusChange,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  theme?: ResolvedTheme;
   onModeChange?: (mode: ViewerMode) => void;
-  onReloadDiff?: () => void;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const mode =
-    controlledMode === "source" ||
-    controlledMode === "rendered" ||
-    controlledMode === "diff"
+    controlledMode === "source" || controlledMode === "rendered"
       ? controlledMode
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
@@ -38,45 +45,48 @@ export function MarkdownViewer({
     onModeChange?.(nextMode);
   };
 
-  if (mode === "diff") {
-    return (
-      <DiffViewer
-        path={file.path}
-        diff={diff ?? null}
-        loading={diffLoading}
-        renderKind="markdown"
-        sourceMode="rendered"
-        onModeChange={setMode}
-        onReload={onReloadDiff}
-      />
-    );
-  }
-
   return (
     <section className="document-viewer">
       <div className="viewer-toolbar">
         <strong>{file.path}</strong>
-        <div className="segmented-control" aria-label="Markdown view mode">
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="Markdown view mode">
+            <button
+              className={mode === "rendered" ? "active" : ""}
+              type="button"
+              onClick={() => setMode("rendered")}
+            >
+              Rendered
+            </button>
+            <button
+              className={mode === "source" ? "active" : ""}
+              type="button"
+              onClick={() => setMode("source")}
+            >
+              Source
+            </button>
+          </div>
           <button
-            className={mode === "rendered" ? "active" : ""}
+            aria-pressed={Boolean(diffEnabled)}
+            className={`diff-toggle${diffEnabled ? " active" : ""}`}
             type="button"
-            onClick={() => setMode("rendered")}
+            onClick={onDiffToggle}
           >
-            Rendered
-          </button>
-          <button
-            className={mode === "source" ? "active" : ""}
-            type="button"
-            onClick={() => setMode("source")}
-          >
-            Source
-          </button>
-          <button type="button" onClick={() => setMode("diff")}>
             Diff from HEAD
           </button>
         </div>
       </div>
-      {mode === "rendered" ? (
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind={mode === "source" ? "source" : "markdown"}
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : mode === "rendered" ? (
         <article
           className="markdown markdown-document"
           dangerouslySetInnerHTML={{ __html: html }}

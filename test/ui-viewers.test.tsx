@@ -11,6 +11,10 @@ import {
 import { CsvViewer, parseDelimitedText } from "../src/ui/viewers/CsvViewer.js";
 import {
   buildRenderedDiffBlocks,
+  buildFocusedRenderedDiffRows,
+  buildFocusedSourceDiffRows,
+  buildRenderedDiffRows,
+  buildRenderedHtmlRows,
   DiffViewer,
 } from "../src/ui/viewers/DiffViewer.js";
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
@@ -164,7 +168,6 @@ it("renders code metadata and actionable review events in the inspector", () => 
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
       onOpenAllChanged={() => undefined}
-      onShowDiff={() => undefined}
       onTargetHoverChange={() => undefined}
       onRevealTarget={() => undefined}
     />,
@@ -174,12 +177,14 @@ it("renders code metadata and actionable review events in the inspector", () => 
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
-  expect(html).toContain("Changed files");
-  expect(html).toContain("Git working tree");
-  expect(html).toContain("docs/old.md -&gt; docs/new.md");
   expect(html).toContain("Recent events");
-  expect(html).toContain("Changed");
+  expect(html).toContain("HEAD diff");
+  expect(html).toContain("docs/old.md -&gt; docs/new.md");
+  expect(html).toContain("Modified");
+  expect(html).toContain("Renamed");
+  expect(html).not.toContain("Diff</button>");
   expect(html).not.toContain("Review targets");
+  expect(html).not.toContain("Changed files");
   expect(html).not.toContain("Diff preview");
 });
 
@@ -188,7 +193,6 @@ it("renders HEAD diffs inside the file viewer surface", () => {
     <DiffViewer
       path="README.md"
       renderKind="markdown"
-      sourceMode="rendered"
       diff={{
         path: "README.md",
         status: "available",
@@ -203,8 +207,225 @@ it("renders HEAD diffs inside the file viewer surface", () => {
   expect(html).toContain("Diff from HEAD");
   expect(html).toContain('<h1 id="old-title">Old title</h1>');
   expect(html).toContain('<h1 id="new-title">New title</h1>');
-  expect(html).toContain("rendered-diff-pane removed");
-  expect(html).toContain("rendered-diff-pane added");
+  expect(html).toContain("rendered-markdown-diff");
+  expect(html).toContain("rendered-markdown-diff-block remove");
+  expect(html).toContain("rendered-markdown-diff-block add");
+  expect(html).toContain("Focus changes");
+  expect(html).not.toContain("diff-line-no");
+  expect(html).not.toContain("rendered-diff-pane");
+  expect(html).not.toContain("@@ -1,2 +1,2 @@");
+});
+
+it("renders Markdown diffs as intact rendered blocks", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -1,3 +1,3 @@",
+          "-```ts",
+          "-console.log('old')",
+          "-```",
+          "+```ts",
+          "+console.log('new')",
+          "+```",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("rendered-markdown-diff-block remove");
+  expect(html).toContain("rendered-markdown-diff-block add");
+  expect(html).toContain("<pre><code");
+  expect(html).toContain("console.log('old')");
+  expect(html).toContain("console.log('new')");
+});
+
+it("keeps additions inside surrounding Markdown code fences", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -1,4 +1,5 @@",
+          " ```text",
+          " src/cli -> process args",
+          "+fuga",
+          " src/ui -> React SPA",
+          " ```",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("<pre><code");
+  expect(html).toContain("src/cli -&gt; process args");
+  expect(html).toContain("rendered-markdown-code-line add");
+  expect(html).toContain(">fuga</span>");
+  expect(html).toContain("src/ui -&gt; React SPA");
+  expect(html).toContain("</span>\n<span");
+  expect(html).not.toContain("<p>fuga</p>");
+});
+
+it("keeps inline Markdown code inline in rendered diffs", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content:
+          "@@ -1,1 +1,1 @@\n-This uses `old-code` inline.\n+This uses `new-code` inline.",
+      }}
+    />,
+  );
+
+  expect(html).toContain("<p>This uses <code>old-code</code> inline.</p>");
+  expect(html).toContain("<p>This uses <code>new-code</code> inline.</p>");
+  expect(html).not.toContain("diff-line-no");
+});
+
+it("renders HTML diffs as rendered snippets without line numbers", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="index.html"
+      renderKind="html"
+      diff={{
+        path: "index.html",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content:
+          "@@ -1,2 +1,2 @@\n-<h1>Old</h1>\n-<p>Before</p>\n+<h1>New</h1>\n+<p>After</p>",
+      }}
+    />,
+  );
+
+  expect(html).toContain("rendered-html-diff-block remove");
+  expect(html).toContain("rendered-html-diff-block add");
+  expect(html).toContain("HTML diff preview");
+  expect(html).not.toContain("diff-line-no");
+  expect(html).not.toContain("diff-inline-row");
+});
+
+it("groups consecutive rendered HTML diff rows", () => {
+  expect(
+    buildRenderedHtmlRows([
+      { kind: "remove", lineLabel: "1", source: "<h1>Old</h1>" },
+      { kind: "remove", lineLabel: "2", source: "<p>Before</p>" },
+      { kind: "add", lineLabel: "1", source: "<h1>New</h1>" },
+    ]),
+  ).toEqual([
+    { kind: "remove", lineLabel: "1", source: "<h1>Old</h1>\n<p>Before</p>" },
+    { kind: "add", lineLabel: "1", source: "<h1>New</h1>" },
+  ]);
+});
+
+it("groups rendered Markdown diff rows by block", () => {
+  expect(
+    buildRenderedDiffRows([
+      { kind: "remove", text: "```ts", oldLine: 1 },
+      { kind: "remove", text: "const before = true;", oldLine: 2 },
+      { kind: "remove", text: "```", oldLine: 3 },
+      { kind: "add", text: "```ts", newLine: 1 },
+      { kind: "add", text: "const after = true;", newLine: 2 },
+      { kind: "add", text: "```", newLine: 3 },
+    ]),
+  ).toMatchObject([
+    {
+      kind: "remove",
+      lineLabel: "1-3",
+      source: "```ts\nconst before = true;\n```",
+    },
+    {
+      kind: "add",
+      lineLabel: "1-3",
+      source: "```ts\nconst after = true;\n```",
+    },
+  ]);
+});
+
+it("focuses source diffs around changed lines", () => {
+  expect(
+    buildFocusedSourceDiffRows(
+      [
+        { kind: "context", text: "far before", oldLine: 1, newLine: 1 },
+        { kind: "context", text: "near before", oldLine: 2, newLine: 2 },
+        { kind: "remove", text: "old", oldLine: 3 },
+        { kind: "add", text: "new", newLine: 3 },
+        { kind: "context", text: "near after", oldLine: 4, newLine: 4 },
+        { kind: "context", text: "far after", oldLine: 5, newLine: 5 },
+      ],
+      1,
+    ),
+  ).toMatchObject([
+    { kind: "gap", text: "1 unchanged line hidden" },
+    { kind: "context", text: "near before" },
+    { kind: "remove", text: "old" },
+    { kind: "add", text: "new" },
+    { kind: "context", text: "near after" },
+    { kind: "gap", text: "1 unchanged line hidden" },
+  ]);
+});
+
+it("focuses rendered diffs by surrounding block", () => {
+  expect(
+    buildFocusedRenderedDiffRows(
+      [
+        { kind: "context", lineLabel: "1", source: "# Far before" },
+        { kind: "context", lineLabel: "2", source: "Near before" },
+        { kind: "add", lineLabel: "3", source: "Changed" },
+        { kind: "context", lineLabel: "4", source: "Near after" },
+        { kind: "context", lineLabel: "5", source: "Far after" },
+      ],
+      1,
+    ),
+  ).toMatchObject([
+    { kind: "gap", source: "1 unchanged block hidden" },
+    { kind: "context", source: "Near before" },
+    { kind: "add", source: "Changed" },
+    { kind: "context", source: "Near after" },
+    { kind: "gap", source: "1 unchanged block hidden" },
+  ]);
+});
+
+it("renders source diffs as inline line rows", () => {
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="src/app.ts"
+      renderKind="source"
+      diff={{
+        path: "src/app.ts",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content:
+          "diff --git a/src/app.ts b/src/app.ts\nindex 0000000..0000000\n--- a/src/app.ts\n+++ b/src/app.ts\n@@ -62,2 +62,2 @@\n-old line\n+new line",
+      }}
+    />,
+  );
+
+  expect(html).toContain("diff-inline-row remove");
+  expect(html).toContain("diff-inline-row add");
+  expect(html).toContain(">62</span><code>old line</code>");
+  expect(html).toContain(">62</span><code>new line</code>");
+  expect(html).not.toContain("diff --git");
+  expect(html).not.toContain("index 0000000");
+  expect(html).not.toContain("--- a/src/app.ts");
+  expect(html).not.toContain("@@ -62,2 +62,2 @@");
 });
 
 it("groups unified diff lines into rendered change blocks", () => {

@@ -5,7 +5,7 @@ import {
   type ReviewChangeItem,
 } from "../state/git-review.js";
 import type { OutlineHeading } from "../state/outline.js";
-import { eventLabel, type ReviewEvent } from "../state/review-events.js";
+import type { ReviewEvent } from "../state/review-events.js";
 
 interface Props {
   file: FilePayload | null;
@@ -18,7 +18,6 @@ interface Props {
   onOutlineSelect: (id: string) => void;
   onOpenEventPath: (path: string) => void;
   onOpenAllChanged: () => void;
-  onShowDiff: (path: string) => void;
   onTargetHoverChange: (hovering: boolean) => void;
   onRevealTarget: () => void;
 }
@@ -34,7 +33,6 @@ export function Inspector({
   onOutlineSelect,
   onOpenEventPath,
   onOpenAllChanged,
-  onShowDiff,
   onTargetHoverChange,
   onRevealTarget,
 }: Props) {
@@ -42,10 +40,8 @@ export function Inspector({
     file && (file.viewerKind === "code" || file.viewerKind === "json")
       ? buildCodeMetadata(file, selectedCodeRange)
       : null;
-  const changedFileEvents = events.filter(
-    (item) =>
-      item.event.type === "change" ||
-      (item.event.type === "add" && item.event.kind === "file"),
+  const latestEventByPath = new Map(
+    events.map((item) => [item.event.path, item] as const),
   );
   return (
     <aside className="inspector">
@@ -165,7 +161,7 @@ export function Inspector({
         )}
 
         <div className="section-title with-action">
-          <span>Changed files</span>
+          <span>Recent events</span>
           {reviewChanges.length ? (
             <button type="button" onClick={onOpenAllChanged}>
               Open changed
@@ -173,65 +169,36 @@ export function Inspector({
           ) : null}
         </div>
         {reviewChanges.length ? (
-          reviewChanges.slice(0, 10).map((change) => (
-            <div className="change-row" key={`${change.source}:${change.path}`}>
-              <button
-                className="change-open"
-                disabled={change.status === "deleted"}
-                onClick={() => onOpenEventPath(change.path)}
-                type="button"
+          reviewChanges.slice(0, 10).map((change) => {
+            const event = latestEventByPath.get(change.path);
+            return (
+              <div
+                className="change-row"
+                key={`${change.source}:${change.path}`}
               >
-                <b>{changeStatusLabel(change.status)}</b>
-                <span>
-                  {change.status === "renamed" && change.originalPath
-                    ? `${change.originalPath} -> ${change.path}`
-                    : change.path}
-                </span>
-                <small>
-                  {change.source === "git" ? "Git working tree" : "Live event"}
-                </small>
-              </button>
-              <button
-                className="diff-button"
-                disabled={change.status === "deleted"}
-                onClick={() => onShowDiff(change.path)}
-                title={
-                  change.source === "git"
-                    ? "Show diff from HEAD in the active viewer"
-                    : "Open this file and switch to diff mode"
-                }
-                type="button"
-              >
-                Diff
-              </button>
-            </div>
-          ))
-        ) : (
-          <p className="muted">No changed files detected yet.</p>
-        )}
-
-        <div className="section-title with-action">
-          <span>Recent events</span>
-          {changedFileEvents.length ? (
-            <button type="button" onClick={onOpenAllChanged}>
-              Open changed
-            </button>
-          ) : null}
-        </div>
-        {events.length ? (
-          events.slice(0, 8).map((item) => (
-            <button
-              className="event"
-              disabled={item.event.type === "unlink"}
-              key={item.id}
-              onClick={() => onOpenEventPath(item.event.path)}
-              type="button"
-            >
-              <b>{eventLabel(item.event)}</b>
-              <span>{item.event.path}</span>
-              <small>{new Date(item.receivedAt).toLocaleTimeString()}</small>
-            </button>
-          ))
+                <button
+                  className="change-open"
+                  disabled={change.status === "deleted"}
+                  onClick={() => onOpenEventPath(change.path)}
+                  type="button"
+                >
+                  <b>{changeStatusLabel(change.status)}</b>
+                  <span>
+                    {change.status === "renamed" && change.originalPath
+                      ? `${change.originalPath} -> ${change.path}`
+                      : change.path}
+                  </span>
+                  <small>
+                    {change.source === "git"
+                      ? "HEAD diff"
+                      : event
+                        ? new Date(event.receivedAt).toLocaleTimeString()
+                        : "Recent event"}
+                  </small>
+                </button>
+              </div>
+            );
+          })
         ) : (
           <p className="muted">No events yet.</p>
         )}

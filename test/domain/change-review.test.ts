@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   buildAddedFileDiff,
+  buildFullFileDiff,
   parseGitPorcelainStatus,
   statusFromCode,
 } from "../../src/domain/change-review.js";
@@ -39,4 +40,29 @@ it("builds a small added-file unified diff", () => {
 @@ -0,0 +1,2 @@
 +name,status
 +html,ok`);
+});
+
+it("builds a modified-file diff with context and interleaved edits", () => {
+  const diff = buildFullFileDiff(
+    "src/example.ts",
+    "const a = 1;\nconst b = 2;\nexport { a };\n",
+    "const a = 1;\nconst b = 3;\nexport { a, b };\n",
+  );
+
+  expect(diff).toContain(`@@ -1,3 +1,3 @@
+ const a = 1;
+-const b = 2;
++const b = 3;
+-export { a };
++export { a, b };`);
+});
+
+it("keeps unchanged lines in full-file diffs", () => {
+  const before = Array.from({ length: 12 }, (_, index) => `line ${index + 1}`);
+  const after = [...before];
+  after[6] = "line 7 changed";
+
+  expect(buildFullFileDiff("notes.txt", before.join("\n"), after.join("\n")))
+    .toContain(` line 11
+ line 12`);
 });

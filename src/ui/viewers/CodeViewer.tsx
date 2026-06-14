@@ -13,7 +13,6 @@ import {
 } from "../state/code-viewer.js";
 import { iconForPath, languageForPath } from "../state/file-icons.js";
 import type { ResolvedTheme } from "../state/theme.js";
-import type { ViewerMode } from "../state/viewer-mode.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
@@ -21,23 +20,25 @@ export function CodeViewer({
   theme,
   selectedRange,
   refreshedAt,
-  mode = "source",
   diff,
   diffLoading,
+  diffEnabled,
+  diffFocusChanges,
   onSelectionChange,
-  onModeChange,
-  onReloadDiff,
+  onDiffToggle,
+  onDiffFocusChange,
 }: {
   file: FilePayload;
   theme: ResolvedTheme;
   selectedRange: LineRange | null;
   refreshedAt?: number;
-  mode?: ViewerMode;
   diff?: TextDiff | null;
   diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
   onSelectionChange: (range: LineRange | null) => void;
-  onModeChange?: (mode: ViewerMode) => void;
-  onReloadDiff?: () => void;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
 }) {
   const [html, setHtml] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
@@ -88,20 +89,6 @@ export function CodeViewer({
     } catch {
       setCopyStatus("Copy failed");
     }
-  }
-
-  if (mode === "diff") {
-    return (
-      <DiffViewer
-        path={file.path}
-        diff={diff ?? null}
-        loading={diffLoading}
-        renderKind="source"
-        sourceMode="source"
-        onModeChange={onModeChange}
-        onReload={onReloadDiff}
-      />
-    );
   }
 
   return (
@@ -158,14 +145,14 @@ export function CodeViewer({
           {copyStatus ? (
             <span className="copy-status">{copyStatus}</span>
           ) : null}
-          <div className="segmented-control" aria-label="Code view mode">
-            <button className="active" type="button">
-              Source
-            </button>
-            <button type="button" onClick={() => onModeChange?.("diff")}>
-              Diff from HEAD
-            </button>
-          </div>
+          <button
+            aria-pressed={Boolean(diffEnabled)}
+            className={`diff-toggle${diffEnabled ? " active" : ""}`}
+            type="button"
+            onClick={onDiffToggle}
+          >
+            Diff from HEAD
+          </button>
         </div>
       </div>
       <div className="code-scope-bar">
@@ -176,40 +163,51 @@ export function CodeViewer({
             : "Top of file"}
         </strong>
       </div>
-      <div className="code-lines" role="list">
-        {lines.map((line, index) => {
-          const lineNumber = index + 1;
-          const selectedLine = lineInRange(lineNumber, selected);
-          const highlighted = highlightedLines?.[index];
-          return (
-            <div
-              className={selectedLine ? "code-line selected" : "code-line"}
-              data-line={lineNumber}
-              key={lineNumber}
-              role="listitem"
-              onClick={(event) => selectLine(lineNumber, event.shiftKey)}
-            >
-              <button
-                className="line-number"
-                type="button"
-                aria-label={`Select line ${lineNumber}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  selectLine(lineNumber, event.shiftKey);
-                }}
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : (
+        <div className="code-lines" role="list">
+          {lines.map((line, index) => {
+            const lineNumber = index + 1;
+            const selectedLine = lineInRange(lineNumber, selected);
+            const highlighted = highlightedLines?.[index];
+            return (
+              <div
+                className={selectedLine ? "code-line selected" : "code-line"}
+                data-line={lineNumber}
+                key={lineNumber}
+                role="listitem"
+                onClick={(event) => selectLine(lineNumber, event.shiftKey)}
               >
-                {lineNumber}
-              </button>
-              <code
-                className="line-code"
-                dangerouslySetInnerHTML={{
-                  __html: highlighted ?? escapeHtml(line || " "),
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
+                <button
+                  className="line-number"
+                  type="button"
+                  aria-label={`Select line ${lineNumber}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    selectLine(lineNumber, event.shiftKey);
+                  }}
+                >
+                  {lineNumber}
+                </button>
+                <code
+                  className="line-code"
+                  dangerouslySetInnerHTML={{
+                    __html: highlighted ?? escapeHtml(line || " "),
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }
