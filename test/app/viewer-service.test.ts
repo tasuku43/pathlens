@@ -84,3 +84,62 @@ it("delegates Git review reads when the optional port is present", async () => {
     options: [{ ref: "HEAD", label: "HEAD", subject: "initial" }],
   });
 });
+
+it("searches text files through the filesystem port", async () => {
+  const fsPort: FileSystemPort = {
+    async readTree() {
+      return {
+        root: ".",
+        version: 1,
+        nodes: [
+          {
+            id: "README.md",
+            path: "README.md",
+            name: "README.md",
+            kind: "file",
+            parentPath: null,
+            viewerKind: "markdown",
+          },
+          {
+            id: "logo.png",
+            path: "logo.png",
+            name: "logo.png",
+            kind: "file",
+            parentPath: null,
+            viewerKind: "image",
+          },
+        ],
+      };
+    },
+    async readFile(relativePath) {
+      if (relativePath !== "README.md") throw new Error("not searchable");
+      return {
+        path: "README.md",
+        viewerKind: "markdown",
+        encoding: "utf8",
+        content: "# Demo\nFind this local workspace",
+        etag: "sha256:test",
+        size: 32,
+        mtimeMs: 1,
+      };
+    },
+    async readHtmlPreview() {
+      throw new Error("not used");
+    },
+  };
+  const service = new ViewerService({ fileSystem: fsPort });
+
+  await expect(service.searchText("local")).resolves.toEqual({
+    query: "local",
+    results: [
+      {
+        path: "README.md",
+        viewerKind: "markdown",
+        lineNumber: 2,
+        lineText: "Find this local workspace",
+        matchStart: 10,
+        matchLength: 5,
+      },
+    ],
+  });
+});

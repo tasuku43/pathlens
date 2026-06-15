@@ -45,7 +45,7 @@ Rationale:
 
 ## Updated UI decision
 
-The UI direction has been narrowed to a classic workspace with reader support and a modal command palette.
+The UI direction has been narrowed to a classic workspace with reader support and a modal search palette.
 
 Use `docs/ui-mocks/06-classic-reader-commandk.html` as the visual target. It combines:
 
@@ -53,6 +53,6 @@ Use `docs/ui-mocks/06-classic-reader-commandk.html` as the visual target. It com
 - open tabs,
 - central rendered/source viewer,
 - right H1/H2 outline and metadata inspector,
-- Cmd/Ctrl + K command palette overlay.
+- Cmd/Ctrl + K quick open and Cmd/Ctrl + Shift + F text search overlay.
 
 The right outline is important for Markdown reading. It should extract H1/H2 headings from the active Markdown document and provide navigable anchors in a later implementation pass.

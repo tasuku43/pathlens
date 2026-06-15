@@ -108,6 +108,6 @@ The preferred UI direction introduces these browser-side state domains:
 - tab state: open files, active tab, changed/stale indicators,
 - viewer state: file payload, rendered/source mode, scroll position,
 - inspector state: Review Queue, heading outline, collapsed file details,
-- command palette state: open/closed, query, focused result, action mode.
+- search palette state: open/closed, mode, query, focused result.
 
 Do not collapse these into one monolithic React component. Add `src/ui/state/` helpers or focused hooks when implementation grows beyond the scaffold. UI helpers may transform HTTP/SSE DTOs into view models, but they must not read files directly or import Node-only modules.

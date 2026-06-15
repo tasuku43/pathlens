@@ -14,22 +14,23 @@ A build is acceptable when a user can:
 6. View Markdown as a rendered document.
 7. See an H1/H2 outline for Markdown under "In this file" in the right inspector.
 8. Preview HTML in a sandboxed iframe.
-9. Open Cmd/Ctrl + K and fuzzy-select a file.
-10. Save the active file externally and see the active viewer update without a full page reload.
-11. Add or remove a file externally and see the tree update.
-12. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
-13. Use Review Queue as a deduplicated file list for paths that need review, primarily from the HEAD diff when Git is available and from collapsed watcher signals otherwise.
-14. Toggle Markdown and HTML between rendered/preview and source modes.
-15. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
-16. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
-17. Keep image, text/log, and structured file previews readable without implying editing.
+9. Open Cmd/Ctrl + K and fuzzy-select a file by filename or path.
+10. Open Cmd/Ctrl + Shift + F and select a text match from searchable file contents.
+11. Save the active file externally and see the active viewer update without a full page reload.
+12. Add or remove a file externally and see the tree update.
+13. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
+14. Use Review Queue as a deduplicated file list for paths that need review, primarily from the HEAD diff when Git is available and from collapsed watcher signals otherwise.
+15. Toggle Markdown and HTML between rendered/preview and source modes.
+16. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
+17. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
+18. Keep image, text/log, and structured file previews readable without implying editing.
 
 ## Evaluation function
 
 Score a UI implementation against these dimensions:
 
 - Layout fidelity: resembles the preferred mockup enough that sidebar, tabs, viewer, inspector, and palette roles are obvious.
-- Interaction correctness: tree selection, tabs, viewer dispatch, and command palette state behave predictably.
+- Interaction correctness: tree selection, tabs, viewer dispatch, and search palette state behave predictably.
 - Live update correctness: active file and tree changes update without full page refresh.
 - Safety: path traversal is rejected and HTML preview is sandboxed by default.
 - Performance posture: implementation does not require one watcher per tree node or full React remounts for normal updates.
@@ -43,7 +44,7 @@ Add or update tests for:
 - viewer kind dispatch,
 - tab open/activate/close behavior,
 - heading extraction for Markdown H1/H2 outline,
-- command palette open/close and result selection,
+- search palette open/close, mode selection, and result selection,
 - SSE change event reloading the active file,
 - add/unlink event updating the tree,
 - HTML preview route preserving sandbox defaults.

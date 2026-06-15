@@ -119,6 +119,16 @@ input {
 .theme-button {
   cursor: pointer;
 }
+.command-button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+.command-button kbd {
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
 .pill {
   cursor: default;
 }
@@ -1141,6 +1151,25 @@ button.pill {
 .palette-top {
   padding: 14px;
   border-bottom: 1px solid var(--line);
+}
+.palette-mode-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.palette-mode-bar button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+.palette-mode-bar button.active {
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+  color: var(--accent);
 }
 .palette-input {
   width: 100%;

@@ -2,7 +2,7 @@
 
 ## Finalized direction
 
-The first polished UI should be based on the classic explorer layout, with a document-reader inspector and a modal command palette.
+The first polished UI should be based on the classic explorer layout, with a document-reader inspector and a modal search palette.
 
 The preferred mockup is:
 
@@ -20,7 +20,7 @@ The app should use this default layout:
 left sidebar     : live directory tree
 main center      : open-file tabs and active viewer
 right inspector  : Markdown H1/H2 outline, file metadata, recent file events
-command overlay  : Cmd/Ctrl + K command palette
+search overlay   : Cmd/Ctrl + K quick open, Cmd/Ctrl + Shift + F text search
 bottom status    : watched file count, open tab count, connection/server status
 ```
 
@@ -99,29 +99,19 @@ Requirements:
 - For non-Markdown files, the inspector can show a compact empty state or lightweight symbols under "In this file."
 - The Review Queue is not a staging UI or a full history browser. Rename-like watcher add/remove pairs are grouped as likely renames when they are close in time and share parent and extension, while Git status can surface explicit renamed files in the changed-file list.
 
-## Command palette
+## Search palette
 
-Cmd/Ctrl + K should open a modal command palette on top of the normal workspace. It is not a separate command-first layout.
+The overlay should stay small and search-oriented. It is not a separate command-first layout and should not become a universal command runner for every read-only action.
 
-Initial commands:
+Shortcuts:
 
-- Open file by fuzzy path search.
-- Open next or previous file from the Review Queue.
-- Toggle diff from `HEAD` for the active or selected changed file.
-- Reveal active file in the tree.
-- Toggle rendered/source mode when supported.
-- Copy a local raw preview URL.
-- Focus outline.
-- Toggle inspector.
-- Split right for side-by-side reading.
-- Close tab and reopen the last closed tab.
-- Open recent file.
-- Show keyboard shortcuts.
-- Export current context.
+- Cmd/Ctrl + K opens quick open for fuzzy filename/path search.
+- Cmd/Ctrl + Shift + F opens full-text search across text-previewable files.
+- Cmd/Ctrl + O is avoided because it conflicts with browser and operating-system file-open expectations.
 
-The palette should close on Escape and preserve the current workspace state.
+The palette should close on Escape, open selected files with Enter, and preserve the current workspace state.
 
-Palette commands stay read-only. They move focus, show diffs, change viewing mode, copy local context, and arrange panes; they do not edit, stage, commit, or mutate files.
+Non-search actions should live on their natural surfaces: tabs for tab management, viewer controls for source/rendered and diff, inspector controls for review events, and layout gestures for split panes. This keeps the overlay predictable and prevents command inventory from becoming the main product.
 
 ## Product intent
 

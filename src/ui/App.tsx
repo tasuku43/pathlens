@@ -19,7 +19,7 @@ import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
 import type { LineRange } from "./state/code-viewer.js";
-import type { CommandActionId } from "./state/command-actions.js";
+import type { TextSearchResult } from "../domain/search.js";
 import {
   recordReviewEvent,
   summarizeReviewEvents,
@@ -71,12 +71,10 @@ import {
 } from "./state/workspace-session.js";
 import {
   defaultViewerMode,
-  modeLabel,
-  nextViewerMode,
   supportsDiffMode,
-  supportsSourceToggle,
   type ViewerMode,
 } from "./state/viewer-mode.js";
+import type { SearchPaletteMode } from "./state/search-palette.js";
 
 export function App() {
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
@@ -84,7 +82,6 @@ export function App() {
   const [layout, setLayout] = useState(initialEditorLayout);
   const [files, setFiles] = useState<Record<string, FilePayload>>({});
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
-  const [closedTabs, setClosedTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
@@ -104,7 +101,12 @@ export function App() {
     {},
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteMode, setPaletteMode] = useState<SearchPaletteMode>("file");
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [textSearchResults, setTextSearchResults] = useState<
+    TextSearchResult[]
+  >([]);
+  const [textSearchLoading, setTextSearchLoading] = useState(false);
   const [draggingTab, setDraggingTab] = useState(false);
   const [manualDraggedTab, setManualDraggedTab] =
     useState<DraggedTabPayload | null>(null);
@@ -193,10 +195,6 @@ export function App() {
         : (tree?.nodes ?? []),
     [changedPathSet, tree, treeChangedOnly],
   );
-  const activeViewerMode = file
-    ? (viewerModes[file.path] ?? defaultViewerMode(file))
-    : undefined;
-
   async function fetchFilePayload(path: string): Promise<FilePayload> {
     const response = await fetch(`/api/file?path=${encodeURIComponent(path)}`);
     if (!response.ok)
@@ -254,20 +252,6 @@ export function App() {
   }
 
   function closeTab(path: string, paneId = layout.activePaneId) {
-    const closed = openTabs.find(
-      (tab) => tab.path === path && tab.paneId === paneId,
-    );
-    if (closed) {
-      setClosedTabs((tabs) =>
-        [
-          closed,
-          ...tabs.filter(
-            (tab) =>
-              !(tab.path === closed.path && tab.paneId === closed.paneId),
-          ),
-        ].slice(0, 12),
-      );
-    }
     setOpenTabs((tabs) => {
       const pane = panes.find((item) => item.id === paneId);
       const result = closeOpenTab(tabs, path, pane?.activePath ?? null, paneId);
@@ -294,6 +278,12 @@ export function App() {
     void loadFile(path).catch((err) => setError(String(err)));
   }
 
+  function openPalette(mode: SearchPaletteMode) {
+    setPaletteMode(mode);
+    setPaletteQuery("");
+    setPaletteOpen(true);
+  }
+
   function openAllChangedFiles() {
     for (const { path, status } of reviewChanges) {
       if (status === "deleted") continue;
@@ -305,93 +295,6 @@ export function App() {
     const path = nextReviewQueuePath(reviewChanges, selectedPath, direction);
     if (path) void loadFile(path).catch((err) => setError(String(err)));
   }
-
-  function openFirstRecentFile() {
-    const path = recentFiles[0]?.path;
-    if (path) void loadFile(path).catch((err) => setError(String(err)));
-  }
-
-  function reopenLastClosedTab() {
-    const tab = closedTabs[0];
-    if (!tab) return;
-    setClosedTabs((tabs) => tabs.slice(1));
-    void loadFile(tab.path, tab.paneId).catch((err) => setError(String(err)));
-  }
-
-  function toggleActiveViewerMode() {
-    const next = nextViewerMode(file, activeViewerMode);
-    if (!file || !next) return;
-    setViewerModes((items) => ({ ...items, [file.path]: next }));
-  }
-
-  function revealActiveInTree() {
-    if (!selectedPath) return;
-    setTreeChangedOnly(false);
-    window.setTimeout(() => {
-      const row = document.querySelector<HTMLElement>(
-        `[data-tree-path="${cssEscape(selectedPath)}"]`,
-      );
-      row?.scrollIntoView({ block: "center", behavior: "smooth" });
-      row?.focus();
-    }, 0);
-  }
-
-  function focusOutline() {
-    const outlineLink = document.querySelector<HTMLElement>(".outline a");
-    outlineLink?.focus();
-  }
-
-  async function copyActiveLocalUrl() {
-    if (!selectedPath) return;
-    await copyToClipboard(localUrlForPath(selectedPath));
-  }
-
-  async function exportCurrentContext() {
-    const context = [
-      `root: ${config?.root ?? "unknown"}`,
-      `active: ${selectedPath ?? "none"}`,
-      `tabs: ${openTabs.map((tab) => `${tab.paneId}:${tab.path}`).join(", ") || "none"}`,
-      `review signals: ${
-        recentEvents
-          .slice(0, 8)
-          .map((item) => `${item.event.type}:${item.event.path}`)
-          .join(", ") || "none"
-      }`,
-      `review queue: ${
-        reviewChanges
-          .slice(0, 12)
-          .map((item) => `${item.status}:${item.path}`)
-          .join(", ") || "none"
-      }`,
-    ].join("\n");
-    await copyToClipboard(context);
-  }
-
-  function runCommandAction(id: CommandActionId) {
-    if (id === "open-changed-file") openReviewQueueFile("next");
-    else if (id === "open-previous-changed-file")
-      openReviewQueueFile("previous");
-    else if (id === "show-diff" && selectedPath) toggleHeadDiff(selectedPath);
-    else if (id === "reveal-in-tree") revealActiveInTree();
-    else if (id === "toggle-source-rendered") toggleActiveViewerMode();
-    else if (id === "copy-local-url")
-      void copyActiveLocalUrl().catch((err) => setError(String(err)));
-    else if (id === "focus-outline") focusOutline();
-    else if (id === "toggle-inspector")
-      setInspectorVisible((visible) => !visible);
-    else if (id === "split-right" && selectedPath)
-      splitTab(selectedPath, layout.activePaneId, layout.activePaneId, "right");
-    else if (id === "close-tab" && selectedPath)
-      closeTab(selectedPath, layout.activePaneId);
-    else if (id === "reopen-last-closed-tab") reopenLastClosedTab();
-    else if (id === "open-recent-file") openFirstRecentFile();
-    else if (id === "show-keyboard-shortcuts") setPaletteQuery("");
-    else if (id === "export-current-context")
-      void exportCurrentContext().catch((err) => setError(String(err)));
-
-    if (id !== "show-keyboard-shortcuts") setPaletteOpen(false);
-  }
-
   function moveTab(
     path: string,
     fromPaneId: string,
@@ -435,123 +338,6 @@ export function App() {
     if (file.viewerKind !== "markdown") return [];
     return extractMarkdownOutline(file.content);
   }, [file]);
-
-  const commandActions = useMemo(
-    () => [
-      {
-        id: "open-changed-file" as const,
-        label: "Open next",
-        detail: `${reviewChanges.length} files to review`,
-        keywords: ["review", "changed", "queue", "next", "open"],
-        disabled: !nextReviewQueuePath(reviewChanges, selectedPath, "next"),
-      },
-      {
-        id: "open-previous-changed-file" as const,
-        label: "Open previous",
-        detail: `${reviewChanges.length} files to review`,
-        keywords: ["review", "changed", "queue", "previous", "open"],
-        disabled: !nextReviewQueuePath(reviewChanges, selectedPath, "previous"),
-      },
-      {
-        id: "show-diff" as const,
-        label: "Toggle diff from HEAD",
-        detail: selectedPath ?? "No active file",
-        keywords: ["review", "diff", "change", "git"],
-        disabled:
-          !selectedPath ||
-          !supportsDiffMode(file) ||
-          !reviewChanges.some((change) => change.path === selectedPath),
-      },
-      {
-        id: "reveal-in-tree" as const,
-        label: "Reveal in tree",
-        detail: selectedPath ?? "No active file",
-        keywords: ["tree", "sidebar", "show"],
-        disabled: !selectedPath,
-      },
-      {
-        id: "toggle-source-rendered" as const,
-        label: "Toggle source/rendered",
-        detail:
-          file && supportsSourceToggle(file)
-            ? `Current: ${modeLabel(activeViewerMode ?? defaultViewerMode(file))}`
-            : "Markdown and HTML only",
-        keywords: ["source", "rendered", "preview", "mode"],
-        disabled: !supportsSourceToggle(file),
-      },
-      {
-        id: "copy-local-url" as const,
-        label: "Copy local URL",
-        detail: selectedPath ?? "No active file",
-        keywords: ["copy", "url", "link"],
-        disabled: !selectedPath,
-      },
-      {
-        id: "focus-outline" as const,
-        label: "Focus outline",
-        detail: outline.length ? `${outline.length} headings` : "No outline",
-        keywords: ["outline", "headings", "inspector"],
-        disabled: outline.length === 0 || !inspectorVisible,
-      },
-      {
-        id: "toggle-inspector" as const,
-        label: inspectorVisible ? "Hide inspector" : "Show inspector",
-        detail: "Toggle right inspector",
-        keywords: ["inspector", "right", "metadata"],
-      },
-      {
-        id: "split-right" as const,
-        label: "Split right",
-        detail: selectedPath ?? "No active file",
-        keywords: ["split", "pane", "compare"],
-        disabled: !selectedPath,
-      },
-      {
-        id: "close-tab" as const,
-        label: "Close tab",
-        detail: selectedPath ?? "No active tab",
-        keywords: ["close", "tab"],
-        disabled: !selectedPath,
-      },
-      {
-        id: "reopen-last-closed-tab" as const,
-        label: "Reopen last closed tab",
-        detail: closedTabs[0]?.path ?? "No closed tab",
-        keywords: ["reopen", "closed", "tab"],
-        disabled: closedTabs.length === 0,
-      },
-      {
-        id: "open-recent-file" as const,
-        label: "Open recent file",
-        detail: recentFiles[0]?.path ?? "No recent file",
-        keywords: ["recent", "history", "open"],
-        disabled: recentFiles.length === 0,
-      },
-      {
-        id: "show-keyboard-shortcuts" as const,
-        label: "Show keyboard shortcuts",
-        detail: "Cmd/Ctrl K, Cmd/Ctrl D, Enter, Esc, line selection",
-        keywords: ["keyboard", "shortcuts", "help"],
-      },
-      {
-        id: "export-current-context" as const,
-        label: "Export current context",
-        detail: "Copy root, active file, tabs, and review queue",
-        keywords: ["copy", "context", "export", "review"],
-      },
-    ],
-    [
-      activeViewerMode,
-      closedTabs,
-      file,
-      inspectorVisible,
-      outline.length,
-      recentEvents,
-      recentFiles,
-      reviewChanges,
-      selectedPath,
-    ],
-  );
 
   function jumpToOutline(id: string) {
     const pane = document.querySelector<HTMLElement>(
@@ -664,10 +450,58 @@ export function App() {
   }, [resolvedTheme, themePreference]);
 
   useEffect(() => {
+    const query = paletteQuery.trim();
+    if (!paletteOpen || paletteMode !== "text" || !query) {
+      setTextSearchResults([]);
+      setTextSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setTextSearchLoading(true);
+      const params = new URLSearchParams({ q: query, limit: "40" });
+      fetch(`/api/search?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok)
+            throw new Error(`search request failed: ${response.status}`);
+          return response.json() as Promise<{
+            results: TextSearchResult[];
+          }>;
+        })
+        .then((result) => setTextSearchResults(result.results))
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          setError(String(err));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setTextSearchLoading(false);
+        });
+    }, 180);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [paletteMode, paletteOpen, paletteQuery]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setPaletteOpen((value) => !value);
+        if (paletteOpen && paletteMode === "file") setPaletteOpen(false);
+        else openPalette("file");
+      }
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "f"
+      ) {
+        event.preventDefault();
+        if (paletteOpen && paletteMode === "text") setPaletteOpen(false);
+        else openPalette("text");
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
         event.preventDefault();
@@ -677,7 +511,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedPath, diffEnabled]);
+  }, [paletteMode, paletteOpen, selectedPath, diffEnabled]);
 
   useEffect(() => {
     const events = new EventSource("/events");
@@ -740,8 +574,13 @@ export function App() {
         >
           {themePreferenceLabel(themePreference)}
         </button>
-        <button className="command-button" onClick={() => setPaletteOpen(true)}>
-          Cmd/Ctrl K
+        <button className="command-button" onClick={() => openPalette("file")}>
+          Quick open
+          <kbd>Cmd K</kbd>
+        </button>
+        <button className="command-button" onClick={() => openPalette("text")}>
+          Search
+          <kbd>Cmd Shift F</kbd>
         </button>
       </header>
 
@@ -815,13 +654,18 @@ export function App() {
 
       <CommandPalette
         open={paletteOpen}
+        mode={paletteMode}
         query={paletteQuery}
         nodes={tree?.nodes ?? []}
-        actions={commandActions}
+        textResults={textSearchResults}
+        textLoading={textSearchLoading}
         onQueryChange={setPaletteQuery}
+        onModeChange={(mode) => {
+          setPaletteMode(mode);
+          setPaletteQuery("");
+        }}
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
-        onRunAction={runCommandAction}
       />
     </div>
   );
@@ -1050,23 +894,6 @@ function readSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: light)").matches
     ? "light"
     : "dark";
-}
-
-function localUrlForPath(path: string): string {
-  const encoded = path
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return new URL(`/preview/raw/${encoded}`, window.location.href).toString();
-}
-
-async function copyToClipboard(value: string): Promise<void> {
-  await navigator.clipboard.writeText(value);
-}
-
-function cssEscape(value: string): string {
-  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
-  return value.replace(/["\\]/g, "\\$&");
 }
 
 const recentEventWindowMs = 5 * 60 * 1000;

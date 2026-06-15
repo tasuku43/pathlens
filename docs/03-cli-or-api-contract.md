@@ -64,6 +64,26 @@ Returns file content and metadata for a relative path under the root.
 
 Image payloads use `encoding: "base64"` and include a MIME type suitable for browser display. Files larger than the configured preview limit use `truncated: true`. Text-like large files may include a bounded leading UTF-8 `content` chunk with `previewBytes`; non-text large files use `encoding: "none"` and empty `content`.
 
+### `GET /api/search?q=<query>&limit=<count>`
+
+Returns bounded, read-only full-text matches across text-previewable files under the selected root. Search is best-effort and skips binary, unsupported, ignored, excluded, and truncated files. Results are line-oriented and intended for opening the matching file in the SPA.
+
+```json
+{
+  "query": "local",
+  "results": [
+    {
+      "path": "README.md",
+      "viewerKind": "markdown",
+      "lineNumber": 3,
+      "lineText": "Open a local workspace",
+      "matchStart": 7,
+      "matchLength": 5
+    }
+  ]
+}
+```
+
 ### `GET /api/config`
 
 Returns viewer configuration needed by the SPA.

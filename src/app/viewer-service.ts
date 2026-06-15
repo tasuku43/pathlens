@@ -9,6 +9,11 @@ import type {
   TreeSnapshot,
   ViewerConfig,
 } from "../domain/fs-node.js";
+import {
+  collectSearchableFiles,
+  searchFilePayload,
+  type TextSearchResult,
+} from "../domain/search.js";
 import type { ViewerServiceOptions } from "./contracts.js";
 
 export class ViewerService {
@@ -33,6 +38,33 @@ export class ViewerService {
 
   readHtmlPreview(relativePath: string): Promise<string> {
     return this.fileSystem.readHtmlPreview(relativePath);
+  }
+
+  async searchText(
+    query: string,
+    options: { limit?: number; matchesPerFile?: number } = {},
+  ): Promise<{ query: string; results: TextSearchResult[] }> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) return { query: normalizedQuery, results: [] };
+
+    const limit = options.limit ?? 40;
+    const matchesPerFile = options.matchesPerFile ?? 3;
+    const tree = await this.fileSystem.readTree();
+    const results: TextSearchResult[] = [];
+
+    for (const file of collectSearchableFiles(tree.nodes)) {
+      try {
+        const payload = await this.fileSystem.readFile(file.path);
+        results.push(
+          ...searchFilePayload(payload, normalizedQuery, matchesPerFile),
+        );
+      } catch {
+        // Search is best-effort because files may change between tree scan and read.
+      }
+      if (results.length >= limit) break;
+    }
+
+    return { query: normalizedQuery, results: results.slice(0, limit) };
   }
 
   getConfig(): ViewerConfig {

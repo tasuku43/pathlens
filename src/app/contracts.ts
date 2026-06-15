@@ -9,12 +9,18 @@ import type {
   TreeSnapshot,
   ViewerConfig,
 } from "../domain/fs-node.js";
+import type { TextSearchResult } from "../domain/search.js";
 
 export interface FileSystemPort {
   readTree(): Promise<TreeSnapshot>;
   readFile(relativePath: string): Promise<FilePayload>;
   readHtmlPreview(relativePath: string): Promise<string>;
   getConfig?(): ViewerConfig;
+}
+
+export interface TextSearchResponse {
+  query: string;
+  results: TextSearchResult[];
 }
 
 export interface WatcherPort {

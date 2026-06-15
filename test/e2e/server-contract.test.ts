@@ -48,6 +48,17 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(file.viewerKind).toBe("markdown");
   expect(file.content).toBe("# E2E");
 
+  const search = await fetch(`${server.url}/api/search?q=E2E`).then((res) =>
+    res.json(),
+  );
+  expect(search.results).toContainEqual(
+    expect.objectContaining({
+      path: "README.md",
+      lineNumber: 1,
+      lineText: "# E2E",
+    }),
+  );
+
   const changes = await fetch(`${server.url}/api/changes`).then((res) =>
     res.json(),
   );

@@ -54,6 +54,6 @@ Suggested vertical slices:
 2. Introduce open-file tab state and make tree selection open or activate tabs.
 3. Add viewer mode controls for rendered/source where supported.
 4. Add Markdown H1/H2 extraction and inspector rendering.
-5. Add a Cmd/Ctrl + K command palette that can open or activate files.
+5. Add a search palette: Cmd/Ctrl + K for quick open and Cmd/Ctrl + Shift + F for text search.
 6. Wire SSE file events to active viewer refresh, tree refresh, and tab changed indicators.
 7. Add E2E coverage for the minimum UX acceptance criteria in `docs/18-ux-acceptance-criteria.md`.

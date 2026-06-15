@@ -130,10 +130,10 @@ pathlens ./reports --open --max-file-size 2097152
 
 ## Keyboard Flow
 
-- `Cmd/Ctrl+K`: open the command palette.
-- `Enter`: open the selected file or run the selected command.
-- `Esc`: close the palette.
-- Palette commands include open changed file, show diff, reveal in tree, toggle source/rendered, copy local URL, focus outline, toggle inspector, split right, close tab, reopen last closed tab, open recent file, show keyboard shortcuts, and export current context.
+- `Cmd/Ctrl+K`: quick open by filename or path.
+- `Cmd/Ctrl+Shift+F`: search text across searchable file contents.
+- `Enter`: open the selected file.
+- `Esc`: close the search palette.
 - In code viewers, click a line number to select a line; shift-click extends the selected range.
 
 ## Release Images
@@ -251,7 +251,7 @@ The preferred direction is:
 docs/ui-mocks/06-classic-reader-commandk.html
 ```
 
-It combines a classic explorer sidebar, open-file tabs, a central viewer, a right Markdown outline/inspector, and a modal Cmd/Ctrl + K command palette.
+It combines a classic explorer sidebar, open-file tabs, a central viewer, a right Markdown outline/inspector, and a modal search palette for quick open and text search.
 
 Relevant docs:
 

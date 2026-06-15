@@ -101,6 +101,13 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname === "/api/search") {
+    const query = url.searchParams.get("q") ?? "";
+    const limit = parsePositiveInt(url.searchParams.get("limit")) ?? 40;
+    sendJson(res, 200, await options.service.searchText(query, { limit }));
+    return;
+  }
+
   if (url.pathname === "/preview/html") {
     const requestedPath = url.searchParams.get("path") ?? "";
     const html = await options.service.readHtmlPreview(requestedPath);
@@ -183,6 +190,12 @@ async function serveSpa(
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(body));
+}
+
+function parsePositiveInt(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function statusForError(message: string): number {

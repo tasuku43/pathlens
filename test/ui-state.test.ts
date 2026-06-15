@@ -20,10 +20,9 @@ import {
   reviewQueueSourceLabel,
 } from "../src/ui/state/git-review.js";
 import {
-  buildPaletteItems,
-  filterCommandActions,
-  type CommandAction,
-} from "../src/ui/state/command-actions.js";
+  buildFileSearchItems,
+  buildTextSearchItems,
+} from "../src/ui/state/search-palette.js";
 import {
   flattenPanes,
   initialEditorLayout,
@@ -670,22 +669,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });
 
-it("builds command palette items from read-only actions and files", () => {
-  const actions: CommandAction[] = [
-    {
-      id: "toggle-inspector",
-      label: "Toggle inspector",
-      detail: "Toggle right inspector",
-      keywords: ["right", "metadata"],
-    },
-    {
-      id: "close-tab",
-      label: "Close tab",
-      detail: "No active tab",
-      keywords: ["tab"],
-      disabled: true,
-    },
-  ];
+it("builds search palette items only from files and text matches", () => {
   const nodes: FsNode[] = [
     {
       id: "reports/index.html",
@@ -697,12 +681,31 @@ it("builds command palette items from read-only actions and files", () => {
     },
   ];
 
-  expect(filterCommandActions(actions, "inspect")[0]?.id).toBe(
-    "toggle-inspector",
-  );
+  expect(buildFileSearchItems(nodes, "index").map((item) => item.id)).toEqual([
+    "file:reports/index.html",
+  ]);
   expect(
-    buildPaletteItems(nodes, actions, "index").map((item) => item.id),
-  ).toContain("file:reports/index.html");
+    buildTextSearchItems([
+      {
+        path: "reports/index.html",
+        viewerKind: "html",
+        lineNumber: 4,
+        lineText: "<h1>Index</h1>",
+        matchStart: 4,
+        matchLength: 5,
+      },
+    ]),
+  ).toEqual([
+    {
+      kind: "text",
+      id: "text:reports/index.html:4:4",
+      path: "reports/index.html",
+      label: "reports/index.html",
+      detail: "L4 <h1>Index</h1>",
+      viewerKind: "html",
+      lineNumber: 4,
+    },
+  ]);
 });
 
 it("filters the tree to changed paths and ranks generated review targets", () => {
