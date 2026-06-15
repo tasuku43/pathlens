@@ -1,3 +1,5 @@
+import { Children, isValidElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import type { FilePayload } from "../src/domain/fs-node.js";
@@ -160,6 +162,7 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
@@ -192,6 +195,46 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html).not.toContain("Diff preview");
 });
 
+it("opens Review Queue rows as preview on click and stable tabs on double click", () => {
+  const calls: string[] = [];
+  const inspector = Inspector({
+    file: codeFile,
+    outline: [],
+    reviewChanges: [
+      { path: "src/app.ts", status: "modified", source: "git" },
+    ],
+    selectedCodeRange: null,
+    activePaneId: "main",
+    onOutlineSelect: () => undefined,
+    onOpenEventPath: (path) => calls.push(`preview:${path}`),
+    onConfirmEventPath: (path) => calls.push(`normal:${path}`),
+    onOpenNextChanged: () => undefined,
+    onOpenPreviousChanged: () => undefined,
+    onOpenAllChanged: () => undefined,
+    onTargetHoverChange: () => undefined,
+    onRevealTarget: () => undefined,
+  });
+
+  const button = findElement(inspector, (element) => {
+    const props = element.props as { className?: string; children?: ReactNode };
+    return (
+      props.className === "change-open" &&
+      flattenText(props.children).includes("src/app.ts")
+    );
+  });
+  const props = button.props as {
+    onClick: () => void;
+    onDoubleClick: () => void;
+    title: string;
+  };
+
+  props.onClick();
+  props.onDoubleClick();
+
+  expect(props.title).toBe("Double-click to keep open as a tab");
+  expect(calls).toEqual(["preview:src/app.ts", "normal:src/app.ts"]);
+});
+
 it("keeps Markdown and HTML outline available as In this file", () => {
   const html = renderToStaticMarkup(
     <Inspector
@@ -205,6 +248,7 @@ it("keeps Markdown and HTML outline available as In this file", () => {
       activePaneId="main"
       onOutlineSelect={() => undefined}
       onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
@@ -219,6 +263,41 @@ it("keeps Markdown and HTML outline available as In this file", () => {
   expect(html).toContain("Setup");
   expect(html).not.toContain("Document outline");
 });
+
+function findElement(
+  node: ReactNode,
+  predicate: (element: ReactElement) => boolean,
+): ReactElement {
+  const match = findElementOrNull(node, predicate);
+  if (!match) throw new Error("element not found");
+  return match;
+}
+
+function findElementOrNull(
+  node: ReactNode,
+  predicate: (element: ReactElement) => boolean,
+): ReactElement | null {
+  if (isValidElement(node)) {
+    if (predicate(node)) return node;
+    const props = node.props as { children?: ReactNode };
+    for (const child of Children.toArray(props.children)) {
+      const match = findElementOrNull(child, predicate);
+      if (match) return match;
+    }
+  }
+  return null;
+}
+
+function flattenText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (!isValidElement(node)) {
+    return Children.toArray(node).map(flattenText).join("");
+  }
+  const props = node.props as { children?: ReactNode };
+  return Children.toArray(props.children).map(flattenText).join("");
+}
 
 it("renders HEAD diffs inside the file viewer surface", () => {
   const html = renderToStaticMarkup(

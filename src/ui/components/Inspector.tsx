@@ -16,6 +16,7 @@ interface Props {
   activePaneId: string;
   onOutlineSelect: (id: string) => void;
   onOpenEventPath: (path: string) => void;
+  onConfirmEventPath: (path: string) => void;
   onOpenNextChanged: () => void;
   onOpenPreviousChanged: () => void;
   onOpenAllChanged: () => void;
@@ -32,6 +33,7 @@ export function Inspector({
   activePaneId,
   onOutlineSelect,
   onOpenEventPath,
+  onConfirmEventPath,
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
@@ -74,6 +76,8 @@ export function Inspector({
                 disabled={change.status === "deleted"}
                 key={`${change.source}:${change.path}`}
                 onClick={() => onOpenEventPath(change.path)}
+                onDoubleClick={() => onConfirmEventPath(change.path)}
+                title="Double-click to keep open as a tab"
                 type="button"
               >
                 <b>{changeStatusLabel(change.status)}</b>
