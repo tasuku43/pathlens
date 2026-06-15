@@ -1473,7 +1473,7 @@ kbd {
 
 .review-queue {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   max-height: min(340px, 42vh);
   overflow: auto;
   padding-right: 2px;
@@ -1488,28 +1488,74 @@ kbd {
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 8px;
-  padding: 8px;
+  grid-template-columns: 7px 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 7px;
+  padding: 6px 7px;
   text-align: left;
 }
-.change-open b {
-  color: var(--accent);
-  font-size: 11px;
-  text-transform: uppercase;
+.change-open:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
 }
-.change-open span {
+.unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.unread-dot.read {
+  background: transparent;
+  box-shadow: none;
+}
+.change-icon {
+  min-width: 24px;
+  align-self: start;
+  margin-top: 1px;
+}
+.change-main {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.change-open b {
+  min-width: 0;
   overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .change-open small {
-  grid-column: 2;
   color: var(--subtle);
+  font-size: 10.5px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .change-open:disabled {
   cursor: default;
   opacity: 0.45;
+}
+.diff-stat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.diff-stat.muted {
+  color: var(--subtle);
+}
+.diff-add {
+  color: #2da44e;
+}
+.diff-remove {
+  color: #cf222e;
 }
 .diff-card {
   border: 1px solid var(--line);

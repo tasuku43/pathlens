@@ -54,6 +54,8 @@ import {
   replaceDirectoryChildren,
 } from "./state/files.js";
 import {
+  buildDiffStat,
+  latestUnreadReviewPath,
   mergeReviewChanges,
   nextReviewQueuePath,
   type GitChangeReviewState,
@@ -106,6 +108,7 @@ export function App() {
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [unreadReviewPaths, setUnreadReviewPaths] = useState<string[]>([]);
   const [liveMetrics, setLiveMetrics] = useState<LiveRefreshMetrics>({
     fsEventsReceived: 0,
     gitRefreshes: 0,
@@ -165,6 +168,7 @@ export function App() {
     useState<WorkspaceSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const gitRefreshTimer = useRef<number | null>(null);
+  const knownReviewPaths = useRef(new Set<string>());
   const gitRefreshInFlight = useRef(false);
   const gitRefreshQueued = useRef(false);
   const diffRefreshTimer = useRef<number | null>(null);
@@ -277,6 +281,17 @@ export function App() {
     () => mergeReviewChanges(reviewState, gitReview),
     [gitReview, reviewState],
   );
+  const reviewDiffStats = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(diffs).map(([path, diff]) => [path, buildDiffStat(diff)]),
+      ),
+    [diffs],
+  );
+  const unreadReviewPathSet = useMemo(
+    () => new Set(unreadReviewPaths),
+    [unreadReviewPaths],
+  );
   const changedPathSet = useMemo(
     () => new Set(reviewChanges.map((change) => change.path)),
     [reviewChanges],
@@ -306,6 +321,7 @@ export function App() {
     setFiles((items) => ({ ...items, [payload.path]: payload }));
     setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
     setRecentFiles((items) => recordRecentFile(items, payload));
+    markReviewPathRead(payload.path);
     return payload;
   }
 
@@ -455,6 +471,25 @@ export function App() {
       void loadFile(path, layout.activePaneId, "preview").catch((err) =>
         setError(String(err)),
       );
+  }
+
+  function openLatestUnreadReviewFile() {
+    const path = latestUnreadReviewPath(reviewChanges, unreadReviewPaths);
+    if (path)
+      void loadFile(path, layout.activePaneId, "preview").catch((err) =>
+        setError(String(err)),
+      );
+  }
+
+  function markReviewPathUnread(path: string) {
+    setUnreadReviewPaths((paths) => [
+      path,
+      ...paths.filter((item) => item !== path),
+    ]);
+  }
+
+  function markReviewPathRead(path: string) {
+    setUnreadReviewPaths((paths) => paths.filter((item) => item !== path));
   }
 
   function promoteTab(path: string, paneId = layout.activePaneId) {
@@ -688,6 +723,32 @@ export function App() {
   }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
+    const currentPaths = new Set(reviewChanges.map((change) => change.path));
+    const newPaths = reviewChanges
+      .map((change) => change.path)
+      .filter((path) => !knownReviewPaths.current.has(path));
+
+    for (const path of [...knownReviewPaths.current]) {
+      if (!currentPaths.has(path)) knownReviewPaths.current.delete(path);
+    }
+    for (const path of newPaths) knownReviewPaths.current.add(path);
+
+    setUnreadReviewPaths((paths) => [
+      ...newPaths.reverse(),
+      ...paths.filter(
+        (path) => currentPaths.has(path) && !newPaths.includes(path),
+      ),
+    ]);
+  }, [reviewChanges]);
+
+  useEffect(() => {
+    for (const change of reviewChanges.slice(0, 12)) {
+      if (diffs[change.path] || loadingDiffs[change.path]) continue;
+      void loadHeadDiff(change.path).catch((err) => setError(String(err)));
+    }
+  }, [reviewChanges]);
+
+  useEffect(() => {
     const query = paletteQuery.trim();
     if (!paletteOpen || paletteMode !== "text" || !query) {
       setTextSearchResults([]);
@@ -745,11 +806,26 @@ export function App() {
         event.preventDefault();
         toggleHeadDiff();
       }
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "u"
+      ) {
+        event.preventDefault();
+        openLatestUnreadReviewFile();
+      }
       if (event.key === "Escape") setPaletteOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [paletteMode, paletteOpen, selectedPath, diffEnabled]);
+  }, [
+    paletteMode,
+    paletteOpen,
+    selectedPath,
+    diffEnabled,
+    reviewChanges,
+    unreadReviewPaths,
+  ]);
 
   useEffect(() => {
     const events = new EventSource("/events");
@@ -760,6 +836,7 @@ export function App() {
         fsEventsReceived: metrics.fsEventsReceived + 1,
       }));
       setRecentEvents((items) => recordReviewEvent(items, event));
+      markReviewPathUnread(event.path);
 
       if (event.type === "change" && event.path === selectedPath) {
         loadFile(event.path, layout.activePaneId, "preserve")
@@ -884,6 +961,9 @@ export function App() {
             file={file}
             outline={outline}
             reviewChanges={reviewChanges}
+            reviewDiffStats={reviewDiffStats}
+            loadingReviewDiffs={loadingDiffs}
+            unreadReviewPaths={unreadReviewPathSet}
             selectedCodeRange={
               file?.path ? (codeSelections[file.path] ?? null) : null
             }

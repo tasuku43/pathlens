@@ -7,10 +7,15 @@ export function iconForPath(
   const lower = path.toLowerCase();
   const basename = lower.split("/").pop() ?? lower;
   const extension = lower.split(".").pop() ?? "";
-  if (viewerKind === "markdown") return "📘";
-  if (viewerKind === "html") return "🌐";
-  if (viewerKind === "image") return "🖼️";
-  if (viewerKind === "json") return "{}";
+  if (viewerKind === "markdown" || extension === "md") return "📘";
+  if (viewerKind === "html" || extension === "html" || extension === "htm")
+    return "🌐";
+  if (
+    viewerKind === "image" ||
+    ["gif", "jpg", "jpeg", "png", "svg", "webp"].includes(extension)
+  )
+    return "🖼️";
+  if (viewerKind === "json" || extension === "json") return "{}";
   if (viewerKind === "mermaid") return "MRM";
   if (basename === "dockerfile") return "DOCK";
   if (extension === "yml" || extension === "yaml") return "YAML";

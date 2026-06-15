@@ -21,6 +21,11 @@ export interface ReviewChangeItem extends GitChange {
   source: "git" | "watcher";
 }
 
+export interface DiffStat {
+  additions: number;
+  deletions: number;
+}
+
 export type DiffLineKind = "meta" | "hunk" | "add" | "remove" | "context";
 
 export interface ParsedDiffLine {
@@ -50,7 +55,7 @@ export function mergeReviewChanges(
   if (gitState?.available) {
     return gitState.changes
       .map((change) => ({ ...change, source: "git" as const }))
-      .sort((a, b) => a.path.localeCompare(b.path));
+      .sort(compareReviewChanges);
   }
 
   const byPath = new Map<string, ReviewChangeItem>();
@@ -80,7 +85,7 @@ export function mergeReviewChanges(
     byPath.set(path, { path, status: "deleted", source: "watcher" });
   }
 
-  return [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path));
+  return [...byPath.values()].sort(compareReviewChanges);
 }
 
 export function reviewQueueSourceLabel(source: ReviewChangeItem["source"]) {
@@ -110,11 +115,37 @@ export function nextReviewQueuePath(
   ]!;
 }
 
+export function latestUnreadReviewPath(
+  changes: ReviewChangeItem[],
+  unreadPaths: readonly string[],
+): string | null {
+  const byPath = new Map(changes.map((change) => [change.path, change]));
+  for (const path of unreadPaths) {
+    const change = byPath.get(path);
+    if (change && change.status !== "deleted") return path;
+  }
+  return null;
+}
+
 export function changeStatusLabel(status: GitChange["status"]): string {
   if (status === "added") return "added";
   if (status === "deleted") return "deleted";
   if (status === "renamed") return "renamed";
   return "modified";
+}
+
+export function buildDiffStat(diff: TextDiff | null): DiffStat | null {
+  if (!diff || diff.status !== "available") return null;
+
+  let additions = 0;
+  let deletions = 0;
+  for (const line of diff.content.split(/\r?\n/)) {
+    if (line.startsWith("+++") || line.startsWith("---")) continue;
+    if (line.startsWith("+")) additions += 1;
+    if (line.startsWith("-")) deletions += 1;
+  }
+
+  return { additions, deletions };
 }
 
 export function diffStatusLabel(diff: TextDiff | null): string {
@@ -124,6 +155,21 @@ export function diffStatusLabel(diff: TextDiff | null): string {
   if (diff.status === "too-large") return "Diff too large";
   if (diff.status === "binary") return "Binary file";
   return "Diff unavailable";
+}
+
+function compareReviewChanges(a: ReviewChangeItem, b: ReviewChangeItem) {
+  const typeCompare = reviewFileTypeKey(a.path).localeCompare(
+    reviewFileTypeKey(b.path),
+  );
+  if (typeCompare !== 0) return typeCompare;
+  return a.path.localeCompare(b.path);
+}
+
+function reviewFileTypeKey(path: string): string {
+  const lower = path.toLowerCase();
+  const basename = lower.split("/").pop() ?? lower;
+  if (!basename.includes(".")) return basename;
+  return basename.split(".").pop() ?? "";
 }
 
 export function parseUnifiedDiff(
