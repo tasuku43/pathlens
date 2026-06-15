@@ -9,6 +9,7 @@ import type {
 } from "../domain/fs-node.js";
 import { TreeSidebar } from "./components/TreeSidebar.js";
 import { FileViewer } from "./components/FileViewer.js";
+import { Topbar } from "./components/Topbar.js";
 import {
   OpenTabs,
   readDraggedTab,
@@ -17,6 +18,7 @@ import {
 } from "./components/OpenTabs.js";
 import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
+import { ShortcutHelp } from "./components/ShortcutHelp.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
 import type { LineRange } from "./state/code-viewer.js";
 import type { FileSearchResult, TextSearchResult } from "../domain/search.js";
@@ -64,7 +66,6 @@ import {
   isThemePreference,
   nextThemePreference,
   resolveThemePreference,
-  themePreferenceLabel,
   themeStorageKey,
   type ResolvedTheme,
   type ThemePreference,
@@ -95,6 +96,7 @@ import {
   type ViewerMode,
 } from "./state/viewer-mode.js";
 import type { SearchPaletteMode } from "./state/search-palette.js";
+import { keyboardShortcutAction } from "./state/shortcuts.js";
 
 interface LiveRefreshMetrics {
   fsEventsReceived: number;
@@ -141,6 +143,7 @@ export function App() {
     {},
   );
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [paletteMode, setPaletteMode] = useState<SearchPaletteMode>("file");
   const [paletteQuery, setPaletteQuery] = useState("");
   const [fileSearchResults, setFileSearchResults] = useState<
@@ -476,6 +479,7 @@ export function App() {
   function openPalette(mode: SearchPaletteMode) {
     setPaletteMode(mode);
     setPaletteQuery("");
+    setShortcutHelpOpen(false);
     setPaletteOpen(true);
   }
 
@@ -842,39 +846,65 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      const action = keyboardShortcutAction(event);
+      if (!action) return;
+
+      if (action === "dismiss-overlays") {
+        setPaletteOpen(false);
+        setShortcutHelpOpen(false);
+        return;
+      }
+
+      if (action === "quick-open") {
         event.preventDefault();
         if (paletteOpen && paletteMode === "file") setPaletteOpen(false);
         else openPalette("file");
+        return;
       }
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "f"
-      ) {
+
+      if (action === "search-text") {
         event.preventDefault();
         if (paletteOpen && paletteMode === "text") setPaletteOpen(false);
         else openPalette("text");
+        return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+
+      if (action === "toggle-shortcuts") {
         event.preventDefault();
-        toggleHeadDiff();
+        setPaletteOpen(false);
+        setShortcutHelpOpen((open) => !open);
+        return;
       }
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "u"
-      ) {
-        event.preventDefault();
-        openLatestUnreadReviewFile();
+
+      if (action === "close-active-tab") {
+        if (shortcutHelpOpen) {
+          event.preventDefault();
+          setShortcutHelpOpen(false);
+          return;
+        }
+        if (paletteOpen) {
+          event.preventDefault();
+          setPaletteOpen(false);
+          return;
+        }
+        if (selectedPath) {
+          event.preventDefault();
+          closeTab(selectedPath, layout.activePaneId);
+        }
+        return;
       }
-      if (event.key === "Escape") setPaletteOpen(false);
+
+      event.preventDefault();
+      if (action === "toggle-diff") toggleHeadDiff();
+      if (action === "open-latest-unread") openLatestUnreadReviewFile();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
+    layout.activePaneId,
     paletteMode,
     paletteOpen,
+    shortcutHelpOpen,
     selectedPath,
     diffEnabled,
     reviewChanges,
@@ -936,33 +966,19 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo" />
-          pathlens
-        </div>
-        <span className="pathbar">
-          {config?.root ?? "local workspace viewer"}
-        </span>
-        <button
-          className="theme-button"
-          aria-label={`Theme: ${themePreferenceLabel(themePreference)}`}
-          title={`Theme: ${themePreferenceLabel(themePreference)}`}
-          onClick={() =>
-            setThemePreference((current) => nextThemePreference(current))
-          }
-        >
-          {themePreferenceLabel(themePreference)}
-        </button>
-        <button className="command-button" onClick={() => openPalette("file")}>
-          Quick open
-          <kbd>Cmd K</kbd>
-        </button>
-        <button className="command-button" onClick={() => openPalette("text")}>
-          Search
-          <kbd>Cmd Shift F</kbd>
-        </button>
-      </header>
+      <Topbar
+        root={config?.root ?? null}
+        themePreference={themePreference}
+        onThemeCycle={() =>
+          setThemePreference((current) => nextThemePreference(current))
+        }
+        onQuickOpen={() => openPalette("file")}
+        onSearchText={() => openPalette("text")}
+        onOpenShortcuts={() => {
+          setPaletteOpen(false);
+          setShortcutHelpOpen(true);
+        }}
+      />
 
       <div
         className={
@@ -1111,6 +1127,10 @@ export function App() {
         }}
         onClose={() => setPaletteOpen(false)}
         onOpenPath={openFromPalette}
+      />
+      <ShortcutHelp
+        open={shortcutHelpOpen}
+        onClose={() => setShortcutHelpOpen(false)}
       />
       {pendingRestoreSession ? (
         <RestoreSessionPrompt

@@ -5,6 +5,12 @@ import { expect, it } from "vitest";
 import type { FilePayload } from "../src/domain/fs-node.js";
 import { FileViewer } from "../src/ui/components/FileViewer.js";
 import { Inspector } from "../src/ui/components/Inspector.js";
+import { ShortcutHelp } from "../src/ui/components/ShortcutHelp.js";
+import {
+  Topbar,
+  workspaceDisplayName,
+  workspaceParentPath,
+} from "../src/ui/components/Topbar.js";
 import { TreeSidebar } from "../src/ui/components/TreeSidebar.js";
 import {
   CodeViewer,
@@ -35,6 +41,55 @@ const codeFile: FilePayload = {
   size: 42,
   mtimeMs: 1,
 };
+
+it("renders the topbar as brand, workspace identity, and distinct actions", () => {
+  const html = renderToStaticMarkup(
+    <Topbar
+      root="/Users/tasuku/work/pathlens"
+      themePreference="system"
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenShortcuts={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="topbar-brand"');
+  expect(html).toContain('class="workspace-strip"');
+  expect(html).toContain('aria-label="Workspace actions"');
+  expect(html).toContain('class="workspace-name">pathlens</span>');
+  expect(html).toContain(
+    'class="workspace-parent">/Users/tasuku/work</span>',
+  );
+  expect(html).toContain("command-button-primary");
+  expect(html).toContain("command-button-secondary");
+  expect(html).toContain("Theme");
+  expect(html).toContain("System");
+  expect(html).toContain('aria-label="Keyboard shortcuts"');
+});
+
+it("summarizes workspace paths for compact topbar display", () => {
+  expect(workspaceDisplayName("/Users/tasuku/work/pathlens/")).toBe(
+    "pathlens",
+  );
+  expect(workspaceParentPath("/Users/tasuku/work/pathlens/")).toBe(
+    "/Users/tasuku/work",
+  );
+  expect(workspaceDisplayName(null)).toBe("Local viewer");
+  expect(workspaceParentPath(null)).toBe("Waiting for workspace");
+});
+
+it("renders the shortcut guide as one bundled reference", () => {
+  const html = renderToStaticMarkup(
+    <ShortcutHelp open={true} onClose={() => undefined} />,
+  );
+
+  expect(html).toContain('aria-label="Keyboard shortcuts"');
+  expect(html).toContain("Cmd W");
+  expect(html).toContain("Cmd Shift U");
+  expect(html).toContain("Cmd /");
+  expect(html).toContain("Command palette");
+});
 
 it("renders code with stable line numbers and selected ranges", () => {
   const html = renderToStaticMarkup(

@@ -80,6 +80,7 @@ import {
   supportsSourceToggle,
 } from "../src/ui/state/viewer-mode.js";
 import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
+import { keyboardShortcutAction } from "../src/ui/state/shortcuts.js";
 import {
   boundedVisibleTreeRows,
   countTreeNodes,
@@ -243,6 +244,46 @@ it("selects a neighboring tab when the active tab closes", () => {
 
   expect(result.tabs.map((tab) => tab.path)).toEqual(["a.md", "c.ts"]);
   expect(result.nextActivePath).toBe("a.md");
+});
+
+it("maps workspace keyboard shortcuts to app actions", () => {
+  const command = {
+    metaKey: true,
+    ctrlKey: false,
+    shiftKey: false,
+  };
+
+  expect(keyboardShortcutAction({ ...command, key: "k" })).toBe("quick-open");
+  expect(
+    keyboardShortcutAction({ ...command, key: "F", shiftKey: true }),
+  ).toBe("search-text");
+  expect(keyboardShortcutAction({ ...command, key: "d" })).toBe(
+    "toggle-diff",
+  );
+  expect(
+    keyboardShortcutAction({ ...command, key: "U", shiftKey: true }),
+  ).toBe("open-latest-unread");
+  expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
+    "close-active-tab",
+  );
+  expect(keyboardShortcutAction({ ...command, key: "/" })).toBe(
+    "toggle-shortcuts",
+  );
+  expect(
+    keyboardShortcutAction({
+      ...command,
+      key: "/",
+      altKey: true,
+    }),
+  ).toBeNull();
+  expect(
+    keyboardShortcutAction({
+      key: "Escape",
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+    }),
+  ).toBe("dismiss-overlays");
 });
 
 it("closes other tabs while keeping the active tab in the pane", () => {

@@ -74,29 +74,35 @@ input {
   height: 100vh;
 }
 
-.topbar,
-.statusbar {
-  display: flex;
+.topbar {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   border-bottom: 1px solid var(--line);
   background: var(--chrome);
   padding: 0 14px;
 }
 
 .statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--chrome);
+  padding: 0 14px;
   border-top: 1px solid var(--line);
   border-bottom: 0;
   color: var(--muted);
   font-size: 12px;
 }
 
-.brand {
+.topbar-brand {
   display: flex;
   align-items: center;
   gap: 9px;
   font-weight: 700;
+  min-width: 142px;
 }
 .logo {
   width: 22px;
@@ -104,33 +110,137 @@ input {
   border-radius: 7px;
   background: linear-gradient(135deg, var(--accent), #c099ff);
 }
-.pathbar,
-.pill,
-.command-button,
-.theme-button {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--panel);
+
+.brand-wordmark {
+  letter-spacing: 0;
+}
+
+.workspace-strip {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(70px, max-content) minmax(0, 1fr);
+  align-items: baseline;
+  justify-self: center;
+  max-width: min(720px, 100%);
+  gap: 8px;
   color: var(--muted);
   font-size: 12px;
-  padding: 5px 10px;
+}
+
+.workspace-label {
+  color: var(--subtle);
+  text-transform: uppercase;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.workspace-name {
+  min-width: 0;
+  color: var(--text);
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-parent {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pill,
+.command-button,
+.theme-button,
+.shortcut-button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
 }
 .command-button,
-.theme-button {
+.theme-button,
+.shortcut-button {
   cursor: pointer;
 }
 .command-button {
   display: inline-flex;
-  gap: 8px;
   align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  color: var(--text);
+  background: var(--panel);
+  padding: 5px 9px 5px 10px;
 }
 .command-button kbd {
-  border-radius: 6px;
-  padding: 1px 5px;
+  border: 1px solid var(--soft-line);
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--muted);
+  padding: 1px 4px;
   font-size: 10px;
 }
+
+.command-button-primary {
+  min-width: 138px;
+  justify-content: space-between;
+  border-color: var(--accent-line);
+  background: var(--accent-faint);
+}
+
+.command-button-secondary {
+  color: var(--muted);
+  background: transparent;
+}
+
+.theme-button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 5px 6px;
+}
+
+.action-eyebrow {
+  color: var(--subtle);
+  font-size: 10px;
+}
+
+.shortcut-button {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.shortcut-button:hover,
+.theme-button:hover,
+.command-button-secondary:hover {
+  border-color: var(--line);
+  background: var(--accent-faint);
+  color: var(--text);
+}
+
 .pill {
   cursor: default;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 5px 10px;
 }
 button.pill {
   cursor: pointer;
@@ -139,6 +249,58 @@ button.pill {
   border-color: var(--accent-line);
   background: var(--accent-faint);
   color: var(--accent);
+}
+
+@media (max-width: 820px) {
+  .topbar {
+    grid-template-columns: max-content minmax(110px, 1fr) max-content;
+    gap: 10px;
+  }
+
+  .topbar-brand {
+    min-width: 0;
+  }
+
+  .workspace-strip {
+    justify-self: stretch;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .workspace-label,
+  .workspace-parent,
+  .action-eyebrow,
+  .command-button-secondary kbd {
+    display: none;
+  }
+
+  .topbar-actions {
+    gap: 6px;
+  }
+
+  .command-button {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .command-button-primary {
+    min-width: 112px;
+  }
+
+  .theme-button {
+    padding-inline: 4px;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-wordmark {
+    display: none;
+  }
+
+  .command-button-primary kbd {
+    display: none;
+  }
 }
 
 .workbench {
@@ -1215,6 +1377,78 @@ body.resizing-workbench-pane {
   padding-top: 86px;
   background: var(--overlay);
   backdrop-filter: blur(8px);
+}
+.shortcut-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 56px 16px 0;
+  background: transparent;
+}
+.shortcut-panel {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--palette);
+  box-shadow: 0 24px 80px var(--shadow);
+  padding: 16px;
+}
+.shortcut-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--soft-line);
+  padding-bottom: 12px;
+}
+.shortcut-panel-header p {
+  margin: 0 0 3px;
+  color: var(--subtle);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.shortcut-panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.shortcut-close {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 5px 8px;
+}
+.shortcut-group {
+  padding-top: 12px;
+}
+.shortcut-group h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+.shortcut-list {
+  display: grid;
+  gap: 2px;
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 32px;
+  border-bottom: 1px solid var(--soft-line);
+  color: var(--text);
+  font-size: 13px;
+}
+.shortcut-row span {
+  min-width: 0;
 }
 .restore-overlay {
   position: fixed;

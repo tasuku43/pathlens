@@ -16,14 +16,16 @@ A build is acceptable when a user can:
 8. Preview HTML in a sandboxed iframe.
 9. Open Cmd/Ctrl + K and fuzzy-select a file by filename or path.
 10. Open Cmd/Ctrl + Shift + F and select a text match from searchable file contents.
-11. Save the active file externally and see the active viewer update without a full page reload.
-12. Add or remove a file externally and see the tree update.
-13. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
-14. Use Review Queue as a deduplicated file list for paths that need review, primarily from the HEAD diff when Git is available and from collapsed watcher signals otherwise.
-15. Toggle Markdown and HTML between rendered/preview and source modes.
-16. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
-17. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
-18. Keep image, text/log, and structured file previews readable without implying editing.
+11. Open the shortcut reference with Cmd/Ctrl + / and see search, diff, review, palette, and tab-closing shortcuts listed together.
+12. Close the active app tab with Cmd/Ctrl + W without closing the browser tab.
+13. Save the active file externally and see the active viewer update without a full page reload.
+14. Add or remove a file externally and see the tree update.
+15. Open source code with syntax highlighting, line numbers, line/range selection, and copyable references.
+16. Use Review Queue as a deduplicated file list for paths that need review, primarily from the HEAD diff when Git is available and from collapsed watcher signals otherwise.
+17. Toggle Markdown and HTML between rendered/preview and source modes.
+18. Toggle read-only diff-from-`HEAD` independently from rendered/source mode, including with Cmd/Ctrl + D.
+19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
+20. Keep image, text/log, and structured file previews readable without implying editing.
 
 ## Evaluation function
 
@@ -45,6 +47,7 @@ Add or update tests for:
 - tab open/activate/close behavior,
 - heading extraction for Markdown H1/H2 outline,
 - search palette open/close, mode selection, and result selection,
+- shortcut reference rendering and global shortcut mapping,
 - SSE change event reloading the active file,
 - add/unlink event updating the tree,
 - HTML preview route preserving sandbox defaults.
