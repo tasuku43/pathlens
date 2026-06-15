@@ -1,16 +1,16 @@
 import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
-import {
-  changeStatusLabel,
-  reviewQueueSourceLabel,
-  type ReviewChangeItem,
-} from "../state/git-review.js";
+import { type DiffStat, type ReviewChangeItem } from "../state/git-review.js";
+import { iconForPath } from "../state/file-icons.js";
 import type { OutlineHeading } from "../state/outline.js";
 
 interface Props {
   file: FilePayload | null;
   outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
+  reviewDiffStats: Record<string, DiffStat | null>;
+  loadingReviewDiffs: Record<string, boolean>;
+  unreadReviewPaths: Set<string>;
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
@@ -27,6 +27,9 @@ export function Inspector({
   file,
   outline,
   reviewChanges,
+  reviewDiffStats,
+  loadingReviewDiffs,
+  unreadReviewPaths,
   selectedCodeRange,
   refreshedAt,
   activePaneId,
@@ -76,13 +79,25 @@ export function Inspector({
                 onClick={() => onOpenEventPath(change.path)}
                 type="button"
               >
-                <b>{changeStatusLabel(change.status)}</b>
-                <span>
-                  {change.status === "renamed" && change.originalPath
-                    ? `${change.originalPath} → ${change.path}`
-                    : change.path}
+                <span
+                  className={
+                    unreadReviewPaths.has(change.path)
+                      ? "unread-dot"
+                      : "unread-dot read"
+                  }
+                  aria-hidden="true"
+                />
+                <span className="file-icon change-icon">
+                  {iconForPath(change.path)}
                 </span>
-                <small>{reviewQueueSourceLabel(change.source)}</small>
+                <span className="change-main">
+                  <b>{basenameForPath(change.path)}</b>
+                  <small>{reviewPathLabel(change)}</small>
+                </span>
+                <DiffStatBadge
+                  loading={Boolean(loadingReviewDiffs[change.path])}
+                  stat={reviewDiffStats[change.path] ?? null}
+                />
               </button>
             ))}
           </div>
@@ -95,9 +110,7 @@ export function Inspector({
           {file ? (
             <>
               <span>{file.path}</span> · {fileKindLabel}
-              {activeChange
-                ? ` · ${changeStatusLabel(activeChange.status)}`
-                : ""}
+              {activeChange ? " · in review queue" : ""}
             </>
           ) : (
             "No file selected"
@@ -222,6 +235,34 @@ export function Inspector({
       </div>
     </aside>
   );
+}
+
+function DiffStatBadge({
+  loading,
+  stat,
+}: {
+  loading: boolean;
+  stat: DiffStat | null;
+}) {
+  if (loading && !stat) return <span className="diff-stat muted">...</span>;
+  if (!stat) return <span className="diff-stat muted">-</span>;
+  return (
+    <span className="diff-stat" aria-label="Diff line changes">
+      <span className="diff-add">+{stat.additions}</span>
+      <span className="diff-remove">-{stat.deletions}</span>
+    </span>
+  );
+}
+
+function basenameForPath(path: string): string {
+  return path.split("/").filter(Boolean).at(-1) ?? path;
+}
+
+function reviewPathLabel(change: ReviewChangeItem): string {
+  if (change.status === "renamed" && change.originalPath) {
+    return `${change.originalPath} -> ${change.path}`;
+  }
+  return change.path;
 }
 
 function formatBytes(size: number): string {

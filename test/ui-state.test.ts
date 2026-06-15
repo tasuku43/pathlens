@@ -15,9 +15,11 @@ import {
   unloadedAncestorDirectoryPaths,
 } from "../src/ui/state/files.js";
 import {
+  buildDiffStat,
   buildSideBySideDiffRows,
   changeStatusLabel,
   diffStatusLabel,
+  latestUnreadReviewPath,
   mergeReviewChanges,
   nextReviewQueuePath,
   parseUnifiedDiff,
@@ -189,6 +191,10 @@ it("promotes a preview tab into a stable normal tab", () => {
 });
 
 it("maps common file paths to IDE-style icons and highlight languages", () => {
+  expect(iconForPath("README.md")).toBe("📘");
+  expect(iconForPath("index.html")).toBe("🌐");
+  expect(iconForPath("assets/logo.svg")).toBe("🖼️");
+  expect(iconForPath("data/sample.json")).toBe("{}");
   expect(iconForPath("config.yaml", "code")).toBe("YAML");
   expect(languageForPath("config.yaml", "code")).toBe("yaml");
   expect(iconForPath("src/app.ts", "code")).toBe("TS");
@@ -539,14 +545,18 @@ it("uses HEAD changes as the Review Queue when Git is available", () => {
   const merged = mergeReviewChanges(summarizeReviewEvents(reviewEvents), {
     available: true,
     changes: [
-      { path: "README.md", status: "modified" },
       { path: "reports/new.csv", status: "added" },
+      { path: "src/app.ts", status: "modified" },
+      { path: "README.md", status: "modified" },
+      { path: "docs/guide.md", status: "modified" },
     ],
   });
 
   expect(merged).toEqual([
-    { path: "README.md", status: "modified", source: "git" },
     { path: "reports/new.csv", status: "added", source: "git" },
+    { path: "docs/guide.md", status: "modified", source: "git" },
+    { path: "README.md", status: "modified", source: "git" },
+    { path: "src/app.ts", status: "modified", source: "git" },
   ]);
   expect(changeStatusLabel("renamed")).toBe("renamed");
   expect(reviewQueueSourceLabel("git")).toBe("HEAD diff");
@@ -622,6 +632,49 @@ it("selects next and previous Review Queue paths without opening deletions", () 
   expect(nextReviewQueuePath(changes, "a.md", "next")).toBe("c.md");
   expect(nextReviewQueuePath(changes, "a.md", "previous")).toBe("c.md");
   expect(nextReviewQueuePath(changes, "missing.md", "previous")).toBe("c.md");
+});
+
+it("summarizes unified diff additions and deletions for review rows", () => {
+  expect(
+    buildDiffStat({
+      path: "README.md",
+      status: "available",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: [
+        "diff --git a/README.md b/README.md",
+        "--- a/README.md",
+        "+++ b/README.md",
+        "@@ -1,2 +1,3 @@",
+        " unchanged",
+        "-old",
+        "+new",
+        "+extra",
+      ].join("\n"),
+    }),
+  ).toEqual({ additions: 2, deletions: 1 });
+  expect(
+    buildDiffStat({
+      path: "image.png",
+      status: "binary",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "",
+    }),
+  ).toBeNull();
+});
+
+it("selects the latest unread review file while skipping deletions", () => {
+  const changes = [
+    { path: "a.md", status: "modified" as const, source: "git" as const },
+    { path: "b.md", status: "deleted" as const, source: "git" as const },
+    { path: "c.ts", status: "added" as const, source: "git" as const },
+  ];
+
+  expect(latestUnreadReviewPath(changes, ["b.md", "c.ts", "a.md"])).toBe(
+    "c.ts",
+  );
+  expect(latestUnreadReviewPath(changes, ["b.md"])).toBeNull();
 });
 
 it("parses unified diff lines for review rendering", () => {

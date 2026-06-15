@@ -156,6 +156,12 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
           source: "watcher",
         },
       ]}
+      reviewDiffStats={{
+        "src/app.ts": { additions: 100, deletions: 32 },
+        "docs/new.md": { additions: 4, deletions: 2 },
+      }}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set(["src/app.ts"])}
       selectedCodeRange={{ start: 2, end: 2 }}
       activePaneId="main"
       onOutlineSelect={() => undefined}
@@ -177,11 +183,14 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
-  expect(html).toContain("HEAD diff");
-  expect(html).toContain("local change");
-  expect(html).toContain("docs/old.md → docs/new.md");
-  expect(html).toContain("modified");
-  expect(html).toContain("renamed");
+  expect(html).toContain("+100");
+  expect(html).toContain("-32");
+  expect(html).toContain("app.ts");
+  expect(html).toContain("docs/old.md -&gt; docs/new.md");
+  expect(html).not.toContain("HEAD diff");
+  expect(html).not.toContain("local change");
+  expect(html).not.toContain("modified");
+  expect(html).not.toContain("renamed");
   expect(html).toContain("Details");
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Details"));
   expect(html).toContain("Open all changed files as tabs");
@@ -201,6 +210,9 @@ it("keeps Markdown and HTML outline available as In this file", () => {
         { id: "setup", level: 2, text: "Setup" },
       ]}
       reviewChanges={[]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
       selectedCodeRange={null}
       activePaneId="main"
       onOutlineSelect={() => undefined}
