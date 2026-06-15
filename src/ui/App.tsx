@@ -895,6 +895,11 @@ export function App() {
                 setError(String(err)),
               )
             }
+            onConfirmEventPath={(path) =>
+              void loadFile(path, layout.activePaneId, "normal").catch((err) =>
+                setError(String(err)),
+              )
+            }
             onOpenNextChanged={() => openReviewQueueFile("next")}
             onOpenPreviousChanged={() => openReviewQueueFile("previous")}
             onOpenAllChanged={openAllChangedFiles}
