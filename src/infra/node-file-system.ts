@@ -5,6 +5,7 @@ import type { FileSystemPort } from "../app/contracts.js";
 import type {
   FilePayload,
   FsNode,
+  TreeReadStats,
   TreeSnapshot,
   ViewerConfig,
 } from "../domain/fs-node.js";
@@ -13,6 +14,13 @@ import {
   isIgnoredPath,
   normalizeRelativePath,
 } from "../domain/path-policy.js";
+import {
+  isTextSearchableViewerKind,
+  searchFilePayload,
+  type FileSearchResult,
+  type SearchStats,
+  type TextSearchResult,
+} from "../domain/search.js";
 import { classifyViewer, type ViewerKind } from "../domain/viewer-kind.js";
 
 export interface NodeFileSystemOptions {
@@ -22,6 +30,7 @@ export interface NodeFileSystemOptions {
   includeExtensions?: Set<string>;
   maxFileSizeBytes?: number;
   allowHtmlScripts?: boolean;
+  fileIndexTtlMs?: number;
 }
 
 export class NodeFileSystem implements FileSystemPort {
@@ -30,6 +39,11 @@ export class NodeFileSystem implements FileSystemPort {
   private readonly includeExtensions?: Set<string>;
   private readonly maxFileSizeBytes: number;
   private readonly allowHtmlScripts: boolean;
+  private readonly fileIndexTtlMs: number;
+  private fileIndexCache: {
+    files: FileSearchResult[];
+    createdAt: number;
+  } | null = null;
   private version: number;
 
   constructor(options: NodeFileSystemOptions) {
@@ -38,12 +52,49 @@ export class NodeFileSystem implements FileSystemPort {
     this.includeExtensions = options.includeExtensions;
     this.maxFileSizeBytes = options.maxFileSizeBytes ?? 1024 * 1024;
     this.allowHtmlScripts = options.allowHtmlScripts ?? false;
+    this.fileIndexTtlMs = options.fileIndexTtlMs ?? 5_000;
     this.version = options.version ?? 1;
   }
 
   async readTree(): Promise<TreeSnapshot> {
-    const nodes = await this.scanDirectory("", null);
-    return { root: this.rootDir, version: this.version, nodes };
+    const stats = createTreeStats();
+    const startedAt = performance.now();
+    const nodes = await this.scanDirectory(
+      "",
+      null,
+      Number.POSITIVE_INFINITY,
+      stats,
+    );
+    return {
+      root: this.rootDir,
+      version: this.version,
+      nodes,
+      stats: finishTreeStats(stats, startedAt),
+    };
+  }
+
+  async readDirectory(
+    relativePath = "",
+    options: { depth?: number } = {},
+  ): Promise<TreeSnapshot> {
+    const resolved = await this.resolveDirectoryInsideRoot(relativePath);
+    const depth = Math.max(1, options.depth ?? 1);
+    const stats = createTreeStats();
+    const startedAt = performance.now();
+    const nodes = await this.scanDirectory(
+      resolved.relativePath,
+      resolved.relativePath || null,
+      depth,
+      stats,
+    );
+    return {
+      root: this.rootDir,
+      version: this.version,
+      path: resolved.relativePath,
+      depth,
+      nodes,
+      stats: finishTreeStats(stats, startedAt),
+    };
   }
 
   async readFile(relativePath: string): Promise<FilePayload> {
@@ -109,6 +160,117 @@ export class NodeFileSystem implements FileSystemPort {
     return file.content;
   }
 
+  async searchFiles(
+    query: string,
+    options: { limit?: number } = {},
+  ): Promise<{
+    query: string;
+    results: FileSearchResult[];
+    stats: SearchStats;
+  }> {
+    const normalizedQuery = query.trim();
+    const terms = normalizedQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    const limit = options.limit ?? 40;
+    const results: FileSearchResult[] = [];
+    const stats = createSearchStats();
+    const startedAt = performance.now();
+
+    if (!terms.length) {
+      await this.walkFiles("", stats, async (file) => {
+        if (results.length >= limit) return false;
+        insertRanked(results, { ...file, score: 1 }, limit, (a, b) =>
+          a.path.localeCompare(b.path),
+        );
+        return true;
+      });
+    } else {
+      const files = await this.readFileIndex(stats);
+      for (const file of files) {
+        const score = fileSearchScore(file.path.toLowerCase(), terms);
+        if (score <= 0) continue;
+        insertRanked(results, { ...file, score }, limit, (a, b) =>
+          b.score - a.score || a.path.localeCompare(b.path),
+        );
+      }
+    }
+
+    return {
+      query: normalizedQuery,
+      results,
+      stats: finishSearchStats(stats, startedAt),
+    };
+  }
+
+  async searchText(
+    query: string,
+    options: { limit?: number; matchesPerFile?: number } = {},
+  ): Promise<{
+    query: string;
+    results: TextSearchResult[];
+    stats: SearchStats;
+  }> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return {
+        query: normalizedQuery,
+        results: [],
+        stats: finishSearchStats(createSearchStats(), performance.now()),
+      };
+    }
+
+    const limit = options.limit ?? 40;
+    const matchesPerFile = options.matchesPerFile ?? 3;
+    const results: TextSearchResult[] = [];
+    const stats = createSearchStats();
+    const startedAt = performance.now();
+
+    await this.walkFiles("", stats, async (file) => {
+      if (results.length >= limit) return false;
+      const viewerKind = file.viewerKind;
+      if (!viewerKind || !isTextSearchableViewerKind(viewerKind)) {
+        stats.skippedFiles += 1;
+        return true;
+      }
+      if (file.size && file.size > this.maxFileSizeBytes) {
+        stats.skippedFiles += 1;
+        return true;
+      }
+
+      try {
+        const bytes = await fs.readFile(path.join(this.rootDir, file.path));
+        stats.readFiles += 1;
+        if (bytes.includes(0)) {
+          stats.skippedFiles += 1;
+          return true;
+        }
+        results.push(
+          ...searchFilePayload(
+            {
+              path: file.path,
+              viewerKind,
+              encoding: "utf8",
+              content: bytes.toString("utf8"),
+              etag: `mtime:${file.mtimeMs}:size:${file.size}`,
+              size: file.size ?? bytes.byteLength,
+              mtimeMs: file.mtimeMs ?? 0,
+            },
+            normalizedQuery,
+            matchesPerFile,
+          ),
+        );
+      } catch {
+        stats.skippedFiles += 1;
+      }
+      return results.length < limit;
+    });
+
+    return {
+      query: normalizedQuery,
+      results: results.slice(0, limit),
+      stats: finishSearchStats(stats, startedAt),
+    };
+  }
+
   getConfig(): ViewerConfig {
     return {
       root: this.rootDir,
@@ -120,10 +282,13 @@ export class NodeFileSystem implements FileSystemPort {
   private async scanDirectory(
     relativeDir: string,
     parentPath: string | null,
+    depth: number,
+    stats: MutableTreeReadStats,
   ): Promise<FsNode[]> {
     const absoluteDir = path.join(this.rootDir, relativeDir);
     const entries = await fs.readdir(absoluteDir, { withFileTypes: true });
     const nodes: FsNode[] = [];
+    stats.scannedDirectories += 1;
 
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       const relativePath = relativeDir
@@ -134,17 +299,29 @@ export class NodeFileSystem implements FileSystemPort {
       const absolutePath = path.join(this.rootDir, relativePath);
       const stat = await fs.stat(absolutePath);
       if (entry.isDirectory()) {
+        const children =
+          depth > 1
+            ? await this.scanDirectory(
+                relativePath,
+                relativePath,
+                depth - 1,
+                stats,
+              )
+            : undefined;
         nodes.push({
           id: relativePath,
           path: relativePath,
           name: entry.name,
           kind: "directory",
           parentPath,
-          children: await this.scanDirectory(relativePath, relativePath),
+          children,
+          childrenLoaded: Boolean(children),
           mtimeMs: stat.mtimeMs,
           version: this.version,
         });
+        stats.returnedNodes += 1;
       } else if (entry.isFile()) {
+        stats.scannedFiles += 1;
         if (!this.isIncluded(relativePath)) continue;
         nodes.push({
           id: relativePath,
@@ -157,6 +334,7 @@ export class NodeFileSystem implements FileSystemPort {
           mtimeMs: stat.mtimeMs,
           version: this.version,
         });
+        stats.returnedNodes += 1;
       }
     }
 
@@ -182,6 +360,27 @@ export class NodeFileSystem implements FileSystemPort {
     return { absolutePath, relativePath: normalized.relativePath };
   }
 
+  private async resolveDirectoryInsideRoot(input: string): Promise<{
+    absolutePath: string;
+    relativePath: string;
+  }> {
+    const normalized = normalizeRelativePath(input);
+    if (!normalized.ok) throw new Error(normalized.reason);
+    if (
+      normalized.relativePath &&
+      isIgnoredPath(normalized.relativePath, this.ignoredNames)
+    )
+      throw new Error("path is ignored");
+    const absolutePath = path.resolve(this.rootDir, normalized.relativePath);
+    const relativeToRoot = path.relative(this.rootDir, absolutePath);
+    if (relativeToRoot.startsWith("..") || path.isAbsolute(relativeToRoot)) {
+      throw new Error("path escapes root");
+    }
+    const stat = await fs.stat(absolutePath);
+    if (!stat.isDirectory()) throw new Error("path is not a directory");
+    return { absolutePath, relativePath: normalized.relativePath };
+  }
+
   private isIncluded(relativePath: string): boolean {
     if (!this.includeExtensions?.size) return true;
     const extension = path
@@ -190,6 +389,157 @@ export class NodeFileSystem implements FileSystemPort {
       .replace(/^\./, "");
     return this.includeExtensions.has(extension);
   }
+
+  private async walkFiles(
+    relativeDir: string,
+    stats: MutableSearchStats,
+    onFile: (file: FileSearchResult) => Promise<boolean | void>,
+  ): Promise<boolean> {
+    const absoluteDir = path.join(this.rootDir, relativeDir);
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = await fs.readdir(absoluteDir, { withFileTypes: true });
+    } catch {
+      return true;
+    }
+    stats.scannedDirectories += 1;
+
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const relativePath = relativeDir
+        ? `${relativeDir}/${entry.name}`
+        : entry.name;
+      if (isIgnoredPath(relativePath, this.ignoredNames)) continue;
+
+      if (entry.isDirectory()) {
+        const shouldContinue = await this.walkFiles(
+          relativePath,
+          stats,
+          onFile,
+        );
+        if (!shouldContinue) return false;
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      stats.scannedFiles += 1;
+      if (!this.isIncluded(relativePath)) continue;
+
+      try {
+        const stat = await fs.stat(path.join(this.rootDir, relativePath));
+        const shouldContinue = await onFile({
+          path: relativePath,
+          name: entry.name,
+          viewerKind: classifyViewer(relativePath),
+          size: stat.size,
+          mtimeMs: stat.mtimeMs,
+          score: 0,
+        });
+        if (shouldContinue === false) return false;
+      } catch {
+        stats.skippedFiles += 1;
+      }
+    }
+    return true;
+  }
+
+  private async readFileIndex(
+    stats: MutableSearchStats,
+  ): Promise<FileSearchResult[]> {
+    const now = Date.now();
+    if (
+      this.fileIndexCache &&
+      now - this.fileIndexCache.createdAt <= this.fileIndexTtlMs
+    ) {
+      stats.cached = true;
+      return this.fileIndexCache.files;
+    }
+
+    const files: FileSearchResult[] = [];
+    await this.walkFiles("", stats, async (file) => {
+      files.push(file);
+      return true;
+    });
+    this.fileIndexCache = { files, createdAt: now };
+    return files;
+  }
+}
+
+interface MutableTreeReadStats {
+  scannedDirectories: number;
+  scannedFiles: number;
+  returnedNodes: number;
+}
+
+interface MutableSearchStats {
+  scannedDirectories: number;
+  scannedFiles: number;
+  readFiles: number;
+  skippedFiles: number;
+  cached?: boolean;
+}
+
+function createTreeStats(): MutableTreeReadStats {
+  return { scannedDirectories: 0, scannedFiles: 0, returnedNodes: 0 };
+}
+
+function finishTreeStats(
+  stats: MutableTreeReadStats,
+  startedAt: number,
+): TreeReadStats {
+  return { ...stats, durationMs: Math.round(performance.now() - startedAt) };
+}
+
+function createSearchStats(): MutableSearchStats {
+  return {
+    scannedDirectories: 0,
+    scannedFiles: 0,
+    readFiles: 0,
+    skippedFiles: 0,
+  };
+}
+
+function finishSearchStats(
+  stats: MutableSearchStats,
+  startedAt: number,
+): SearchStats {
+  return { ...stats, durationMs: Math.round(performance.now() - startedAt) };
+}
+
+function fileSearchScore(pathname: string, terms: string[]): number {
+  if (!terms.length) return 1;
+  let score = 0;
+  for (const term of terms) {
+    const contiguous = pathname.indexOf(term);
+    if (contiguous >= 0) {
+      score += 100 - contiguous;
+      continue;
+    }
+    if (isSubsequence(term, pathname)) {
+      score += 10;
+      continue;
+    }
+    return 0;
+  }
+  return score;
+}
+
+function isSubsequence(needle: string, haystack: string): boolean {
+  let cursor = 0;
+  for (const char of haystack) {
+    if (char === needle[cursor]) cursor += 1;
+    if (cursor === needle.length) return true;
+  }
+  return false;
+}
+
+function insertRanked<T>(
+  items: T[],
+  item: T,
+  limit: number,
+  compare: (a: T, b: T) => number,
+): void {
+  items.push(item);
+  items.sort(compare);
+  if (items.length > limit) items.length = limit;
 }
 
 function mimeTypeFor(

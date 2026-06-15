@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import type { FsNode } from "../../domain/fs-node.js";
 import type { SearchPaletteMode } from "../state/search-palette.js";
 import {
   buildFileSearchItems,
@@ -10,13 +9,17 @@ import {
   movePaletteSelection,
 } from "../state/command-palette.js";
 import { iconForPath } from "../state/file-icons.js";
-import type { TextSearchResult } from "../../domain/search.js";
+import type {
+  FileSearchResult,
+  TextSearchResult,
+} from "../../domain/search.js";
 
 interface Props {
   open: boolean;
   mode: SearchPaletteMode;
   query: string;
-  nodes: FsNode[];
+  fileResults: FileSearchResult[];
+  fileLoading: boolean;
   textResults: TextSearchResult[];
   textLoading: boolean;
   onQueryChange: (query: string) => void;
@@ -29,7 +32,8 @@ export function CommandPalette({
   open,
   mode,
   query,
-  nodes,
+  fileResults,
+  fileLoading,
   textResults,
   textLoading,
   onQueryChange,
@@ -40,8 +44,8 @@ export function CommandPalette({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const results = useMemo(() => {
     if (mode === "text") return buildTextSearchItems(textResults);
-    return buildFileSearchItems(nodes, query, 12);
-  }, [mode, nodes, query, textResults]);
+    return buildFileSearchItems(fileResults);
+  }, [fileResults, mode, textResults]);
   const activeIndex = clampPaletteSelection(selectedIndex, results.length);
 
   useEffect(() => {
@@ -153,7 +157,10 @@ export function CommandPalette({
             {textLoading && mode === "text" ? (
               <p className="muted palette-empty">Searching...</p>
             ) : null}
-            {!results.length && !textLoading && (
+            {fileLoading && mode === "file" ? (
+              <p className="muted palette-empty">Searching...</p>
+            ) : null}
+            {!results.length && !textLoading && !fileLoading && (
               <p className="muted palette-empty">
                 {mode === "file" ? "No matching files." : "No text matches."}
               </p>

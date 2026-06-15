@@ -10,16 +10,27 @@ export interface FsNode {
   parentPath: string | null;
   viewerKind?: ViewerKind;
   children?: FsNode[];
+  childrenLoaded?: boolean;
   size?: number;
   mtimeMs?: number;
   hash?: string;
   version?: number;
 }
 
+export interface TreeReadStats {
+  durationMs: number;
+  scannedDirectories: number;
+  scannedFiles: number;
+  returnedNodes: number;
+}
+
 export interface TreeSnapshot {
   root: string;
   version: number;
   nodes: FsNode[];
+  path?: string;
+  depth?: number;
+  stats?: TreeReadStats;
 }
 
 export interface FilePayload {

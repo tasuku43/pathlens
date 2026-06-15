@@ -12,6 +12,14 @@ export interface NodeWatcherOptions {
   rootDir: string;
   ignoredNames?: Set<string>;
   debounceMs?: number;
+  maxPendingEvents?: number;
+}
+
+export interface NodeWatcherMetrics {
+  knownPaths: number;
+  pendingEvents: number;
+  emittedEvents: number;
+  droppedEvents: number;
 }
 
 export function eventFromKnownPath(
@@ -36,18 +44,23 @@ export class NodeWatcher implements WatcherPort {
   private readonly rootDir: string;
   private readonly ignoredNames: Set<string>;
   private readonly debounceMs: number;
+  private readonly maxPendingEvents: number;
   private readonly knownPaths = new Map<string, NodeKind>();
   private pending = new Map<string, NodeJS.Timeout>();
+  private emittedEvents = 0;
+  private droppedEvents = 0;
 
   constructor(options: string | NodeWatcherOptions) {
     if (typeof options === "string") {
       this.rootDir = path.resolve(options);
       this.ignoredNames = defaultIgnoredNames;
       this.debounceMs = 50;
+      this.maxPendingEvents = 2_000;
     } else {
       this.rootDir = path.resolve(options.rootDir);
       this.ignoredNames = options.ignoredNames ?? defaultIgnoredNames;
       this.debounceMs = options.debounceMs ?? 50;
+      this.maxPendingEvents = options.maxPendingEvents ?? 2_000;
     }
   }
 
@@ -76,12 +89,25 @@ export class NodeWatcher implements WatcherPort {
     this.watcher = null;
   }
 
+  getMetrics(): NodeWatcherMetrics {
+    return {
+      knownPaths: this.knownPaths.size,
+      pendingEvents: this.pending.size,
+      emittedEvents: this.emittedEvents,
+      droppedEvents: this.droppedEvents,
+    };
+  }
+
   private queueEvent(
     relativePath: string,
     onEvent: (event: FsEvent) => void,
   ): void {
     const existing = this.pending.get(relativePath);
     if (existing) clearTimeout(existing);
+    else if (this.pending.size >= this.maxPendingEvents) {
+      this.droppedEvents += 1;
+      return;
+    }
     const timer = setTimeout(() => {
       this.pending.delete(relativePath);
       void this.emitCurrentState(relativePath, onEvent);
@@ -105,7 +131,10 @@ export class NodeWatcher implements WatcherPort {
           null,
           ++this.version,
         );
-        if (event) onEvent(event);
+        if (event) {
+          this.emittedEvents += 1;
+          onEvent(event);
+        }
       }
       return;
     }
@@ -117,7 +146,10 @@ export class NodeWatcher implements WatcherPort {
       kind,
       ++this.version,
     );
-    if (event) onEvent(event);
+    if (event) {
+      this.emittedEvents += 1;
+      onEvent(event);
+    }
   }
 
   private async seedKnownPaths(relativeDir: string): Promise<void> {

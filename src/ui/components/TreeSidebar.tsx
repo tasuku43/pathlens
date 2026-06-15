@@ -7,12 +7,15 @@ import {
   ensureVisibleAncestors,
   initialExpandedPaths,
 } from "../state/tree-expansion.js";
+import { unloadedAncestorDirectoryPaths } from "../state/files.js";
 
 interface Props {
   nodes: FsNode[];
   selectedPath: string | null;
   changedPaths?: Set<string>;
   removedPaths?: Set<string>;
+  loadingDirectoryPaths?: Set<string>;
+  onLoadDirectory?: (path: string) => Promise<void>;
   onSelect: (path: string) => void;
   onOpen: (path: string) => void;
 }
@@ -22,6 +25,8 @@ export function TreeSidebar({
   selectedPath,
   changedPaths = new Set(),
   removedPaths = new Set(),
+  loadingDirectoryPaths = new Set(),
+  onLoadDirectory,
   onSelect,
   onOpen,
 }: Props) {
@@ -41,6 +46,17 @@ export function TreeSidebar({
       return ensureVisibleAncestors(current, forceVisiblePaths);
     });
   }, [forceVisiblePaths, nodes]);
+
+  useEffect(() => {
+    if (!onLoadDirectory) return;
+    for (const path of unloadedAncestorDirectoryPaths(
+      nodes,
+      forceVisiblePaths,
+      loadingDirectoryPaths,
+    )) {
+      void onLoadDirectory(path);
+    }
+  }, [forceVisiblePaths, loadingDirectoryPaths, nodes, onLoadDirectory]);
 
   const totalRows = useMemo(() => countTreeNodes(nodes), [nodes]);
   const boundedRows = useMemo(
@@ -76,9 +92,11 @@ export function TreeSidebar({
             selectedPath={selectedPath}
             changedPaths={changedPaths}
             removedPaths={removedPaths}
+            loadingDirectoryPaths={loadingDirectoryPaths}
             onToggleDirectory={(path) =>
               setExpandedPaths((current) => togglePath(current, path))
             }
+            onLoadDirectory={onLoadDirectory}
             onSelect={onSelect}
             onOpen={onOpen}
           />
@@ -95,7 +113,9 @@ function TreeRow({
   selectedPath,
   changedPaths,
   removedPaths,
+  loadingDirectoryPaths,
   onToggleDirectory,
+  onLoadDirectory,
   onSelect,
   onOpen,
 }: {
@@ -105,7 +125,9 @@ function TreeRow({
   selectedPath: string | null;
   changedPaths: Set<string>;
   removedPaths: Set<string>;
+  loadingDirectoryPaths: Set<string>;
   onToggleDirectory: (path: string) => void;
+  onLoadDirectory?: (path: string) => Promise<void>;
   onSelect: (path: string) => void;
   onOpen: (path: string) => void;
 }) {
@@ -115,12 +137,20 @@ function TreeRow({
       <button
         className="tree-row dir"
         data-tree-path={node.path}
-        onClick={() => onToggleDirectory(node.path)}
+        onClick={() => {
+          onToggleDirectory(node.path);
+          if (!expanded && node.childrenLoaded === false) {
+            void onLoadDirectory?.(node.path);
+          }
+        }}
         style={indent}
       >
         <span className="tree-twisty">{expanded ? "▾" : "▸"}</span>
         <span className="file-icon">📁</span>
         <span>{node.name}</span>
+        {loadingDirectoryPaths.has(node.path) ? (
+          <span className="tree-badge">loading</span>
+        ) : null}
       </button>
     );
   }

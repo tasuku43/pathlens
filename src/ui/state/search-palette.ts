@@ -1,6 +1,7 @@
-import type { TextSearchResult } from "../../domain/search.js";
-import type { FsNode } from "../../domain/fs-node.js";
-import { fuzzyFileResults } from "./files.js";
+import type {
+  FileSearchResult,
+  TextSearchResult,
+} from "../../domain/search.js";
 
 export type SearchPaletteMode = "file" | "text";
 
@@ -24,11 +25,9 @@ export type SearchPaletteItem =
     };
 
 export function buildFileSearchItems(
-  nodes: FsNode[],
-  query: string,
-  limit = 12,
+  results: FileSearchResult[],
 ): SearchPaletteItem[] {
-  return fuzzyFileResults(nodes, query, limit).map((file) => ({
+  return results.map((file) => ({
     kind: "file" as const,
     id: `file:${file.path}`,
     path: file.path,

@@ -11,6 +11,7 @@ import type {
 } from "../domain/fs-node.js";
 import {
   collectSearchableFiles,
+  type FileSearchResult,
   searchFilePayload,
   type TextSearchResult,
 } from "../domain/search.js";
@@ -32,6 +33,16 @@ export class ViewerService {
     return this.fileSystem.readTree();
   }
 
+  readDirectory(
+    relativePath = "",
+    options: { depth?: number } = {},
+  ): Promise<TreeSnapshot> {
+    return (
+      this.fileSystem.readDirectory?.(relativePath, options) ??
+      this.fileSystem.readTree()
+    );
+  }
+
   readFile(relativePath: string): Promise<FilePayload> {
     return this.fileSystem.readFile(relativePath);
   }
@@ -46,6 +57,10 @@ export class ViewerService {
   ): Promise<{ query: string; results: TextSearchResult[] }> {
     const normalizedQuery = query.trim();
     if (!normalizedQuery) return { query: normalizedQuery, results: [] };
+
+    if (this.fileSystem.searchText) {
+      return this.fileSystem.searchText(normalizedQuery, options);
+    }
 
     const limit = options.limit ?? 40;
     const matchesPerFile = options.matchesPerFile ?? 3;
@@ -65,6 +80,34 @@ export class ViewerService {
     }
 
     return { query: normalizedQuery, results: results.slice(0, limit) };
+  }
+
+  async searchFiles(
+    query: string,
+    options: { limit?: number } = {},
+  ): Promise<{ query: string; results: FileSearchResult[] }> {
+    const normalizedQuery = query.trim();
+    if (this.fileSystem.searchFiles) {
+      return this.fileSystem.searchFiles(normalizedQuery, options);
+    }
+
+    const limit = options.limit ?? 40;
+    const tree = await this.fileSystem.readTree();
+    const terms = normalizedQuery.toLowerCase().split(/\s+/).filter(Boolean);
+    const results = collectSearchableFiles(tree.nodes)
+      .map((file) => ({
+        path: file.path,
+        name: file.name,
+        viewerKind: file.viewerKind,
+        size: file.size,
+        mtimeMs: file.mtimeMs,
+        score: fallbackFileScore(file.path.toLowerCase(), terms),
+      }))
+      .filter((result) => !terms.length || result.score > 0)
+      .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
+      .slice(0, limit);
+
+    return { query: normalizedQuery, results };
   }
 
   getConfig(): ViewerConfig {
@@ -128,4 +171,15 @@ export class ViewerService {
     await this.watcher?.stop();
     this.subscribers.clear();
   }
+}
+
+function fallbackFileScore(path: string, terms: string[]): number {
+  if (!terms.length) return 1;
+  let score = 0;
+  for (const term of terms) {
+    const index = path.indexOf(term);
+    if (index < 0) return 0;
+    score += 100 - index;
+  }
+  return score;
 }

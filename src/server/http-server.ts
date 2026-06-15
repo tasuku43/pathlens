@@ -69,7 +69,17 @@ async function routeRequest(
   const url = new URL(req.url ?? "/", `http://${host}`);
 
   if (url.pathname === "/api/tree") {
-    sendJson(res, 200, await options.service.readTree());
+    const requestedPath = url.searchParams.get("path") ?? "";
+    const depth = parsePositiveInt(url.searchParams.get("depth"));
+    sendJson(
+      res,
+      200,
+      url.searchParams.has("path") || url.searchParams.has("depth")
+        ? await options.service.readDirectory(requestedPath, {
+            depth: depth ?? 1,
+          })
+        : await options.service.readTree(),
+    );
     return;
   }
 
@@ -105,6 +115,13 @@ async function routeRequest(
     const query = url.searchParams.get("q") ?? "";
     const limit = parsePositiveInt(url.searchParams.get("limit")) ?? 40;
     sendJson(res, 200, await options.service.searchText(query, { limit }));
+    return;
+  }
+
+  if (url.pathname === "/api/files") {
+    const query = url.searchParams.get("q") ?? "";
+    const limit = parsePositiveInt(url.searchParams.get("limit")) ?? 40;
+    sendJson(res, 200, await options.service.searchFiles(query, { limit }));
     return;
   }
 

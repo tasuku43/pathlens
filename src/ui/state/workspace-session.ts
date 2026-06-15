@@ -99,21 +99,22 @@ export function parseWorkspaceSession(
 export function restoreWorkspaceSession(
   stored: StoredWorkspaceSessionV1 | null,
   root: string,
-  validPaths: Set<string>,
+  validPaths: Set<string> | null,
   now = Date.now(),
 ): WorkspaceSessionState | null {
   if (!stored) return null;
   if (stored.root !== root) return null;
   if (now - stored.updatedAt > workspaceSessionTtlMs) return null;
 
-  const openTabs = stored.openTabs.filter((tab) => validPaths.has(tab.path));
+  const isValidPath = (path: string) => !validPaths || validPaths.has(path);
+  const openTabs = stored.openTabs.filter((tab) => isValidPath(tab.path));
   const recentFiles = trimRecentFiles(
-    stored.recentFiles.filter((file) => validPaths.has(file.path)),
+    stored.recentFiles.filter((file) => isValidPath(file.path)),
   );
   const layout = sanitizeLayout(stored.layout, openTabs);
   const diffFocusByPath = Object.fromEntries(
     Object.entries(stored.diffFocusByPath ?? {}).filter(
-      ([path, enabled]) => validPaths.has(path) && enabled,
+      ([path, enabled]) => isValidPath(path) && enabled,
     ),
   );
 

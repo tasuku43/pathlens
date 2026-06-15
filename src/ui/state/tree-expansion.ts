@@ -31,6 +31,7 @@ export function initialExpandedPaths(
     for (const node of items) {
       visibleRows += 1;
       if (node.kind !== "directory") continue;
+      if (node.childrenLoaded === false) continue;
       const childRows = countTreeNodes(node.children ?? []);
       if (
         forcedAncestors.has(node.path) ||

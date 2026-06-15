@@ -26,10 +26,17 @@ Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to ch
 
 Returns the current filesystem tree under the selected root.
 
+By default this returns the full tree for compatibility. The SPA may request a
+bounded lazy tree with `depth=1`, and may request one directory's children with
+`path=<relative-directory>&depth=1`. Lazy directory nodes include
+`childrenLoaded: false` until their children have been requested.
+
 ```json
 {
   "root": ".",
   "version": 1,
+  "path": "",
+  "depth": 1,
   "nodes": [
     {
       "id": "README.md",
@@ -39,7 +46,43 @@ Returns the current filesystem tree under the selected root.
       "viewerKind": "markdown",
       "parentPath": ""
     }
-  ]
+  ],
+  "stats": {
+    "durationMs": 3,
+    "scannedDirectories": 1,
+    "scannedFiles": 4,
+    "returnedNodes": 6
+  }
+}
+```
+
+### `GET /api/files?q=<query>&limit=<count>`
+
+Returns bounded file-path matches from backend filesystem traversal. This is
+used by Quick open so the browser does not need to hold the full tree for large
+workspaces.
+
+```json
+{
+  "query": "guide",
+  "results": [
+    {
+      "path": "docs/guide.md",
+      "name": "guide.md",
+      "viewerKind": "markdown",
+      "size": 1200,
+      "mtimeMs": 1710000000000,
+      "score": 97
+    }
+  ],
+  "stats": {
+    "durationMs": 8,
+    "scannedDirectories": 12,
+    "scannedFiles": 240,
+    "readFiles": 0,
+    "skippedFiles": 0,
+    "cached": false
+  }
 }
 ```
 
@@ -80,7 +123,14 @@ Returns bounded, read-only full-text matches across text-previewable files under
       "matchStart": 7,
       "matchLength": 5
     }
-  ]
+  ],
+  "stats": {
+    "durationMs": 24,
+    "scannedDirectories": 18,
+    "scannedFiles": 320,
+    "readFiles": 46,
+    "skippedFiles": 7
+  }
 }
 ```
 

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
@@ -14,6 +14,8 @@ let server: { url: string; close: () => Promise<void> } | null = null;
 beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "pathlens-e2e-"));
   await writeFile(path.join(dir, "README.md"), "# E2E");
+  await mkdir(path.join(dir, "docs"));
+  await writeFile(path.join(dir, "docs", "guide.md"), "# Nested E2E");
   await writeFile(
     path.join(dir, "index.html"),
     '<head><link rel="stylesheet" href="style.css"></head><h1>Hello</h1><script>window.ran=true</script>',
@@ -37,6 +39,19 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   const tree = await fetch(`${server.url}/api/tree`).then((res) => res.json());
   expect(JSON.stringify(tree)).toContain("README.md");
 
+  const shallowTree = await fetch(`${server.url}/api/tree?depth=1`).then(
+    (res) => res.json(),
+  );
+  expect(JSON.stringify(shallowTree)).not.toContain("docs/guide.md");
+  expect(shallowTree.stats.returnedNodes).toBeGreaterThan(0);
+
+  const nestedTree = await fetch(`${server.url}/api/tree?path=docs&depth=1`).then(
+    (res) => res.json(),
+  );
+  expect(nestedTree.nodes).toContainEqual(
+    expect.objectContaining({ path: "docs/guide.md" }),
+  );
+
   const config = await fetch(`${server.url}/api/config`).then((res) =>
     res.json(),
   );
@@ -57,6 +72,14 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
       lineNumber: 1,
       lineText: "# E2E",
     }),
+  );
+  expect(search.stats.scannedFiles).toBeGreaterThan(0);
+
+  const files = await fetch(`${server.url}/api/files?q=guide`).then((res) =>
+    res.json(),
+  );
+  expect(files.results).toContainEqual(
+    expect.objectContaining({ path: "docs/guide.md" }),
   );
 
   const changes = await fetch(`${server.url}/api/changes`).then((res) =>
@@ -160,6 +183,47 @@ it("streams filesystem events over SSE for live review", async () => {
   expect(chunk).toContain("event: fs");
   expect(chunk).toContain('"type":"change"');
   expect(chunk).toContain('"path":"README.md"');
+  await reader?.cancel();
+}, 10000);
+
+it("keeps review and diff endpoints responsive after a burst of live events", async () => {
+  const watcher = new ManualWatcher();
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    watcher,
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/events`);
+  expect(response.status).toBe(200);
+  const reader = response.body?.getReader();
+  expect(reader).toBeDefined();
+
+  for (let index = 0; index < 25; index += 1) {
+    watcher.emit({
+      type: "change",
+      path: `burst-${index}.md`,
+      version: index + 2,
+    });
+  }
+  const chunk = await readUntil(reader!, "burst-24.md");
+  expect(chunk).toContain('"path":"burst-24.md"');
+
+  const startedAt = Date.now();
+  const changes = await fetch(`${server.url}/api/changes`).then((res) =>
+    res.json(),
+  );
+  const diff = await fetch(
+    `${server.url}/api/diff?path=README.md&base=HEAD`,
+  ).then((res) => res.json());
+
+  expect(Date.now() - startedAt).toBeLessThan(1_000);
+  expect(changes.changes).toEqual([{ path: "README.md", status: "modified" }]);
+  expect(diff).toMatchObject({
+    path: "README.md",
+    status: "available",
+  });
   await reader?.cancel();
 }, 10000);
 

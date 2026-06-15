@@ -1,6 +1,24 @@
 import type { FilePayload, FsNode } from "./fs-node.js";
 import type { ViewerKind } from "./viewer-kind.js";
 
+export interface SearchStats {
+  durationMs: number;
+  scannedDirectories: number;
+  scannedFiles: number;
+  readFiles?: number;
+  skippedFiles?: number;
+  cached?: boolean;
+}
+
+export interface FileSearchResult {
+  path: string;
+  name: string;
+  viewerKind?: ViewerKind;
+  size?: number;
+  mtimeMs?: number;
+  score: number;
+}
+
 export interface TextSearchResult {
   path: string;
   viewerKind?: ViewerKind;

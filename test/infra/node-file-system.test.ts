@@ -10,6 +10,8 @@ beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "pathlens-"));
   await writeFile(path.join(dir, "README.md"), "# Hello");
   await writeFile(path.join(dir, "index.html"), "<h1>Hello</h1>");
+  await mkdir(path.join(dir, "docs"));
+  await writeFile(path.join(dir, "docs", "guide.md"), "# Deep guide");
   await writeFile(
     path.join(dir, "image.png"),
     Buffer.from([0x89, 0x50, 0x4e, 0x47]),
@@ -27,7 +29,31 @@ it("scans a tree and ignores default ignored directories", async () => {
   const fs = new NodeFileSystem({ rootDir: dir });
   const tree = await fs.readTree();
   expect(tree.nodes.map((node) => node.path)).toContain("README.md");
+  expect(tree.stats?.returnedNodes).toBeGreaterThan(0);
   expect(JSON.stringify(tree)).not.toContain("node_modules");
+});
+
+it("reads one directory level without recursively loading child directories", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const root = await fs.readDirectory("", { depth: 1 });
+  const docs = root.nodes.find((node) => node.path === "docs");
+
+  expect(root.path).toBe("");
+  expect(root.depth).toBe(1);
+  expect(JSON.stringify(root)).not.toContain("docs/guide.md");
+  expect(docs).toMatchObject({
+    kind: "directory",
+    childrenLoaded: false,
+  });
+
+  const nested = await fs.readDirectory("docs", { depth: 1 });
+  expect(nested.nodes).toContainEqual(
+    expect.objectContaining({
+      path: "docs/guide.md",
+      parentPath: "docs",
+      viewerKind: "markdown",
+    }),
+  );
 });
 
 it("reflects added and removed files on subsequent tree reads", async () => {
@@ -94,6 +120,30 @@ it("filters files when include extensions are configured", async () => {
   expect(JSON.stringify(tree)).toContain("README.md");
   expect(JSON.stringify(tree)).not.toContain("image.png");
   await expect(fs.readFile("image.png")).rejects.toThrow("path is excluded");
+});
+
+it("searches file paths without requiring a full tree snapshot", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const result = await fs.searchFiles("guide", { limit: 5 });
+  expect(result.results).toContainEqual(
+    expect.objectContaining({
+      path: "docs/guide.md",
+      viewerKind: "markdown",
+    }),
+  );
+  expect(result.stats.scannedFiles).toBeGreaterThan(0);
+});
+
+it("searches text through bounded filesystem traversal", async () => {
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const result = await fs.searchText("deep", { limit: 5 });
+  expect(result.results).toContainEqual(
+    expect.objectContaining({
+      path: "docs/guide.md",
+      lineText: "# Deep guide",
+    }),
+  );
+  expect(result.stats.readFiles).toBeGreaterThan(0);
 });
 
 it("exposes server-safe viewer config", () => {

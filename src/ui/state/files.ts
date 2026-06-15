@@ -6,6 +6,72 @@ export function flattenFiles(nodes: FsNode[]): FsNode[] {
   );
 }
 
+export function replaceDirectoryChildren(
+  nodes: FsNode[],
+  directoryPath: string,
+  children: FsNode[],
+): FsNode[] {
+  if (!directoryPath) return children;
+  return nodes.map((node) => {
+    if (node.kind !== "directory") return node;
+    if (node.path === directoryPath) {
+      return { ...node, children, childrenLoaded: true };
+    }
+    if (!node.children) return node;
+    return {
+      ...node,
+      children: replaceDirectoryChildren(
+        node.children,
+        directoryPath,
+        children,
+      ),
+    };
+  });
+}
+
+export function parentDirectoryPath(path: string): string {
+  const segments = path.split("/").filter(Boolean);
+  segments.pop();
+  return segments.join("/");
+}
+
+export function unloadedAncestorDirectoryPaths(
+  nodes: FsNode[],
+  paths: Iterable<string>,
+  loadingPaths: Set<string> = new Set(),
+): string[] {
+  const directories = directoryMap(nodes);
+  const needed: string[] = [];
+  for (const path of paths) {
+    const segments = path.split("/").filter(Boolean);
+    for (let index = 1; index < segments.length; index += 1) {
+      const ancestor = segments.slice(0, index).join("/");
+      const node = directories.get(ancestor);
+      if (
+        node?.childrenLoaded === false &&
+        !loadingPaths.has(ancestor) &&
+        !needed.includes(ancestor)
+      ) {
+        needed.push(ancestor);
+        break;
+      }
+    }
+  }
+  return needed;
+}
+
+function directoryMap(nodes: FsNode[]): Map<string, FsNode> {
+  const map = new Map<string, FsNode>();
+  for (const node of nodes) {
+    if (node.kind !== "directory") continue;
+    map.set(node.path, node);
+    for (const [path, child] of directoryMap(node.children ?? [])) {
+      map.set(path, child);
+    }
+  }
+  return map;
+}
+
 export function fuzzyFileResults(
   nodes: FsNode[],
   query: string,

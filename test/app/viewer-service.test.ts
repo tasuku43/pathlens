@@ -143,3 +143,80 @@ it("searches text files through the filesystem port", async () => {
     ],
   });
 });
+
+it("delegates lazy directory and backend search reads when available", async () => {
+  let fullTreeReads = 0;
+  const fsPort: FileSystemPort = {
+    async readTree() {
+      fullTreeReads += 1;
+      return { root: ".", version: 1, nodes: [] };
+    },
+    async readDirectory(relativePath) {
+      return {
+        root: ".",
+        version: 1,
+        path: relativePath,
+        depth: 1,
+        nodes: [
+          {
+            id: "docs/guide.md",
+            path: "docs/guide.md",
+            name: "guide.md",
+            kind: "file",
+            parentPath: "docs",
+            viewerKind: "markdown",
+          },
+        ],
+      };
+    },
+    async readFile() {
+      throw new Error("not used");
+    },
+    async readHtmlPreview() {
+      throw new Error("not used");
+    },
+    async searchFiles(query) {
+      return {
+        query,
+        results: [
+          {
+            path: "docs/guide.md",
+            name: "guide.md",
+            viewerKind: "markdown",
+            score: 100,
+          },
+        ],
+      };
+    },
+    async searchText(query) {
+      return {
+        query,
+        results: [
+          {
+            path: "docs/guide.md",
+            viewerKind: "markdown",
+            lineNumber: 1,
+            lineText: "# Guide",
+            matchStart: 2,
+            matchLength: 5,
+          },
+        ],
+      };
+    },
+  };
+  const service = new ViewerService({ fileSystem: fsPort });
+
+  await expect(service.readDirectory("docs")).resolves.toMatchObject({
+    path: "docs",
+    nodes: [expect.objectContaining({ path: "docs/guide.md" })],
+  });
+  await expect(service.searchFiles("guide")).resolves.toMatchObject({
+    query: "guide",
+    results: [expect.objectContaining({ path: "docs/guide.md" })],
+  });
+  await expect(service.searchText("Guide")).resolves.toMatchObject({
+    query: "Guide",
+    results: [expect.objectContaining({ path: "docs/guide.md" })],
+  });
+  expect(fullTreeReads).toBe(0);
+});

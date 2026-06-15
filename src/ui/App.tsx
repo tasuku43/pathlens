@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
 import type {
@@ -19,7 +19,7 @@ import { Inspector } from "./components/Inspector.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { extractHtmlOutline, extractMarkdownOutline } from "./state/outline.js";
 import type { LineRange } from "./state/code-viewer.js";
-import type { TextSearchResult } from "../domain/search.js";
+import type { FileSearchResult, TextSearchResult } from "../domain/search.js";
 import {
   recordReviewEvent,
   summarizeReviewEvents,
@@ -48,7 +48,11 @@ import {
   type SplitDirection,
   type SplitEdge,
 } from "./state/editor-layout.js";
-import { filterTreeToPaths } from "./state/files.js";
+import {
+  filterTreeToPaths,
+  parentDirectoryPath,
+  replaceDirectoryChildren,
+} from "./state/files.js";
 import {
   mergeReviewChanges,
   nextReviewQueuePath,
@@ -65,7 +69,6 @@ import {
 } from "./state/theme.js";
 import {
   buildWorkspaceSession,
-  collectFilePaths,
   parseWorkspaceSession,
   recordRecentFile,
   restoreOnlyActiveWorkspaceTab,
@@ -85,6 +88,16 @@ import {
 } from "./state/viewer-mode.js";
 import type { SearchPaletteMode } from "./state/search-palette.js";
 
+interface LiveRefreshMetrics {
+  fsEventsReceived: number;
+  gitRefreshes: number;
+  diffRefreshes: number;
+  lastGitRefreshMs: number | null;
+  lastDiffRefreshMs: number | null;
+  pendingGitRefresh: boolean;
+  pendingDiffPaths: number;
+}
+
 export function App() {
   const [tree, setTree] = useState<TreeSnapshot | null>(null);
   const [config, setConfig] = useState<ViewerConfig | null>(null);
@@ -93,6 +106,15 @@ export function App() {
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
+  const [liveMetrics, setLiveMetrics] = useState<LiveRefreshMetrics>({
+    fsEventsReceived: 0,
+    gitRefreshes: 0,
+    diffRefreshes: 0,
+    lastGitRefreshMs: null,
+    lastDiffRefreshMs: null,
+    pendingGitRefresh: false,
+    pendingDiffPaths: 0,
+  });
   const [gitReview, setGitReview] = useState<GitChangeReviewState | null>(null);
   const [diffs, setDiffs] = useState<Record<string, TextDiff>>({});
   const [loadingDiffs, setLoadingDiffs] = useState<Record<string, boolean>>({});
@@ -112,10 +134,17 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteMode, setPaletteMode] = useState<SearchPaletteMode>("file");
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [fileSearchResults, setFileSearchResults] = useState<
+    FileSearchResult[]
+  >([]);
+  const [fileSearchLoading, setFileSearchLoading] = useState(false);
   const [textSearchResults, setTextSearchResults] = useState<
     TextSearchResult[]
   >([]);
   const [textSearchLoading, setTextSearchLoading] = useState(false);
+  const [loadingDirectoryPaths, setLoadingDirectoryPaths] = useState<
+    Set<string>
+  >(new Set());
   const [draggingTab, setDraggingTab] = useState(false);
   const [manualDraggedTab, setManualDraggedTab] =
     useState<DraggedTabPayload | null>(null);
@@ -135,12 +164,47 @@ export function App() {
   const [pendingRestoreSession, setPendingRestoreSession] =
     useState<WorkspaceSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const gitRefreshTimer = useRef<number | null>(null);
+  const gitRefreshInFlight = useRef(false);
+  const gitRefreshQueued = useRef(false);
+  const diffRefreshTimer = useRef<number | null>(null);
+  const pendingDiffRefreshPaths = useRef(new Set<string>());
+  const diffRequestVersions = useRef<Record<string, number>>({});
 
   async function loadTree() {
-    const response = await fetch("/api/tree");
+    const response = await fetch("/api/tree?depth=1");
     if (!response.ok)
       throw new Error(`tree request failed: ${response.status}`);
     setTree(await response.json());
+  }
+
+  async function loadDirectory(path: string) {
+    setLoadingDirectoryPaths((items) => new Set(items).add(path));
+    try {
+      const params = new URLSearchParams({ path, depth: "1" });
+      const response = await fetch(`/api/tree?${params.toString()}`);
+      if (!response.ok)
+        throw new Error(`tree request failed: ${response.status}`);
+      const snapshot = (await response.json()) as TreeSnapshot;
+      setTree((current) => {
+        if (!current) return snapshot;
+        return {
+          ...current,
+          version: snapshot.version,
+          nodes: replaceDirectoryChildren(
+            current.nodes,
+            path,
+            snapshot.nodes,
+          ),
+        };
+      });
+    } finally {
+      setLoadingDirectoryPaths((items) => {
+        const next = new Set(items);
+        next.delete(path);
+        return next;
+      });
+    }
   }
 
   async function loadConfig() {
@@ -151,13 +215,23 @@ export function App() {
   }
 
   async function loadGitReview() {
+    const startedAt = performance.now();
     const response = await fetch("/api/changes");
     if (!response.ok)
       throw new Error(`changes request failed: ${response.status}`);
     setGitReview((await response.json()) as GitChangeReviewState);
+    setLiveMetrics((metrics) => ({
+      ...metrics,
+      gitRefreshes: metrics.gitRefreshes + 1,
+      lastGitRefreshMs: Math.round(performance.now() - startedAt),
+      pendingGitRefresh: false,
+    }));
   }
 
   async function loadHeadDiff(path: string) {
+    const requestVersion = (diffRequestVersions.current[path] ?? 0) + 1;
+    diffRequestVersions.current[path] = requestVersion;
+    const startedAt = performance.now();
     setLoadingDiffs((items) => ({ ...items, [path]: true }));
     const params = new URLSearchParams({ path, base: "HEAD" });
     try {
@@ -165,12 +239,20 @@ export function App() {
       if (!response.ok)
         throw new Error(`diff request failed: ${response.status}`);
       const diff = (await response.json()) as TextDiff;
+      if (diffRequestVersions.current[path] !== requestVersion) return;
       setDiffs((items) => ({
         ...items,
         [path]: diff,
       }));
+      setLiveMetrics((metrics) => ({
+        ...metrics,
+        diffRefreshes: metrics.diffRefreshes + 1,
+        lastDiffRefreshMs: Math.round(performance.now() - startedAt),
+      }));
     } finally {
-      setLoadingDiffs((items) => ({ ...items, [path]: false }));
+      if (diffRequestVersions.current[path] === requestVersion) {
+        setLoadingDiffs((items) => ({ ...items, [path]: false }));
+      }
     }
   }
 
@@ -232,6 +314,64 @@ export function App() {
     if (!supportsDiffMode(payload)) return;
     setDiffEnabled((items) => ({ ...items, [path]: true }));
     await loadHeadDiff(path);
+  }
+
+  function scheduleGitReviewRefresh(delayMs = 250) {
+    gitRefreshQueued.current = true;
+    setLiveMetrics((metrics) => ({
+      ...metrics,
+      pendingGitRefresh: true,
+    }));
+    if (gitRefreshTimer.current) {
+      window.clearTimeout(gitRefreshTimer.current);
+    }
+    gitRefreshTimer.current = window.setTimeout(() => {
+      gitRefreshTimer.current = null;
+      void runQueuedGitReviewRefresh();
+    }, delayMs);
+  }
+
+  async function runQueuedGitReviewRefresh(): Promise<void> {
+    if (gitRefreshInFlight.current) return;
+    if (!gitRefreshQueued.current) return;
+
+    gitRefreshQueued.current = false;
+    gitRefreshInFlight.current = true;
+    try {
+      await loadGitReview();
+    } catch (err) {
+      setLiveMetrics((metrics) => ({
+        ...metrics,
+        pendingGitRefresh: false,
+      }));
+      setError(String(err));
+    } finally {
+      gitRefreshInFlight.current = false;
+      if (gitRefreshQueued.current) scheduleGitReviewRefresh(50);
+    }
+  }
+
+  function scheduleDiffRefresh(path: string, delayMs = 250) {
+    pendingDiffRefreshPaths.current.add(path);
+    setLiveMetrics((metrics) => ({
+      ...metrics,
+      pendingDiffPaths: pendingDiffRefreshPaths.current.size,
+    }));
+    if (diffRefreshTimer.current) {
+      window.clearTimeout(diffRefreshTimer.current);
+    }
+    diffRefreshTimer.current = window.setTimeout(() => {
+      diffRefreshTimer.current = null;
+      const paths = [...pendingDiffRefreshPaths.current];
+      pendingDiffRefreshPaths.current.clear();
+      setLiveMetrics((metrics) => ({
+        ...metrics,
+        pendingDiffPaths: 0,
+      }));
+      for (const path of paths) {
+        void loadHeadDiff(path).catch((err) => setError(String(err)));
+      }
+    }, delayMs);
   }
 
   function toggleHeadDiff(path = selectedPath) {
@@ -456,7 +596,7 @@ export function App() {
     const restored = restoreWorkspaceSession(
       readStoredWorkspaceSession(config.root),
       config.root,
-      collectFilePaths(tree.nodes),
+      null,
     );
 
     if (restored) {
@@ -506,6 +646,46 @@ export function App() {
     document.documentElement.style.colorScheme = resolvedTheme;
     window.localStorage.setItem(themeStorageKey, themePreference);
   }, [resolvedTheme, themePreference]);
+
+  useEffect(() => {
+    if (!paletteOpen || paletteMode !== "file") {
+      setFileSearchResults([]);
+      setFileSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      setFileSearchLoading(true);
+      const params = new URLSearchParams({
+        q: paletteQuery.trim(),
+        limit: "40",
+      });
+      fetch(`/api/files?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok)
+            throw new Error(`file search request failed: ${response.status}`);
+          return response.json() as Promise<{
+            results: FileSearchResult[];
+          }>;
+        })
+        .then((result) => setFileSearchResults(result.results))
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          setError(String(err));
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setFileSearchLoading(false);
+        });
+    }, 120);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [paletteMode, paletteOpen, paletteQuery]);
 
   useEffect(() => {
     const query = paletteQuery.trim();
@@ -575,6 +755,10 @@ export function App() {
     const events = new EventSource("/events");
     events.addEventListener("fs", (raw) => {
       const event = JSON.parse((raw as MessageEvent).data) as FsEvent;
+      setLiveMetrics((metrics) => ({
+        ...metrics,
+        fsEventsReceived: metrics.fsEventsReceived + 1,
+      }));
       setRecentEvents((items) => recordReviewEvent(items, event));
 
       if (event.type === "change" && event.path === selectedPath) {
@@ -591,14 +775,21 @@ export function App() {
       }
 
       if (event.type === "add" || event.type === "unlink") {
-        loadTree().catch((err) => setError(String(err)));
+        const parentPath = parentDirectoryPath(event.path);
+        const refresh = parentPath ? loadDirectory(parentPath) : loadTree();
+        refresh.catch((err) => setError(String(err)));
       }
-      loadGitReview().catch((err) => setError(String(err)));
+      scheduleGitReviewRefresh();
       if (diffEnabled[event.path]) {
-        loadHeadDiff(event.path).catch((err) => setError(String(err)));
+        scheduleDiffRefresh(event.path);
       }
     });
-    return () => events.close();
+    return () => {
+      events.close();
+      if (gitRefreshTimer.current) window.clearTimeout(gitRefreshTimer.current);
+      if (diffRefreshTimer.current)
+        window.clearTimeout(diffRefreshTimer.current);
+    };
   }, [selectedPath, layout.activePaneId, diffEnabled]);
 
   useEffect(() => {
@@ -664,6 +855,8 @@ export function App() {
               selectedPath={selectedPath}
               changedPaths={changedPathSet}
               removedPaths={reviewState.removedPaths}
+              loadingDirectoryPaths={loadingDirectoryPaths}
+              onLoadDirectory={(path) => loadDirectory(path)}
               onSelect={(path) =>
                 void loadFile(path, layout.activePaneId, "preview").catch(
                   (err) => setError(String(err)),
@@ -716,14 +909,30 @@ export function App() {
           {openTabs.length} tabs · {reviewChanges.length} to review ·{" "}
           {tree?.nodes.length ?? 0} root entries
         </span>
-        <span>localhost</span>
+        <span>
+          {liveMetrics.fsEventsReceived} fs events · {liveMetrics.gitRefreshes}{" "}
+          git refreshes
+          {liveMetrics.lastGitRefreshMs !== null
+            ? ` · git ${liveMetrics.lastGitRefreshMs}ms`
+            : ""}
+          {liveMetrics.diffRefreshes
+            ? ` · ${liveMetrics.diffRefreshes} diff refreshes`
+            : ""}
+          {liveMetrics.lastDiffRefreshMs !== null
+            ? ` · diff ${liveMetrics.lastDiffRefreshMs}ms`
+            : ""}
+          {liveMetrics.pendingGitRefresh || liveMetrics.pendingDiffPaths
+            ? ` · pending ${liveMetrics.pendingGitRefresh ? "git" : ""}${liveMetrics.pendingDiffPaths ? ` diff:${liveMetrics.pendingDiffPaths}` : ""}`
+            : ""}
+        </span>
       </footer>
 
       <CommandPalette
         open={paletteOpen}
         mode={paletteMode}
         query={paletteQuery}
-        nodes={tree?.nodes ?? []}
+        fileResults={fileSearchResults}
+        fileLoading={fileSearchLoading}
         textResults={textSearchResults}
         textLoading={textSearchLoading}
         onQueryChange={setPaletteQuery}

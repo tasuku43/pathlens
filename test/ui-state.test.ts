@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import type { FilePayload, FsNode } from "../src/domain/fs-node.js";
+import type { FileSearchResult } from "../src/domain/search.js";
 import { iconForPath, languageForPath } from "../src/ui/state/file-icons.js";
 import {
   clampPaletteSelection,
@@ -8,7 +9,10 @@ import {
 import {
   filterTreeToPaths,
   fuzzyFileResults,
+  parentDirectoryPath,
+  replaceDirectoryChildren,
   reviewArtifactResults,
+  unloadedAncestorDirectoryPaths,
 } from "../src/ui/state/files.js";
 import {
   buildSideBySideDiffRows,
@@ -391,6 +395,98 @@ it("fuzzy-selects files by path subsequence", () => {
     "docs/architecture.md",
   ]);
   expect(fuzzyFileResults(nodes, "secu")[0]?.path).toBe("docs/security.md");
+});
+
+it("replaces loaded directory children in a lazy tree", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "docs",
+      path: "docs",
+      name: "docs",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: false,
+    },
+  ];
+
+  expect(
+    replaceDirectoryChildren(nodes, "docs", [
+      {
+        id: "docs/guide.md",
+        path: "docs/guide.md",
+        name: "guide.md",
+        kind: "file",
+        parentPath: "docs",
+        viewerKind: "markdown",
+      },
+    ]),
+  ).toEqual([
+    {
+      ...nodes[0],
+      childrenLoaded: true,
+      children: [
+        {
+          id: "docs/guide.md",
+          path: "docs/guide.md",
+          name: "guide.md",
+          kind: "file",
+          parentPath: "docs",
+          viewerKind: "markdown",
+        },
+      ],
+    },
+  ]);
+  expect(parentDirectoryPath("docs/guide.md")).toBe("docs");
+  expect(parentDirectoryPath("README.md")).toBe("");
+});
+
+it("does not auto-expand unloaded lazy directories", () => {
+  const expanded = initialExpandedPaths([
+    {
+      id: "src",
+      path: "src",
+      name: "src",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: false,
+    },
+  ]);
+
+  expect(expanded.has("src")).toBe(false);
+});
+
+it("finds the next unloaded ancestor needed to reveal lazy paths", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "net",
+      path: "net",
+      name: "net",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: true,
+      children: [
+        {
+          id: "net/sched",
+          path: "net/sched",
+          name: "sched",
+          kind: "directory",
+          parentPath: "net",
+          childrenLoaded: false,
+        },
+      ],
+    },
+  ];
+
+  expect(
+    unloadedAncestorDirectoryPaths(nodes, ["net/sched/act_api.c"]),
+  ).toEqual(["net/sched"]);
+  expect(
+    unloadedAncestorDirectoryPaths(
+      nodes,
+      ["net/sched/act_api.c"],
+      new Set(["net/sched"]),
+    ),
+  ).toEqual([]);
 });
 
 it("moves command palette selection with keyboard wrapping", () => {
@@ -905,19 +1001,17 @@ it("restores older workspace sessions with inspector visible by default", () => 
   expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });
 
-it("builds search palette items only from files and text matches", () => {
-  const nodes: FsNode[] = [
+it("builds search palette items only from file and text search results", () => {
+  const files: FileSearchResult[] = [
     {
-      id: "reports/index.html",
       path: "reports/index.html",
       name: "index.html",
-      kind: "file",
-      parentPath: null,
       viewerKind: "html",
+      score: 100,
     },
   ];
 
-  expect(buildFileSearchItems(nodes, "index").map((item) => item.id)).toEqual([
+  expect(buildFileSearchItems(files).map((item) => item.id)).toEqual([
     "file:reports/index.html",
   ]);
   expect(
