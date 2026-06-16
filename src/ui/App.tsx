@@ -92,6 +92,7 @@ import {
 } from "./state/workspace-session.js";
 import {
   defaultViewerMode,
+  diffSupportForFile,
   supportsDiffMode,
   type ViewerMode,
 } from "./state/viewer-mode.js";
@@ -409,10 +410,18 @@ export function App() {
 
   function toggleHeadDiff(path = selectedPath) {
     const nextEnabled = !diffEnabled;
-    setDiffEnabled(nextEnabled);
     if (nextEnabled && path) {
       const target = files[path];
-      if (target && !supportsDiffMode(target)) return;
+      if (target) {
+        const support = diffSupportForFile(target);
+        if (!support.supported) {
+          setError(`Diff is not available for ${path}: ${support.reason}`);
+          return;
+        }
+      }
+    }
+    setDiffEnabled(nextEnabled);
+    if (nextEnabled && path) {
       void loadHeadDiff(path).catch((err) => setError(String(err)));
     }
   }

@@ -1,5 +1,8 @@
 import { useState } from "react";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ResolvedTheme } from "../state/theme.js";
+import { DiffViewer } from "./DiffViewer.js";
 
 export interface ParsedDelimitedText {
   headers: string[];
@@ -10,7 +13,25 @@ export interface ParsedDelimitedText {
 const maxTableRows = 200;
 const maxTableColumns = 24;
 
-export function CsvViewer({ file }: { file: FilePayload }) {
+export function CsvViewer({
+  file,
+  theme = "dark",
+  diff,
+  diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  onDiffToggle,
+  onDiffFocusChange,
+}: {
+  file: FilePayload;
+  theme?: ResolvedTheme;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
+}) {
   const [mode, setMode] = useState<"table" | "source">("table");
   const parsed = parseDelimitedText(file.content, delimiterForPath(file.path));
 
@@ -22,6 +43,14 @@ export function CsvViewer({ file }: { file: FilePayload }) {
           {parsed.rows.length} rows · {parsed.headers.length} columns
           {parsed.truncated ? " · preview limited" : ""}
         </span>
+        <button
+          aria-pressed={Boolean(diffEnabled)}
+          className={`diff-toggle${diffEnabled ? " active" : ""}`}
+          type="button"
+          onClick={onDiffToggle}
+        >
+          Diff from HEAD
+        </button>
         <div className="segmented-control" aria-label="CSV view mode">
           <button
             className={mode === "table" ? "active" : ""}
@@ -39,7 +68,17 @@ export function CsvViewer({ file }: { file: FilePayload }) {
           </button>
         </div>
       </div>
-      {mode === "table" ? (
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : mode === "table" ? (
         <div className="csv-table-wrap">
           <table className="csv-table">
             <thead>

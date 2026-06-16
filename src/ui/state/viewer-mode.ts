@@ -1,6 +1,18 @@
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ViewerKind } from "../../domain/viewer-kind.js";
 
 export type ViewerMode = "rendered" | "preview" | "source";
+
+export type DiffSupport =
+  | { supported: true; renderKind: "source" | "markdown" | "html" }
+  | { supported: false; reason: string };
+
+export const diffUnsupportedViewerKinds: ReadonlyArray<{
+  supported: false;
+  viewerKind: ViewerKind;
+  extensions: readonly string[];
+  reason: string;
+}> = [];
 
 export function defaultViewerMode(
   file: Pick<FilePayload, "viewerKind">,
@@ -19,11 +31,40 @@ export function supportsSourceToggle(
 export function supportsDiffMode(
   file: Pick<FilePayload, "viewerKind" | "encoding"> | null,
 ): boolean {
-  if (!file || file.encoding !== "utf8") return false;
+  return diffSupportForFile(file).supported;
+}
+
+export function diffSupportForFile(
+  file: Pick<FilePayload, "viewerKind" | "encoding"> | null,
+): DiffSupport {
+  if (!file) return { supported: false, reason: "No active file." };
+  if (file.viewerKind === "image")
+    return { supported: true, renderKind: "source" };
+  if (file.encoding !== "utf8") {
+    return {
+      supported: false,
+      reason: "Only UTF-8 text payloads can use line diff.",
+    };
+  }
+  if (file.viewerKind === "markdown")
+    return { supported: true, renderKind: "markdown" };
+  if (file.viewerKind === "html")
+    return { supported: true, renderKind: "html" };
+  if (
+    file.viewerKind === "code" ||
+    file.viewerKind === "json" ||
+    file.viewerKind === "text" ||
+    file.viewerKind === "mermaid" ||
+    file.viewerKind === "unsupported"
+  )
+    return { supported: true, renderKind: "source" };
   return (
-    file.viewerKind === "markdown" ||
-    file.viewerKind === "html" ||
-    file.viewerKind === "code"
+    diffUnsupportedViewerKinds.find(
+      (item) => item.viewerKind === file.viewerKind,
+    ) ?? {
+      supported: false,
+      reason: "This viewer kind does not have a diff renderer yet.",
+    }
   );
 }
 

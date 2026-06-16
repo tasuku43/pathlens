@@ -1,7 +1,28 @@
 import { useState } from "react";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ResolvedTheme } from "../state/theme.js";
+import { DiffViewer } from "./DiffViewer.js";
 
-export function ImageViewer({ file }: { file: FilePayload }) {
+export function ImageViewer({
+  file,
+  theme = "dark",
+  diff,
+  diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  onDiffToggle,
+  onDiffFocusChange,
+}: {
+  file: FilePayload;
+  theme?: ResolvedTheme;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
+}) {
   const [fit, setFit] = useState<"fit" | "actual">("fit");
   const src =
     file.encoding === "base64" && file.mimeType
@@ -25,6 +46,14 @@ export function ImageViewer({ file }: { file: FilePayload }) {
             ? " · SVG as image, scripts inactive"
             : ""}
         </span>
+        <button
+          aria-pressed={Boolean(diffEnabled)}
+          className={`diff-toggle${diffEnabled ? " active" : ""}`}
+          type="button"
+          onClick={onDiffToggle}
+        >
+          Diff from HEAD
+        </button>
         <div className="segmented-control" aria-label="Image size mode">
           <button
             className={fit === "fit" ? "active" : ""}
@@ -42,9 +71,23 @@ export function ImageViewer({ file }: { file: FilePayload }) {
           </button>
         </div>
       </div>
-      <div className={fit === "fit" ? "image-stage fit" : "image-stage actual"}>
-        <img className="image-preview" src={src} alt={file.path} />
-      </div>
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : (
+        <div
+          className={fit === "fit" ? "image-stage fit" : "image-stage actual"}
+        >
+          <img className="image-preview" src={src} alt={file.path} />
+        </div>
+      )}
     </section>
   );
 }

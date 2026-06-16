@@ -95,9 +95,15 @@ Requirements:
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.
 - In Git worktrees, diff viewing is an independent `Diff from HEAD` toggle on the open file surface, not a right-inspector preview and not part of the rendered/source segmented control. The toggle should also be available with Cmd/Ctrl + D.
-- Markdown and HTML diffs should follow the current viewer surface: rendered/preview mode shows rendered visual diff panes, while source mode shows source diff rows. Source/code files use a read-only inline line diff with removed and added rows highlighted in-place.
+- Markdown and HTML diffs should follow the current viewer surface: rendered/preview mode shows rendered visual diff panes, while source mode shows source diff rows. Source/code/JSON/text/CSV/Mermaid and unknown text files use a read-only inline line diff with removed and added rows highlighted in-place. Image files expose the same diff surface; SVG can show source diffs when Git reports text changes, while binary image formats show an explicit binary diff status.
 - For non-Markdown files, the inspector can show a compact empty state or lightweight symbols under "In this file."
 - The Review Queue is not a staging UI or a full history browser. Rename-like watcher add/remove pairs are grouped as likely renames when they are close in time and share parent and extension, while Git status can surface explicit renamed files in the changed-file list.
+
+Current diff support:
+
+- Supported: Markdown (`.md`, `.markdown`, `.mdown`), HTML (`.html`, `.htm`), code extensions, JSON (`.json`, `.jsonc`), text and delimited files (`.txt`, `.log`, `.csv`, `.tsv`), Mermaid (`.mmd`, `.mermaid`), images (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg`), `Dockerfile`, and unknown extensions through generic line/binary diff.
+- Not yet supported: none among files that can be opened in the current viewer surface.
+- Later polish: CSV/TSV can graduate from source diff to table-aware diff, Mermaid can add rendered diagram comparison, and binary images can add side-by-side committed/working previews.
 
 ## Search palette
 

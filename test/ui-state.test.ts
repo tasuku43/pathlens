@@ -76,7 +76,10 @@ import {
 } from "../src/ui/state/workspace-session.js";
 import {
   defaultViewerMode,
+  diffSupportForFile,
+  diffUnsupportedViewerKinds,
   nextViewerMode,
+  supportsDiffMode,
   supportsSourceToggle,
 } from "../src/ui/state/viewer-mode.js";
 import { summarizeReviewEvents } from "../src/ui/state/review-events.js";
@@ -1306,4 +1309,28 @@ it("models source toggles only for rendered viewers", () => {
   expect(supportsSourceToggle({ viewerKind: "json" })).toBe(false);
   expect(nextViewerMode({ viewerKind: "markdown" }, "rendered")).toBe("source");
   expect(nextViewerMode({ viewerKind: "html" }, "source")).toBe("preview");
+});
+
+it("models diff support by viewer kind and keeps unsupported extensions visible", () => {
+  for (const viewerKind of [
+    "markdown",
+    "html",
+    "code",
+    "json",
+    "text",
+    "mermaid",
+    "unsupported",
+  ] as const) {
+    expect(supportsDiffMode({ viewerKind, encoding: "utf8" })).toBe(true);
+  }
+  expect(
+    supportsDiffMode({ viewerKind: "image", encoding: "base64" }),
+  ).toBe(true);
+  expect(
+    diffSupportForFile({ viewerKind: "json", encoding: "utf8" }),
+  ).toEqual({ supported: true, renderKind: "source" });
+  expect(
+    supportsDiffMode({ viewerKind: "json", encoding: "base64" }),
+  ).toBe(false);
+  expect(diffUnsupportedViewerKinds).toEqual([]);
 });

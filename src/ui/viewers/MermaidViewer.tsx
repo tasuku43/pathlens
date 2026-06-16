@@ -1,8 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { pathlensMermaidThemeVariables } from "../../domain/mermaid-theme.js";
 import { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
 import type { ResolvedTheme } from "../state/theme.js";
+import { DiffViewer } from "./DiffViewer.js";
 
 export { hasCustomMermaidStyle } from "../../domain/mermaid-preview.js";
 
@@ -11,9 +13,21 @@ type MermaidRenderStatus = "loading" | "rendered" | "fallback" | "error";
 export function MermaidViewer({
   file,
   theme = "dark",
+  diff,
+  diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  onDiffToggle,
+  onDiffFocusChange,
 }: {
   file: FilePayload;
   theme?: ResolvedTheme;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
 }) {
   const [mode, setMode] = useState<"preview" | "source">("preview");
   const { containerRef, error, status } = useMermaidRender(
@@ -29,6 +43,14 @@ export function MermaidViewer({
         <span className="sandbox-status">
           Mermaid preview · strict security
         </span>
+        <button
+          aria-pressed={Boolean(diffEnabled)}
+          className={`diff-toggle${diffEnabled ? " active" : ""}`}
+          type="button"
+          onClick={onDiffToggle}
+        >
+          Diff from HEAD
+        </button>
         <div className="segmented-control" aria-label="Mermaid view mode">
           <button
             className={mode === "preview" ? "active" : ""}
@@ -46,7 +68,17 @@ export function MermaidViewer({
           </button>
         </div>
       </div>
-      {mode === "preview" ? (
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : mode === "preview" ? (
         <div className="mermaid-render-surface">
           <div
             className={`mermaid-render-target ${status}`}

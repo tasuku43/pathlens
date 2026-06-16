@@ -65,6 +65,7 @@ export function languageForPath(
     scss: "scss",
     sh: "bash",
     sql: "sql",
+    svg: "xml",
     ts: "typescript",
     tsx: "tsx",
     txt: "text",

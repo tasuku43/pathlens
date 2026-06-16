@@ -17,9 +17,14 @@ let server: { url: string; close: () => Promise<void> } | null = null;
 beforeEach(async () => {
   dir = await mkdtemp(path.join(tmpdir(), "pathlens-git-diff-"));
   await mkdir(path.join(dir, "src"), { recursive: true });
+  await mkdir(path.join(dir, "assets"), { recursive: true });
   await writeFile(
     path.join(dir, "src", "app.ts"),
     'export const message = "before";\n',
+  );
+  await writeFile(
+    path.join(dir, "assets", "logo.png"),
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3]),
   );
   await git("init");
   await git("config", "user.email", "pathlens@example.test");
@@ -29,6 +34,10 @@ beforeEach(async () => {
   await writeFile(
     path.join(dir, "src", "app.ts"),
     'export const message = "after";\n',
+  );
+  await writeFile(
+    path.join(dir, "assets", "logo.png"),
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 4, 5, 6, 7]),
   );
 });
 
@@ -70,6 +79,27 @@ it("serves HEAD diffs for changed source files", async () => {
   expect(diff.status).toBe("available");
   expect(diff.content).toContain('-export const message = "before";');
   expect(diff.content).toContain('+export const message = "after";');
+}, 10000);
+
+it("serves binary diff status for changed image files", async () => {
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new GitChangeReview({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const diff = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("assets/logo.png")}&base=HEAD`,
+  ).then(
+    (res) =>
+      res.json() as Promise<{
+        status: string;
+        reason?: string;
+      }>,
+  );
+
+  expect(diff.status).toBe("binary");
+  expect(diff.reason).toBe("Binary diff is not shown in pathlens.");
 }, 10000);
 
 async function git(...args: string[]) {

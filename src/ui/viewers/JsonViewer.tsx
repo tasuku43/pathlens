@@ -1,7 +1,28 @@
 import { useMemo, useState } from "react";
+import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import type { ResolvedTheme } from "../state/theme.js";
+import { DiffViewer } from "./DiffViewer.js";
 
-export function JsonViewer({ file }: { file: FilePayload }) {
+export function JsonViewer({
+  file,
+  theme = "dark",
+  diff,
+  diffLoading,
+  diffEnabled,
+  diffFocusChanges,
+  onDiffToggle,
+  onDiffFocusChange,
+}: {
+  file: FilePayload;
+  theme?: ResolvedTheme;
+  diff?: TextDiff | null;
+  diffLoading?: boolean;
+  diffEnabled?: boolean;
+  diffFocusChanges?: boolean;
+  onDiffToggle?: () => void;
+  onDiffFocusChange?: (focusChanges: boolean) => void;
+}) {
   const [mode, setMode] = useState<"tree" | "source">("tree");
   const parsed = useMemo(() => parseJson(file.content), [file.content]);
   const source = parsed.ok
@@ -15,6 +36,14 @@ export function JsonViewer({ file }: { file: FilePayload }) {
         <span className="sandbox-status">
           {parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
         </span>
+        <button
+          aria-pressed={Boolean(diffEnabled)}
+          className={`diff-toggle${diffEnabled ? " active" : ""}`}
+          type="button"
+          onClick={onDiffToggle}
+        >
+          Diff from HEAD
+        </button>
         <div className="segmented-control" aria-label="JSON view mode">
           <button
             className={mode === "tree" ? "active" : ""}
@@ -32,7 +61,17 @@ export function JsonViewer({ file }: { file: FilePayload }) {
           </button>
         </div>
       </div>
-      {mode === "tree" && parsed.ok ? (
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : mode === "tree" && parsed.ok ? (
         <div className="json-tree">
           <JsonNode name={file.path} value={parsed.value} depth={0} />
         </div>

@@ -26,11 +26,13 @@ import {
   DiffViewer,
 } from "../src/ui/viewers/DiffViewer.js";
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
+import { ImageViewer } from "../src/ui/viewers/ImageViewer.js";
 import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
 import {
   hasCustomMermaidStyle,
   MermaidViewer,
 } from "../src/ui/viewers/MermaidViewer.js";
+import { TextViewer } from "../src/ui/viewers/TextViewer.js";
 
 const codeFile: FilePayload = {
   path: "src/app.ts",
@@ -197,6 +199,169 @@ it("dispatches JSON files through a tree view with source fallback", () => {
   expect(html).toContain("data/sample.json");
   expect(html).toContain("JSON tree");
   expect(html).toContain("items");
+});
+
+it("renders JSON diffs as source line diffs", () => {
+  const html = renderToStaticMarkup(
+    <JsonViewer
+      file={{
+        ...codeFile,
+        path: "data/sample.json",
+        viewerKind: "json",
+        content: '{"ok":true}\n',
+      }}
+      diffEnabled
+      diff={{
+        path: "data/sample.json",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: '@@ -1,3 +1,3 @@\n {\n-  "ok": false\n+  "ok": true\n }',
+      }}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Diff from HEAD for data/sample.json"');
+  expect(html).toContain("diff-inline-row remove");
+  expect(html).toContain("diff-inline-row add");
+  expect(html).toContain('"ok": false');
+  expect(html).toContain('"ok": true');
+  expect(html).not.toContain("json-tree");
+});
+
+it("renders text and delimited diffs inside their viewer surfaces", () => {
+  const textHtml = renderToStaticMarkup(
+    <TextViewer
+      file={{
+        ...codeFile,
+        path: "logs/build.log",
+        viewerKind: "text",
+        content: "done\n",
+      }}
+      diffEnabled
+      diff={{
+        path: "logs/build.log",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "@@ -1,1 +1,1 @@\n-fail\n+done",
+      }}
+    />,
+  );
+  const csvHtml = renderToStaticMarkup(
+    <CsvViewer
+      file={{
+        ...codeFile,
+        path: "reports/results.csv",
+        viewerKind: "text",
+        content: "name,status\nhtml,ok\n",
+      }}
+      diffEnabled
+      diff={{
+        path: "reports/results.csv",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "@@ -1,2 +1,2 @@\n name,status\n-html,fail\n+html,ok",
+      }}
+    />,
+  );
+
+  expect(textHtml).toContain('aria-label="Diff from HEAD for logs/build.log"');
+  expect(textHtml).toContain("diff-inline-row remove");
+  expect(textHtml).toContain("diff-inline-row add");
+  expect(textHtml).not.toContain("plain-text wrap");
+  expect(csvHtml).toContain(
+    'aria-label="Diff from HEAD for reports/results.csv"',
+  );
+  expect(csvHtml).toContain("html,fail");
+  expect(csvHtml).toContain("html,ok");
+  expect(csvHtml).not.toContain("csv-table-wrap");
+});
+
+it("renders Mermaid diffs as source line diffs", () => {
+  const html = renderToStaticMarkup(
+    <MermaidViewer
+      file={{
+        ...codeFile,
+        path: "docs/flow.mmd",
+        viewerKind: "mermaid",
+        content: "flowchart TD\nA-->B\n",
+      }}
+      diffEnabled
+      diff={{
+        path: "docs/flow.mmd",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "@@ -1,2 +1,2 @@\n flowchart TD\n-A-->B\n+A-->C",
+      }}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Diff from HEAD for docs/flow.mmd"');
+  expect(html).toContain("A--&gt;B");
+  expect(html).toContain("A--&gt;C");
+  expect(html).not.toContain("mermaid-render-surface");
+});
+
+it("renders image diffs as binary or source diff status in the image viewer", () => {
+  const html = renderToStaticMarkup(
+    <ImageViewer
+      file={{
+        ...codeFile,
+        path: "assets/logo.png",
+        viewerKind: "image",
+        encoding: "base64",
+        content: "iVBORw0KGgo=",
+        mimeType: "image/png",
+      }}
+      diffEnabled
+      diff={{
+        path: "assets/logo.png",
+        status: "binary",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "",
+        reason: "Binary diff is not shown in pathlens.",
+      }}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Diff from HEAD for assets/logo.png"');
+  expect(html).toContain("Binary");
+  expect(html).toContain("Binary diff is not shown in pathlens.");
+  expect(html).not.toContain("image-stage");
+});
+
+it("renders generic diffs for unsupported file types", () => {
+  const html = renderToStaticMarkup(
+    <FileViewer
+      file={{
+        ...codeFile,
+        path: "artifact.unknown",
+        viewerKind: "unsupported",
+        content: "new\n",
+      }}
+      allowHtmlScripts={false}
+      theme="dark"
+      selectedCodeRange={null}
+      diffEnabled
+      diff={{
+        path: "artifact.unknown",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: "@@ -1,1 +1,1 @@\n-old\n+new",
+      }}
+      onCodeSelectionChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('aria-label="Diff from HEAD for artifact.unknown"');
+  expect(html).toContain("diff-inline-row remove");
+  expect(html).toContain("diff-inline-row add");
+  expect(html).not.toContain("This file type is not supported yet.");
 });
 
 it("renders the Review Queue before secondary file helpers in the inspector", () => {

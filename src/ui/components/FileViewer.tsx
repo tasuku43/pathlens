@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
+import { DiffViewer } from "../viewers/DiffViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import type { LineRange } from "../state/code-viewer.js";
 import type { ResolvedTheme } from "../state/theme.js";
@@ -130,13 +131,31 @@ export function FileViewer({
   if (file.viewerKind === "json")
     return (
       <LazyViewerFallback path={file.path}>
-        <JsonViewer file={file} />
+        <JsonViewer
+          file={file}
+          theme={theme}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
       </LazyViewerFallback>
     );
   if (file.viewerKind === "mermaid")
     return (
       <LazyViewerFallback path={file.path}>
-        <MermaidViewer file={file} theme={theme} />
+        <MermaidViewer
+          file={file}
+          theme={theme}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
       </LazyViewerFallback>
     );
   if (file.viewerKind === "code")
@@ -158,24 +177,73 @@ export function FileViewer({
       </LazyViewerFallback>
     );
   if (file.viewerKind === "text" && isDelimitedPath(file.path))
-    return <CsvViewer file={file} />;
+    return (
+      <CsvViewer
+        file={file}
+        theme={theme}
+        diff={diff}
+        diffLoading={diffLoading}
+        diffEnabled={diffEnabled}
+        diffFocusChanges={diffFocusChanges}
+        onDiffToggle={onDiffToggle}
+        onDiffFocusChange={onDiffFocusChange}
+      />
+    );
   if (file.viewerKind === "image")
     return (
       <LazyViewerFallback path={file.path}>
-        <ImageViewer file={file} />
+        <ImageViewer
+          file={file}
+          theme={theme}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
       </LazyViewerFallback>
     );
   if (file.viewerKind === "text")
     return (
       <LazyViewerFallback path={file.path}>
-        <TextViewer file={file} />
+        <TextViewer
+          file={file}
+          theme={theme}
+          diff={diff}
+          diffLoading={diffLoading}
+          diffEnabled={diffEnabled}
+          diffFocusChanges={diffFocusChanges}
+          onDiffToggle={onDiffToggle}
+          onDiffFocusChange={onDiffFocusChange}
+        />
       </LazyViewerFallback>
     );
 
   return (
     <div className="unsupported">
       <h2>{file.path}</h2>
-      <p>This file type is not supported yet.</p>
+      <button
+        aria-pressed={Boolean(diffEnabled)}
+        className={`diff-toggle${diffEnabled ? " active" : ""}`}
+        type="button"
+        onClick={onDiffToggle}
+      >
+        Diff from HEAD
+      </button>
+      {diffEnabled ? (
+        <DiffViewer
+          path={file.path}
+          diff={diff ?? null}
+          loading={diffLoading}
+          focusChanges={diffFocusChanges}
+          renderKind="source"
+          theme={theme}
+          onFocusChangesChange={onDiffFocusChange}
+        />
+      ) : (
+        <p>This file type is not supported yet.</p>
+      )}
     </div>
   );
 }
