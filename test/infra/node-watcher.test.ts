@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { eventFromKnownPath, NodeWatcher } from "../../src/infra/node-watcher.js";
 
@@ -52,4 +55,32 @@ it("bounds pending watcher events during event storms", async () => {
     emittedEvents: 0,
   });
   await watcher.stop();
+});
+
+it("starts without synchronously opening the recursive watcher", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "pathlens-watcher-"));
+  const watcher = new NodeWatcher({
+    rootDir: dir,
+    watchStartDelayMs: 10_000,
+  }) as unknown as {
+    start(onEvent: () => void): Promise<void>;
+    stop(): Promise<void>;
+    getMetrics(): { workerRunning: boolean };
+  };
+
+  await expect(
+    Promise.race([
+      watcher.start(() => {}),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("start waited for recursive watcher")),
+          50,
+        ),
+      ),
+    ]),
+  ).resolves.toBeUndefined();
+  expect(watcher.getMetrics().workerRunning).toBe(true);
+
+  await watcher.stop();
+  await rm(dir, { recursive: true, force: true });
 });

@@ -40,6 +40,9 @@ it("reads one directory level without recursively loading child directories", as
 
   expect(root.path).toBe("");
   expect(root.depth).toBe(1);
+  expect(root.stats).toMatchObject({
+    scannedDirectories: 1,
+  });
   expect(JSON.stringify(root)).not.toContain("docs/guide.md");
   expect(docs).toMatchObject({
     kind: "directory",
@@ -54,6 +57,18 @@ it("reads one directory level without recursively loading child directories", as
       viewerKind: "markdown",
     }),
   );
+});
+
+it("does not descend into ignored directories while scanning", async () => {
+  await mkdir(path.join(dir, "node_modules", "deep"), { recursive: true });
+  await writeFile(path.join(dir, "node_modules", "deep", "ignored.md"), "nope");
+
+  const fs = new NodeFileSystem({ rootDir: dir });
+  const tree = await fs.readTree();
+
+  expect(JSON.stringify(tree)).not.toContain("node_modules");
+  expect(JSON.stringify(tree)).not.toContain("ignored.md");
+  expect(tree.stats?.scannedDirectories).toBe(2);
 });
 
 it("reflects added and removed files on subsequent tree reads", async () => {
