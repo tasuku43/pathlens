@@ -102,6 +102,71 @@ it("serves binary diff status for changed image files", async () => {
   expect(diff.reason).toBe("Binary diff is not shown in pathlens.");
 }, 10000);
 
+it("serves untracked directory contents as file-level changes without directory 500s", async () => {
+  await mkdir(path.join(dir, "scratch", "nested"), { recursive: true });
+  await writeFile(path.join(dir, "scratch", "nested", "note.md"), "# Note\n");
+  await writeFile(
+    path.join(dir, ".DS_Store"),
+    Buffer.from([0x00, 0x01, 0x02, 0x03]),
+  );
+
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new GitChangeReview({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const changes = await fetch(`${server.url}/api/changes`).then(
+    (res) =>
+      res.json() as Promise<{
+        available: boolean;
+        changes: Array<{ path: string; status: string }>;
+      }>,
+  );
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toContainEqual({
+    path: "scratch/nested/note.md",
+    status: "added",
+  });
+  expect(changes.changes).toContainEqual({
+    path: ".DS_Store",
+    status: "added",
+  });
+  expect(changes.changes).not.toContainEqual({
+    path: "scratch",
+    status: "added",
+  });
+
+  const fileDiffResponse = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("scratch/nested/note.md")}&base=HEAD`,
+  );
+  expect(fileDiffResponse.status).toBe(200);
+  const fileDiff = (await fileDiffResponse.json()) as {
+    status: string;
+    content: string;
+  };
+  expect(fileDiff.status).toBe("available");
+  expect(fileDiff.content).toContain("+++ b/scratch/nested/note.md");
+
+  const directoryDiffResponse = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("scratch")}&base=HEAD`,
+  );
+  expect(directoryDiffResponse.status).toBe(200);
+  await expect(directoryDiffResponse.json()).resolves.toMatchObject({
+    status: "unavailable",
+    reason: "No uncommitted Git change was found for this file.",
+  });
+
+  const dsStoreResponse = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent(".DS_Store")}&base=HEAD`,
+  );
+  expect(dsStoreResponse.status).toBe(200);
+  await expect(dsStoreResponse.json()).resolves.toMatchObject({
+    status: "binary",
+    reason: "Binary diff is not shown in pathlens.",
+  });
+}, 10000);
+
 it("keeps Git subdirectory workspaces bounded to workspace-relative API paths", async () => {
   const workspaceDir = path.join(dir, "packages", "app");
   await mkdir(path.join(workspaceDir, "src"), { recursive: true });

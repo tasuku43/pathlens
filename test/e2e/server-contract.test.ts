@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ViewerService } from "../../src/app/viewer-service.js";
-import type { ChangeReviewPort, WatcherPort } from "../../src/app/contracts.js";
+import type {
+  ChangeReviewPort,
+  FileSystemPort,
+  WatcherPort,
+} from "../../src/app/contracts.js";
 import type { FsEvent } from "../../src/domain/fs-node.js";
 import { NodeFileSystem } from "../../src/infra/node-file-system.js";
 import { startHttpServer } from "../../src/server/http-server.js";
@@ -45,9 +49,9 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(JSON.stringify(shallowTree)).not.toContain("docs/guide.md");
   expect(shallowTree.stats.returnedNodes).toBeGreaterThan(0);
 
-  const nestedTree = await fetch(`${server.url}/api/tree?path=docs&depth=1`).then(
-    (res) => res.json(),
-  );
+  const nestedTree = await fetch(
+    `${server.url}/api/tree?path=docs&depth=1`,
+  ).then((res) => res.json());
   expect(nestedTree.nodes).toContainEqual(
     expect.objectContaining({ path: "docs/guide.md" }),
   );
@@ -126,6 +130,32 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(css.status).toBe(200);
   expect(css.headers.get("content-type")).toContain("text/css");
   expect(await css.text()).toContain("rgb(255, 0, 0)");
+}, 10000);
+
+it("normalizes filesystem errors from API routes", async () => {
+  const fileSystem: FileSystemPort = {
+    async readTree() {
+      throw new Error("not used");
+    },
+    async readFile() {
+      throw Object.assign(new Error("EISDIR: illegal operation"), {
+        code: "EISDIR",
+      });
+    },
+    async readHtmlPreview() {
+      throw new Error("not used");
+    },
+  };
+  const service = new ViewerService({ fileSystem });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/api/file?path=docs`);
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "filesystem error",
+    reason: "The requested path is a directory.",
+    status: "EISDIR",
+  });
 }, 10000);
 
 it("allows preview scripts only when explicitly requested", async () => {

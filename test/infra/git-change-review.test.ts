@@ -54,6 +54,57 @@ it("reads uncommitted Git changes and small text diffs", async () => {
   expect(added.content).toContain("+html,ok");
 });
 
+it("expands untracked directories into file-level review changes", async () => {
+  await mkdir(path.join(dir, "notes", "daily"), { recursive: true });
+  await writeFile(path.join(dir, "notes", "daily", "today.md"), "# Today\n");
+
+  const review = new GitChangeReview({ rootDir: dir });
+  const changes = await review.readChanges();
+
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toContainEqual({
+    path: "notes/daily/today.md",
+    status: "added",
+  });
+  expect(changes.changes).not.toContainEqual({
+    path: "notes",
+    status: "added",
+  });
+});
+
+it("returns unavailable instead of reading directory paths as added files", async () => {
+  await mkdir(path.join(dir, "untracked-dir"));
+  const fakeGit = path.join(dir, "fake-git");
+  await writeFile(
+    fakeGit,
+    [
+      "#!/bin/sh",
+      'if [ "$1" = "rev-parse" ]; then',
+      '  printf "%s\\n" "$PWD"',
+      "  exit 0",
+      "fi",
+      'if [ "$1" = "status" ]; then',
+      '  printf "?? untracked-dir\\0"',
+      "  exit 0",
+      "fi",
+      "exit 1",
+      "",
+    ].join("\n"),
+  );
+  await chmod(fakeGit, 0o755);
+
+  const review = new GitChangeReview({
+    rootDir: dir,
+    gitCommands: [fakeGit],
+  });
+
+  await expect(review.readDiff("untracked-dir")).resolves.toMatchObject({
+    path: "untracked-dir",
+    status: "unavailable",
+    reason: "Diff is not available because the selected path is a directory.",
+  });
+});
+
 it("reports Git changes under a subdirectory workspace as workspace-relative paths", async () => {
   const workspaceDir = path.join(dir, "packages", "app");
   await mkdir(path.join(workspaceDir, "src"), { recursive: true });

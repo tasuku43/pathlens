@@ -37,8 +37,12 @@ export async function startHttpServer(
     try {
       await routeRequest(req, res, options);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "unknown error";
-      sendJson(res, statusForError(message), { error: message });
+      const normalized = normalizeHttpError(error);
+      sendJson(res, normalized.httpStatus, {
+        error: normalized.message,
+        reason: normalized.reason,
+        status: normalized.status,
+      });
     }
   });
   server.on("connection", (socket) => {
@@ -384,6 +388,51 @@ function statusForError(message: string): number {
   ) {
     return 400;
   }
+  return 500;
+}
+
+function normalizeHttpError(error: unknown): {
+  httpStatus: number;
+  message: string;
+  reason: string;
+  status: string;
+} {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+  const message = error instanceof Error ? error.message : "unknown error";
+  const fsReason = reasonForFileSystemCode(code);
+  if (fsReason) {
+    return {
+      httpStatus: statusForFileSystemCode(code),
+      message: "filesystem error",
+      reason: fsReason,
+      status: code,
+    };
+  }
+  const httpStatus = statusForError(message);
+  return {
+    httpStatus,
+    message,
+    reason: message,
+    status: httpStatus >= 500 ? "internal_error" : "request_error",
+  };
+}
+
+function reasonForFileSystemCode(code: string): string | null {
+  if (code === "ENOENT") return "The requested path does not exist.";
+  if (code === "ENOTDIR") return "A path segment is not a directory.";
+  if (code === "EISDIR") return "The requested path is a directory.";
+  if (code === "EACCES" || code === "EPERM")
+    return "The requested path cannot be read due to filesystem permissions.";
+  return null;
+}
+
+function statusForFileSystemCode(code: string): number {
+  if (code === "ENOENT" || code === "ENOTDIR") return 404;
+  if (code === "EISDIR") return 400;
+  if (code === "EACCES" || code === "EPERM") return 403;
   return 500;
 }
 

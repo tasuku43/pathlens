@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { promises as fs, type Stats } from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { inflate } from "node:zlib";
@@ -69,6 +69,7 @@ export class GitChangeReview implements ChangeReviewPort {
     const status = await this.git([
       "status",
       "--porcelain=v1",
+      "--untracked-files=all",
       "-z",
       "--",
       ".",
@@ -224,8 +225,16 @@ export class GitChangeReview implements ChangeReviewPort {
   ): Promise<TextDiff> {
     const resolved = this.resolveInsideRoot(change.path);
     if (!resolved.ok) return unavailable(change.path, resolved.reason);
-    const stat = await fs.stat(resolved.absolutePath);
-    if (stat.size > this.maxDiffBytes) {
+    const stat = await statFileForDiff(resolved.absolutePath);
+    if (stat.ok === false) return unavailable(change.path, stat.reason);
+    const fileStat = stat.value;
+    if (fileStat.isDirectory()) {
+      return unavailable(
+        change.path,
+        "Diff is not available because the selected path is a directory.",
+      );
+    }
+    if (fileStat.size > this.maxDiffBytes) {
       return {
         path: change.path,
         status: "too-large",
@@ -235,8 +244,9 @@ export class GitChangeReview implements ChangeReviewPort {
         reason: `File exceeds ${formatBytes(this.maxDiffBytes)}.`,
       };
     }
-    const bytes = await fs.readFile(resolved.absolutePath);
-    if (bytes.includes(0))
+    const bytes = await readFileForDiff(resolved.absolutePath);
+    if (bytes.ok === false) return unavailable(change.path, bytes.reason);
+    if (bytes.value.includes(0))
       return {
         path: change.path,
         status: "binary",
@@ -250,7 +260,7 @@ export class GitChangeReview implements ChangeReviewPort {
       status: "available",
       baseLabel: base.label,
       compareLabel: "working tree",
-      content: buildAddedFileDiff(change.path, bytes.toString("utf8")),
+      content: buildAddedFileDiff(change.path, bytes.value.toString("utf8")),
     };
   }
 
@@ -546,6 +556,39 @@ function unavailable(pathname: string, reason: string): TextDiff {
     content: "",
     reason,
   };
+}
+
+async function statFileForDiff(
+  absolutePath: string,
+): Promise<{ ok: true; value: Stats } | { ok: false; reason: string }> {
+  try {
+    return { ok: true, value: await fs.stat(absolutePath) };
+  } catch (error) {
+    return { ok: false, reason: fileSystemDiffReason(error) };
+  }
+}
+
+async function readFileForDiff(
+  absolutePath: string,
+): Promise<{ ok: true; value: Buffer } | { ok: false; reason: string }> {
+  try {
+    return { ok: true, value: await fs.readFile(absolutePath) };
+  } catch (error) {
+    return { ok: false, reason: fileSystemDiffReason(error) };
+  }
+}
+
+function fileSystemDiffReason(error: unknown): string {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+  if (code === "ENOENT") return "File no longer exists in the working tree.";
+  if (code === "EISDIR")
+    return "Diff is not available because the selected path is a directory.";
+  if (code === "EACCES" || code === "EPERM")
+    return "File cannot be read due to filesystem permissions.";
+  return error instanceof Error ? error.message : "File cannot be read.";
 }
 
 async function realpathOrResolve(pathname: string): Promise<string> {

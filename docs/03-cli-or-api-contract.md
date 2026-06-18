@@ -239,6 +239,9 @@ Returns read-only Git working-tree review status when the selected root is insid
 
 Statuses are `added`, `modified`, `deleted`, or `renamed`.
 
+Untracked directories are expanded to file-level `added` entries. Directory
+paths are not review queue items.
+
 ### `GET /api/diff-bases`
 
 Returns recent read-only Git commit bases that the UI may use for diff comparison. The server only accepts bases from this allow-list.
@@ -268,6 +271,11 @@ Returns a bounded read-only text diff for a changed file. The comparison is the 
 ```
 
 Diff statuses are `available`, `too-large`, `binary`, or `unavailable`.
+
+If a route throws a filesystem error before producing its normal response, the
+server returns a diagnostic JSON body with `error`, `reason`, and `status`
+fields. Known filesystem errors are mapped to request-level statuses such as
+`400`, `403`, or `404`; unexpected errors remain `500`.
 
 ### `GET /preview/html?path=<relative-path>`
 
