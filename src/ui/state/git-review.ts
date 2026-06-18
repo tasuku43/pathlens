@@ -98,7 +98,7 @@ export function nextReviewQueuePath(
   direction: "next" | "previous",
 ): string | null {
   const reviewable = changes
-    .filter((change) => change.status !== "deleted")
+    .filter(isReviewChangeOpenable)
     .map((change) => change.path);
   if (!reviewable.length) return null;
 
@@ -122,12 +122,21 @@ export function latestUnreadReviewPath(
   const byPath = new Map(changes.map((change) => [change.path, change]));
   for (const path of unreadPaths) {
     const change = byPath.get(path);
-    if (change && change.status !== "deleted") return path;
+    if (change && isReviewChangeOpenable(change)) return path;
   }
   return null;
 }
 
-export function changeStatusLabel(status: GitChange["status"]): string {
+export function isReviewChangeOpenable(change: GitChange): boolean {
+  return change.status !== "deleted" && (change.kind ?? "file") === "file";
+}
+
+export function changeStatusLabel(
+  status: GitChange["status"],
+  kind?: GitChange["kind"],
+): string {
+  if (kind === "embedded-repo") return "embedded repo";
+  if (kind === "directory") return "directory";
   if (status === "added") return "added";
   if (status === "deleted") return "deleted";
   if (status === "renamed") return "renamed";
@@ -154,6 +163,8 @@ export function diffStatusLabel(diff: TextDiff | null): string {
     return `${diff.baseLabel} -> ${diff.compareLabel}`;
   if (diff.status === "too-large") return "Diff too large";
   if (diff.status === "binary") return "Binary file";
+  if (diff.kind === "embedded-repo") return "Embedded repository";
+  if (diff.kind === "directory") return "Directory";
   return "Diff unavailable";
 }
 

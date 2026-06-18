@@ -13,6 +13,7 @@ import {
   type DiffBaseOption,
   type DiffBaseSummary,
   type GitChange,
+  type GitChangeKind,
   type TextDiff,
 } from "../domain/change-review.js";
 import {
@@ -79,12 +80,18 @@ export class GitChangeReview implements ChangeReviewPort {
         await this.explainGitFailure(status.reason),
       );
 
-    const changes = parseGitPorcelainStatus(status.stdout)
+    const workspaceChanges = parseGitPorcelainStatus(status.stdout)
       .map((change) =>
         gitChangeToWorkspaceChange(change, workspace.workspacePrefix),
       )
       .filter((change): change is GitChange => Boolean(change))
-      .filter((change) => this.isReviewablePath(change.path))
+      .filter((change) => this.isReviewablePath(change.path));
+    const changes = (
+      await Promise.all(
+        workspaceChanges.map((change) => this.classifyChange(change)),
+      )
+    )
+      .flat()
       .sort((a, b) => a.path.localeCompare(b.path));
 
     return {
@@ -154,11 +161,16 @@ export class GitChangeReview implements ChangeReviewPort {
     const change = changes.changes.find(
       (item) => item.path === resolved.relativePath,
     );
-    if (!change)
+    if (!change) {
+      const kind = await this.diffPathKind(resolved.absolutePath);
+      if (kind === "directory" || kind === "embedded-repo") {
+        return unavailableForKind(resolved.relativePath, kind);
+      }
       return unavailable(
         resolved.relativePath,
         "No uncommitted Git change was found for this file.",
       );
+    }
 
     if (change.status === "added" && base.option.ref === "HEAD")
       return this.readAddedDiff(change, base.option);
@@ -229,10 +241,8 @@ export class GitChangeReview implements ChangeReviewPort {
     if (stat.ok === false) return unavailable(change.path, stat.reason);
     const fileStat = stat.value;
     if (fileStat.isDirectory()) {
-      return unavailable(
-        change.path,
-        "Diff is not available because the selected path is a directory.",
-      );
+      const kind = await this.diffPathKind(resolved.absolutePath);
+      return unavailableForKind(change.path, kind);
     }
     if (fileStat.size > this.maxDiffBytes) {
       return {
@@ -334,6 +344,79 @@ export class GitChangeReview implements ChangeReviewPort {
 
   private isReviewablePath(relativePath: string): boolean {
     return !isIgnoredPath(relativePath, this.ignoredNames);
+  }
+
+  private async classifyChange(change: GitChange): Promise<GitChange[]> {
+    if (change.status !== "added") return [{ ...change, kind: "file" }];
+
+    const resolved = this.resolveInsideRoot(change.path);
+    if (!resolved.ok) return [{ ...change, kind: "file" }];
+    const stat = await statFileForDiff(resolved.absolutePath);
+    if (!stat.ok) return [{ ...change, kind: "file" }];
+    if (!stat.value.isDirectory()) return [{ ...change, kind: "file" }];
+
+    if (await isEmbeddedGitRepository(resolved.absolutePath)) {
+      return [{ ...change, kind: "embedded-repo" }];
+    }
+
+    return this.expandUntrackedDirectory(change.path, resolved.absolutePath);
+  }
+
+  private async expandUntrackedDirectory(
+    relativePath: string,
+    absolutePath: string,
+  ): Promise<GitChange[]> {
+    let entries: Array<{
+      name: string;
+      isDirectory(): boolean;
+      isFile(): boolean;
+      isSymbolicLink(): boolean;
+    }>;
+    try {
+      entries = await fs.readdir(absolutePath, { withFileTypes: true });
+    } catch {
+      return [{ path: relativePath, status: "added", kind: "directory" }];
+    }
+
+    const changes: GitChange[] = [];
+    for (const entry of entries) {
+      const childRelativePath = `${relativePath}/${entry.name}`;
+      if (!this.isReviewablePath(childRelativePath)) continue;
+      const childAbsolutePath = path.join(absolutePath, entry.name);
+      if (entry.isDirectory()) {
+        if (await isEmbeddedGitRepository(childAbsolutePath)) {
+          changes.push({
+            path: childRelativePath,
+            status: "added",
+            kind: "embedded-repo",
+          });
+          continue;
+        }
+        changes.push(
+          ...(await this.expandUntrackedDirectory(
+            childRelativePath,
+            childAbsolutePath,
+          )),
+        );
+        continue;
+      }
+      if (entry.isFile() || entry.isSymbolicLink()) {
+        changes.push({
+          path: childRelativePath,
+          status: "added",
+          kind: "file",
+        });
+      }
+    }
+    return changes;
+  }
+
+  private async diffPathKind(absolutePath: string): Promise<GitChangeKind> {
+    const stat = await statFileForDiff(absolutePath);
+    if (!stat.ok || !stat.value.isDirectory()) return "file";
+    return (await isEmbeddedGitRepository(absolutePath))
+      ? "embedded-repo"
+      : "directory";
   }
 
   private unavailableChanges(reason: string): ChangeReviewSummary {
@@ -558,6 +641,28 @@ function unavailable(pathname: string, reason: string): TextDiff {
   };
 }
 
+function unavailableForKind(pathname: string, kind: GitChangeKind): TextDiff {
+  if (kind === "embedded-repo") {
+    return {
+      ...unavailable(
+        pathname,
+        "Diff is not available because the selected path is an embedded Git repository.",
+      ),
+      kind,
+    };
+  }
+  if (kind === "directory") {
+    return {
+      ...unavailable(
+        pathname,
+        "Diff is not available because the selected path is a directory.",
+      ),
+      kind,
+    };
+  }
+  return unavailable(pathname, "No text diff is available for this file.");
+}
+
 async function statFileForDiff(
   absolutePath: string,
 ): Promise<{ ok: true; value: Stats } | { ok: false; reason: string }> {
@@ -589,6 +694,15 @@ function fileSystemDiffReason(error: unknown): string {
   if (code === "EACCES" || code === "EPERM")
     return "File cannot be read due to filesystem permissions.";
   return error instanceof Error ? error.message : "File cannot be read.";
+}
+
+async function isEmbeddedGitRepository(absolutePath: string): Promise<boolean> {
+  try {
+    await fs.stat(path.join(absolutePath, ".git"));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function realpathOrResolve(pathname: string): Promise<string> {

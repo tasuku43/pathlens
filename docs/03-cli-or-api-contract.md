@@ -226,11 +226,17 @@ Returns read-only Git working-tree review status when the selected root is insid
 {
   "available": true,
   "changes": [
-    { "path": "README.md", "status": "modified" },
-    { "path": "reports/new.csv", "status": "added" },
+    { "path": "README.md", "status": "modified", "kind": "file" },
+    { "path": "reports/new.csv", "status": "added", "kind": "file" },
+    {
+      "path": "vendor/charts",
+      "status": "added",
+      "kind": "embedded-repo"
+    },
     {
       "path": "docs/new-name.md",
       "status": "renamed",
+      "kind": "file",
       "originalPath": "docs/old-name.md"
     }
   ]
@@ -238,9 +244,13 @@ Returns read-only Git working-tree review status when the selected root is insid
 ```
 
 Statuses are `added`, `modified`, `deleted`, or `renamed`.
+Kinds are `file`, `directory`, or `embedded-repo`. Git-backed review changes
+normally report file entries; untracked embedded Git repositories are surfaced as
+single `embedded-repo` entries and are not expanded.
 
 Untracked directories are expanded to file-level `added` entries. Directory
-paths are not review queue items.
+paths are not review queue items unless the adapter cannot enumerate them; in
+that case they are marked as `kind: "directory"` and treated as not diffable.
 
 ### `GET /api/diff-bases`
 
@@ -271,11 +281,16 @@ Returns a bounded read-only text diff for a changed file. The comparison is the 
 ```
 
 Diff statuses are `available`, `too-large`, `binary`, or `unavailable`.
+An `unavailable` response may include `kind: "directory"` or
+`kind: "embedded-repo"` when the path is a valid review entry but cannot produce
+a blob diff. These cases are returned as `200` with a reason rather than as
+handler failures.
 
 If a route throws a filesystem error before producing its normal response, the
 server returns a diagnostic JSON body with `error`, `reason`, and `status`
 fields. Known filesystem errors are mapped to request-level statuses such as
-`400`, `403`, or `404`; unexpected errors remain `500`.
+`400`, `403`, or `404`; unexpected errors remain `500` and are logged by the
+server.
 
 ### `GET /preview/html?path=<relative-path>`
 

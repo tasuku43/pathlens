@@ -3,6 +3,7 @@ import type { FilePayload } from "../../domain/fs-node.js";
 import { buildCodeMetadata, type LineRange } from "../state/code-viewer.js";
 import {
   changeStatusLabel,
+  isReviewChangeOpenable,
   reviewQueueSourceLabel,
   type DiffStat,
   type ReviewChangeItem,
@@ -92,8 +93,8 @@ export function Inspector({
             {reviewChanges.slice(0, 12).map((change) => (
               <button
                 className="change-open"
-                disabled={change.status === "deleted"}
-                aria-label={`${changeStatusLabel(change.status)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
+                disabled={!isReviewChangeOpenable(change)}
+                aria-label={`${changeStatusLabel(change.status, change.kind)} ${change.path} from ${reviewQueueSourceLabel(change.source)}`}
                 key={`${change.source}:${change.path}`}
                 onClick={() => onOpenEventPath(change.path)}
                 onDoubleClick={() => onConfirmEventPath(change.path)}
@@ -113,8 +114,10 @@ export function Inspector({
                 </span>
                 <span className="change-main">
                   <span className="change-heading">
-                    <span className={`change-status ${change.status}`}>
-                      {changeStatusLabel(change.status)}
+                    <span
+                      className={`change-status ${change.kind ?? change.status}`}
+                    >
+                      {changeStatusLabel(change.status, change.kind)}
                     </span>
                     <b>{basenameForPath(change.path)}</b>
                   </span>

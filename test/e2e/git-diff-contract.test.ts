@@ -64,6 +64,7 @@ it("serves HEAD diffs for changed source files", async () => {
   expect(changes.changes).toContainEqual({
     path: "src/app.ts",
     status: "modified",
+    kind: "file",
   });
 
   const diff = await fetch(
@@ -127,10 +128,12 @@ it("serves untracked directory contents as file-level changes without directory 
   expect(changes.changes).toContainEqual({
     path: "scratch/nested/note.md",
     status: "added",
+    kind: "file",
   });
   expect(changes.changes).toContainEqual({
     path: ".DS_Store",
     status: "added",
+    kind: "file",
   });
   expect(changes.changes).not.toContainEqual({
     path: "scratch",
@@ -154,7 +157,8 @@ it("serves untracked directory contents as file-level changes without directory 
   expect(directoryDiffResponse.status).toBe(200);
   await expect(directoryDiffResponse.json()).resolves.toMatchObject({
     status: "unavailable",
-    reason: "No uncommitted Git change was found for this file.",
+    kind: "directory",
+    reason: "Diff is not available because the selected path is a directory.",
   });
 
   const dsStoreResponse = await fetch(
@@ -164,6 +168,74 @@ it("serves untracked directory contents as file-level changes without directory 
   await expect(dsStoreResponse.json()).resolves.toMatchObject({
     status: "binary",
     reason: "Binary diff is not shown in pathlens.",
+  });
+}, 10000);
+
+it("serves embedded repository changes without diff 500s", async () => {
+  await mkdir(path.join(dir, "00_references", "docs"), { recursive: true });
+  await mkdir(path.join(dir, "00_references", "repos", "charts"), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(dir, "00_references", "docs", "note.md"),
+    "# Note\n",
+  );
+  await gitIn(path.join(dir, "00_references", "repos", "charts"), "init");
+  await writeFile(
+    path.join(dir, "00_references", "repos", "charts", "Chart.yaml"),
+    "name: charts\n",
+  );
+
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new GitChangeReview({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const changes = await fetch(`${server.url}/api/changes`).then(
+    (res) =>
+      res.json() as Promise<{
+        available: boolean;
+        changes: Array<{ path: string; status: string; kind?: string }>;
+      }>,
+  );
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toContainEqual({
+    path: "00_references/docs/note.md",
+    status: "added",
+    kind: "file",
+  });
+  expect(changes.changes).toContainEqual({
+    path: "00_references/repos/charts",
+    status: "added",
+    kind: "embedded-repo",
+  });
+  expect(changes.changes).not.toContainEqual({
+    path: "00_references",
+    status: "added",
+  });
+
+  const directoryDiffResponse = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("00_references")}&base=HEAD`,
+  );
+  expect(directoryDiffResponse.status).toBe(200);
+  await expect(directoryDiffResponse.json()).resolves.toMatchObject({
+    path: "00_references",
+    status: "unavailable",
+    kind: "directory",
+    reason: "Diff is not available because the selected path is a directory.",
+  });
+
+  const embeddedDiffResponse = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("00_references/repos/charts")}&base=HEAD`,
+  );
+  expect(embeddedDiffResponse.status).toBe(200);
+  await expect(embeddedDiffResponse.json()).resolves.toMatchObject({
+    path: "00_references/repos/charts",
+    status: "unavailable",
+    kind: "embedded-repo",
+    reason:
+      "Diff is not available because the selected path is an embedded Git repository.",
   });
 }, 10000);
 
@@ -218,8 +290,8 @@ it("keeps Git subdirectory workspaces bounded to workspace-relative API paths", 
   );
   expect(changes.available).toBe(true);
   expect(changes.changes).toEqual([
-    { path: "README.md", status: "modified" },
-    { path: "src/index.ts", status: "modified" },
+    { path: "README.md", status: "modified", kind: "file" },
+    { path: "src/index.ts", status: "modified", kind: "file" },
   ]);
 
   const diff = await fetch(
@@ -240,4 +312,8 @@ it("keeps Git subdirectory workspaces bounded to workspace-relative API paths", 
 
 async function git(...args: string[]) {
   await execFileAsync("git", args, { cwd: dir });
+}
+
+async function gitIn(cwd: string, ...args: string[]) {
+  await execFileAsync("git", args, { cwd });
 }

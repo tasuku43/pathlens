@@ -1,8 +1,10 @@
 export type GitChangeStatus = "added" | "modified" | "deleted" | "renamed";
+export type GitChangeKind = "file" | "directory" | "embedded-repo";
 
 export interface GitChange {
   path: string;
   status: GitChangeStatus;
+  kind?: GitChangeKind;
   originalPath?: string;
 }
 
@@ -29,6 +31,7 @@ export type DiffStatus = "available" | "too-large" | "binary" | "unavailable";
 export interface TextDiff {
   path: string;
   status: DiffStatus;
+  kind?: GitChangeKind;
   baseLabel: string;
   compareLabel: string;
   content: string;

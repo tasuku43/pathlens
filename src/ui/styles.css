@@ -2555,6 +2555,11 @@ kbd {
   border-color: color-mix(in srgb, var(--error) 40%, transparent);
   color: var(--error);
 }
+.change-status.directory,
+.change-status.embedded-repo {
+  border-color: var(--soft-line);
+  color: var(--muted);
+}
 .change-open b {
   min-width: 0;
   overflow: hidden;

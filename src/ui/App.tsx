@@ -59,10 +59,7 @@ import {
   type SplitDirection,
   type SplitEdge,
 } from "./state/editor-layout.js";
-import {
-  filterTreeToPaths,
-  replaceDirectoryChildren,
-} from "./state/files.js";
+import { filterTreeToPaths, replaceDirectoryChildren } from "./state/files.js";
 import {
   activePanePaths,
   decideLiveRefresh,
@@ -70,6 +67,7 @@ import {
 } from "./state/live-refresh.js";
 import {
   buildDiffStat,
+  isReviewChangeOpenable,
   latestUnreadReviewPath,
   mergeReviewChanges,
   nextReviewQueuePath,
@@ -678,8 +676,9 @@ export function App() {
   }
 
   function openAllChangedFiles() {
-    for (const { path, status } of reviewChanges) {
-      if (status === "deleted") continue;
+    for (const change of reviewChanges) {
+      if (!isReviewChangeOpenable(change)) continue;
+      const { path } = change;
       void loadFile(path, layout.activePaneId, "normal").catch((err) =>
         setError(String(err)),
       );

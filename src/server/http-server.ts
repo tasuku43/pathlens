@@ -38,6 +38,7 @@ export async function startHttpServer(
       await routeRequest(req, res, options);
     } catch (error) {
       const normalized = normalizeHttpError(error);
+      logHttpError(req, normalized, error);
       sendJson(res, normalized.httpStatus, {
         error: normalized.message,
         reason: normalized.reason,
@@ -418,6 +419,21 @@ function normalizeHttpError(error: unknown): {
     reason: message,
     status: httpStatus >= 500 ? "internal_error" : "request_error",
   };
+}
+
+function logHttpError(
+  req: IncomingMessage,
+  normalized: ReturnType<typeof normalizeHttpError>,
+  error: unknown,
+): void {
+  const method = req.method ?? "GET";
+  const target = req.url ?? "/";
+  const message = `[pathlens] ${method} ${target} failed with ${normalized.httpStatus}: ${normalized.reason}`;
+  if (normalized.httpStatus >= 500) {
+    console.error(message, error);
+    return;
+  }
+  console.warn(message);
 }
 
 function reasonForFileSystemCode(code: string): string | null {

@@ -39,8 +39,8 @@ it("reads uncommitted Git changes and small text diffs", async () => {
 
   expect(changes.available).toBe(true);
   expect(changes.changes).toEqual([
-    { path: "README.md", status: "modified" },
-    { path: "report.csv", status: "added" },
+    { path: "README.md", status: "modified", kind: "file" },
+    { path: "report.csv", status: "added", kind: "file" },
   ]);
 
   const modified = await review.readDiff("README.md");
@@ -65,10 +65,66 @@ it("expands untracked directories into file-level review changes", async () => {
   expect(changes.changes).toContainEqual({
     path: "notes/daily/today.md",
     status: "added",
+    kind: "file",
   });
   expect(changes.changes).not.toContainEqual({
     path: "notes",
     status: "added",
+  });
+});
+
+it("treats embedded repositories as non-file review changes", async () => {
+  await mkdir(path.join(dir, "00_references", "docs"), { recursive: true });
+  await mkdir(path.join(dir, "00_references", "repos", "charts"), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(dir, "00_references", "docs", "note.md"),
+    "# Note\n",
+  );
+  await git(["init"], path.join(dir, "00_references", "repos", "charts"));
+  await writeFile(
+    path.join(dir, "00_references", "repos", "charts", "Chart.yaml"),
+    "name: charts\n",
+  );
+
+  const review = new GitChangeReview({ rootDir: dir });
+  const changes = await review.readChanges();
+
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toContainEqual({
+    path: "00_references/docs/note.md",
+    status: "added",
+    kind: "file",
+  });
+  expect(changes.changes).toContainEqual({
+    path: "00_references/repos/charts",
+    status: "added",
+    kind: "embedded-repo",
+  });
+  expect(changes.changes).not.toContainEqual({
+    path: "00_references",
+    status: "added",
+  });
+  expect(changes.changes).not.toContainEqual({
+    path: "00_references/repos/charts/Chart.yaml",
+    status: "added",
+  });
+
+  await expect(review.readDiff("00_references")).resolves.toMatchObject({
+    path: "00_references",
+    status: "unavailable",
+    kind: "directory",
+    reason: "Diff is not available because the selected path is a directory.",
+  });
+  await expect(
+    review.readDiff("00_references/repos/charts"),
+  ).resolves.toMatchObject({
+    path: "00_references/repos/charts",
+    status: "unavailable",
+    kind: "embedded-repo",
+    reason:
+      "Diff is not available because the selected path is an embedded Git repository.",
   });
 });
 
@@ -134,8 +190,8 @@ it("reports Git changes under a subdirectory workspace as workspace-relative pat
 
   expect(changes.available).toBe(true);
   expect(changes.changes).toEqual([
-    { path: "README.md", status: "modified" },
-    { path: "src/index.ts", status: "modified" },
+    { path: "README.md", status: "modified", kind: "file" },
+    { path: "src/index.ts", status: "modified", kind: "file" },
   ]);
 
   const diff = await review.readDiff("README.md");
@@ -292,6 +348,6 @@ it("does not expose raw spawn ENOENT errors", () => {
   );
 });
 
-async function git(args: string[]): Promise<void> {
-  await execFileAsync("git", args, { cwd: dir });
+async function git(args: string[], cwd = dir): Promise<void> {
+  await execFileAsync("git", args, { cwd });
 }
