@@ -1,6 +1,7 @@
 import type { GitChangeReviewState } from "./git-review.js";
 
 export const gitReviewPollMs = 3_000;
+export const gitReviewTimeoutRetryMs = 30_000;
 export const gitTimeoutReason =
   "Git command timed out while reading this workspace.";
 export const gitPartialTimeoutReason =
@@ -17,12 +18,20 @@ export interface GitReviewPollVisibility {
 
 export function shouldPollGitReview(
   gitReview: GitChangeReviewState | null,
+  options: {
+    lastAttemptMs?: number;
+    nowMs?: number;
+    retryAfterMs?: number;
+  } = {},
 ): boolean {
-  return (
-    gitReview?.available !== false &&
-    gitReview?.reason !== gitTimeoutReason &&
-    gitReview?.reason !== gitPartialTimeoutReason
-  );
+  if (gitReview?.reason === gitPartialTimeoutReason) return false;
+  if (gitReview?.reason === gitTimeoutReason) {
+    if (typeof options.lastAttemptMs !== "number") return false;
+    const nowMs = options.nowMs ?? Date.now();
+    const retryAfterMs = options.retryAfterMs ?? gitReviewTimeoutRetryMs;
+    return nowMs - options.lastAttemptMs >= retryAfterMs;
+  }
+  return gitReview?.available !== false;
 }
 
 export function shouldStartGitReviewPolling(

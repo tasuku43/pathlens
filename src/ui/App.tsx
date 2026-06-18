@@ -225,6 +225,7 @@ export function App() {
   const knownReviewPaths = useRef(new Set<string>());
   const gitRefreshInFlight = useRef(false);
   const gitRefreshQueued = useRef(false);
+  const gitReviewLastAttemptMs = useRef<number | null>(null);
   const diffRefreshTimer = useRef<number | null>(null);
   const pendingDiffRefreshPaths = useRef(new Set<string>());
   const diffRequestVersions = useRef<Record<string, number>>({});
@@ -274,6 +275,7 @@ export function App() {
 
   async function loadGitReview() {
     const startedAt = performance.now();
+    gitReviewLastAttemptMs.current = Date.now();
     const response = await fetch("/api/changes");
     if (!response.ok)
       throw new Error(`changes request failed: ${response.status}`);
@@ -877,7 +879,10 @@ export function App() {
     return startGitReviewPolling({
       timer: window,
       visibility: document,
-      shouldRefresh: () => shouldPollGitReview(gitReviewRef.current),
+      shouldRefresh: () =>
+        shouldPollGitReview(gitReviewRef.current, {
+          lastAttemptMs: gitReviewLastAttemptMs.current ?? undefined,
+        }),
       scheduleRefresh: () => scheduleGitReviewRefresh(0),
     });
   }, [gitReview]);

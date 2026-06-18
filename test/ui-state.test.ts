@@ -941,7 +941,7 @@ it("polls Git review while visible so Docker mounts can recover without watcher 
   expect(scheduleRefresh).toHaveBeenCalledTimes(2);
 });
 
-it("does not repeatedly poll slow unavailable Git review workspaces", () => {
+it("retries slow unavailable Git review workspaces after the cooldown", () => {
   let handler: (() => void) | null = null;
   const timer = {
     setInterval(callback: () => void) {
@@ -951,12 +951,20 @@ it("does not repeatedly poll slow unavailable Git review workspaces", () => {
     clearInterval() {},
   };
   let gitReview = null as ReturnType<typeof unavailableGitReview> | null;
+  let nowMs = 0;
+  let lastAttemptMs: number | undefined;
   const scheduleRefresh = vi.fn(() => {
+    lastAttemptMs = nowMs;
     gitReview = unavailableGitReview();
   });
   startGitReviewPolling({
     timer,
-    shouldRefresh: () => shouldPollGitReview(gitReview),
+    shouldRefresh: () =>
+      shouldPollGitReview(gitReview, {
+        lastAttemptMs,
+        nowMs,
+        retryAfterMs: 30_000,
+      }),
     scheduleRefresh,
   });
   const runPoll = () => {
@@ -969,6 +977,14 @@ it("does not repeatedly poll slow unavailable Git review workspaces", () => {
 
   for (let index = 0; index < 20; index += 1) runPoll();
   expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+
+  nowMs = 29_999;
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+
+  nowMs = 30_000;
+  runPoll();
+  expect(scheduleRefresh).toHaveBeenCalledTimes(2);
 });
 
 it("does not poll partial Git review results after untracked status times out", () => {
