@@ -7,6 +7,12 @@ it("loads syntax languages on demand and falls back for unknown languages", asyn
     "typescript",
     "dark",
   );
+  const dockerfile = await highlightCode(
+    "FROM alpine:3.20\nRUN echo ok",
+    "dockerfile",
+    "dark",
+  );
+  const makefile = await highlightCode("obj-y += kernel.o", "makefile", "dark");
   const fallback = await highlightCode(
     "plain text",
     "made-up-language",
@@ -15,5 +21,7 @@ it("loads syntax languages on demand and falls back for unknown languages", asyn
 
   expect(highlighted).toContain("<pre");
   expect(highlighted).toContain("const");
+  expect(dockerfile).toContain("FROM");
+  expect(makefile).toContain("obj-y");
   expect(fallback).toContain("plain text");
 });

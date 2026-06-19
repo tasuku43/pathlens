@@ -445,6 +445,25 @@ it("maps common file paths to IDE-style icons and highlight languages", () => {
   expect(languageForPath("data/sample.json", "json")).toBe("json");
   expect(iconForPath("Dockerfile", "code")).toBe("DOCK");
   expect(languageForPath("Dockerfile", "code")).toBe("dockerfile");
+  expect(languageForPath("arch/x86/Makefile", "code")).toBe("makefile");
+  expect(languageForPath("kernel/Kconfig.debug", "code")).toBe("text");
+  expect(languageForPath("drivers/of/base.c", "code")).toBe("c");
+  expect(languageForPath("include/linux/compiler_types.h", "code")).toBe("c");
+  expect(languageForPath("arch/arm64/boot/dts/vendor/board.dts", "code")).toBe(
+    "text",
+  );
+  expect(languageForPath("scripts/checkpatch.pl", "code")).toBe("perl");
+  expect(languageForPath("scripts/verify_builtin_ranges.awk", "code")).toBe(
+    "awk",
+  );
+  expect(languageForPath(".gitignore", "code")).toBe("text");
+  expect(languageForPath(".dockerignore", "code")).toBe("text");
+  expect(languageForPath(".clang-format", "code")).toBe("yaml");
+  expect(languageForPath(".editorconfig", "code")).toBe("ini");
+  expect(languageForPath("LICENSE", "code")).toBe("text");
+  expect(languageForPath("go.mod", "code")).toBe("text");
+  expect(languageForPath("vite.config.mjs", "code")).toBe("javascript");
+  expect(languageForPath("tsconfig.node.mts", "code")).toBe("typescript");
 });
 
 it("compacts workbench panes for narrow viewports", () => {
