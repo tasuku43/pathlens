@@ -402,6 +402,11 @@ export function App() {
     : null;
   const visibleActiveComment =
     activeComment?.path === selectedPath ? activeComment : null;
+  const usesInlineCodeThread = Boolean(
+    file?.viewerKind === "code" &&
+    !diffEnabled &&
+    visibleActiveComment?.anchor.canonical.lineStart,
+  );
   const openCommentCount = comments.filter(
     (comment) => comment.status === "open",
   ).length;
@@ -866,7 +871,10 @@ export function App() {
 
   useEffect(() => {
     if (
-      !shouldLoadInitialGitReview(Boolean(tree), initialGitReviewRequested.current)
+      !shouldLoadInitialGitReview(
+        Boolean(tree),
+        initialGitReviewRequested.current,
+      )
     ) {
       return;
     }
@@ -1460,7 +1468,11 @@ export function App() {
         }
       />
       <InlineCommentCard
-        comment={commentsPanelOpen ? null : visibleActiveComment}
+        comment={
+          commentsPanelOpen || usesInlineCodeThread
+            ? null
+            : visibleActiveComment
+        }
         rect={activeCommentRect}
         onClose={() => {
           setActiveCommentId(null);
@@ -1613,6 +1625,11 @@ export function App() {
               }
               activeCommentId={activeCommentId}
               onOpenComment={openInlineComment}
+              onCloseComment={() => {
+                setActiveCommentId(null);
+                setActiveCommentRect(null);
+              }}
+              onCommentStatusChange={updateCommentStatus}
               onCodeSelectionChange={(range) => {
                 if (!paneFile?.path) return;
                 setCodeSelections((items) => ({

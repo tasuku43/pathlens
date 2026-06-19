@@ -62,6 +62,75 @@ try {
     10_000,
   );
 
+  await openTreeFile("Dockerfile");
+  await waitForExpression(
+    () => document.querySelectorAll(".code-line").length > 20,
+    10_000,
+  );
+  await selectElementText('.code-line[data-line="19"] .line-code', 24);
+  await waitForExpression(
+    () => Boolean(document.querySelector(".code-comment-thread")),
+    5_000,
+  );
+  const partialCodeSelection = await pageValue(() => ({
+    selectedLines: [...document.querySelectorAll(".code-line.selected")].map(
+      (row) => row.dataset.line,
+    ),
+    threadLabel: document
+      .querySelector(".code-comment-thread")
+      ?.getAttribute("aria-label"),
+    floatingComposer: Boolean(
+      document.querySelector(".selection-comment-composer"),
+    ),
+    nativeSelection: window.getSelection()?.toString() ?? "",
+  }));
+  assert(
+    partialCodeSelection.selectedLines.join(",") === "19",
+    `partial code selection did not anchor line 19: ${JSON.stringify(partialCodeSelection)}`,
+  );
+  assert(
+    partialCodeSelection.threadLabel === "Comment thread for line 19",
+    `partial code selection did not open an inline thread: ${JSON.stringify(partialCodeSelection)}`,
+  );
+  assert(
+    !partialCodeSelection.floatingComposer &&
+      partialCodeSelection.nativeSelection === "",
+    `partial code selection kept the legacy/native highlight: ${JSON.stringify(partialCodeSelection)}`,
+  );
+  await closeCodeCommentThread("partial code selection");
+
+  await dragSelectLineRange(13, 18);
+  await waitForExpression(
+    () =>
+      document
+        .querySelector(".code-comment-thread")
+        ?.getAttribute("aria-label") === "Comment thread for lines 13-18",
+    5_000,
+  );
+  const rangedCodeSelection = await pageValue(() => ({
+    selectedLines: [...document.querySelectorAll(".code-line.selected")].map(
+      (row) => row.dataset.line,
+    ),
+    threadAfterFinalLine: Boolean(
+      document
+        .querySelector('.code-line[data-line="18"]')
+        ?.nextElementSibling?.querySelector(".code-comment-thread"),
+    ),
+    floatingComposer: Boolean(
+      document.querySelector(".selection-comment-composer"),
+    ),
+  }));
+  assert(
+    rangedCodeSelection.selectedLines.join(",") === "13,14,15,16,17,18",
+    `line drag did not preserve the full range: ${JSON.stringify(rangedCodeSelection)}`,
+  );
+  assert(
+    rangedCodeSelection.threadAfterFinalLine &&
+      !rangedCodeSelection.floatingComposer,
+    `line drag did not insert the inline thread after line 18: ${JSON.stringify(rangedCodeSelection)}`,
+  );
+  await closeCodeCommentThread("ranged code selection");
+
   await clickElement(
     () =>
       [...document.querySelectorAll("button")].find(
@@ -438,6 +507,17 @@ async function closeInlineComment(label) {
   );
 }
 
+async function closeCodeCommentThread(label) {
+  await clickElement(
+    () => document.querySelector('[aria-label="Close comment thread"]'),
+    `${label} close button`,
+  );
+  await waitForExpression(
+    () => !document.querySelector(".code-comment-thread"),
+    5_000,
+  );
+}
+
 async function openTreeFile(filePath) {
   const parts = filePath.split("/");
   let currentPath = "";
@@ -550,6 +630,61 @@ async function dragSelectLine(lineNumber, width) {
   return observedSelection?.width
     ? observedSelection
     : { left: x1, top: rect.top, width: x2 - x1, height: rect.height };
+}
+
+async function dragSelectLineRange(startLine, endLine) {
+  const points = await pageValue(
+    ({ start, end }) => {
+      const startElement = document.querySelector(
+        `.code-line[data-line="${start}"] .line-number`,
+      );
+      startElement?.scrollIntoView({ block: "center", inline: "nearest" });
+      const startRect = startElement?.getBoundingClientRect();
+      const endRect = document
+        .querySelector(`.code-line[data-line="${end}"] .line-number`)
+        ?.getBoundingClientRect();
+      if (!startRect || !endRect) return null;
+      return {
+        x: startRect.left + startRect.width / 2,
+        startY: startRect.top + startRect.height / 2,
+        endY: endRect.top + endRect.height / 2,
+      };
+    },
+    { start: startLine, end: endLine },
+  );
+  assert(points, `lines ${startLine}-${endLine} were not visible`);
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: points.x,
+    y: points.startY,
+  });
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+    x: points.x,
+    y: points.startY,
+  });
+  const steps = Math.abs(endLine - startLine);
+  for (let step = 1; step <= steps; step += 1) {
+    await cdp.send("Input.dispatchMouseEvent", {
+      type: "mouseMoved",
+      button: "left",
+      buttons: 1,
+      x: points.x,
+      y: points.startY + ((points.endY - points.startY) * step) / steps,
+    });
+  }
+  await cdp.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    button: "left",
+    buttons: 0,
+    clickCount: 1,
+    x: points.x,
+    y: points.endY,
+  });
+  await delay(150);
 }
 
 async function selectElementText(selector, maxCharacters) {

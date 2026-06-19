@@ -66,6 +66,14 @@ const codeLineComment: ViviComment = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+const codeLineReply: ViviComment = {
+  ...codeLineComment,
+  id: "comment-2",
+  body: "Agreed, keep it explicit",
+  createdAt: "2026-01-01T00:01:00.000Z",
+  updatedAt: "2026-01-01T00:01:00.000Z",
+};
+
 it("renders the topbar as brand, workspace identity, and distinct actions", () => {
   const html = renderToStaticMarkup(
     <Topbar
@@ -82,9 +90,7 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
   expect(html).toContain('class="workspace-strip"');
   expect(html).toContain('aria-label="Workspace actions"');
   expect(html).toContain('class="workspace-name">vivi</span>');
-  expect(html).toContain(
-    'class="workspace-parent">/Users/tasuku/work</span>',
-  );
+  expect(html).toContain('class="workspace-parent">/Users/tasuku/work</span>');
   expect(html).toContain("command-button-primary");
   expect(html).toContain("command-button-secondary");
   expect(html).toContain("Theme");
@@ -93,9 +99,7 @@ it("renders the topbar as brand, workspace identity, and distinct actions", () =
 });
 
 it("summarizes workspace paths for compact topbar display", () => {
-  expect(workspaceDisplayName("/Users/tasuku/work/vivi/")).toBe(
-    "vivi",
-  );
+  expect(workspaceDisplayName("/Users/tasuku/work/vivi/")).toBe("vivi");
   expect(workspaceParentPath("/Users/tasuku/work/vivi/")).toBe(
     "/Users/tasuku/work",
   );
@@ -141,19 +145,20 @@ it("renders code with stable line numbers and selected ranges", () => {
   );
 
   expect(html).toContain('aria-label="Code viewer for src/app.ts"');
-  expect(html).toContain('class="code-line selected"');
+  expect(html).toContain('class="code-line selected selection-start"');
+  expect(html).toContain('class="code-line selected selection-end"');
   expect(html).toContain('aria-label="Select line 1"');
   expect(html).toContain("Copy ref");
   expect(html).toContain("Copy range");
 });
 
-it("renders code line comment targets with persistent row highlights", () => {
+it("renders code line comments as an inline thread with replies", () => {
   const html = renderToStaticMarkup(
     <CodeViewer
       file={codeFile}
       theme="dark"
       selectedRange={null}
-      comments={[codeLineComment]}
+      comments={[codeLineReply, codeLineComment]}
       activeCommentId={codeLineComment.id}
       onSelectionChange={() => undefined}
       onOpenComment={() => undefined}
@@ -163,10 +168,63 @@ it("renders code line comment targets with persistent row highlights", () => {
 
   expect(html).toContain('class="code-line has-comment active-comment"');
   expect(html).toContain(`data-comment-id="${codeLineComment.id}"`);
+  expect(html).toContain(`data-comment-id="${codeLineReply.id}"`);
   expect(html).toContain('class="code-line-comment-action"');
-  expect(html).toContain('aria-label="Open line note for line 2"');
-  expect(html).toContain('aria-label="Add line note for line 1"');
+  expect(html).toContain('aria-label="Open comment thread on line 2"');
+  expect(html).toContain('aria-label="Add comment on line 1"');
+  expect(html).toContain('aria-label="Comment thread for line 2"');
+  expect(html).toContain("2 comments");
+  expect(html.indexOf("Check this return")).toBeLessThan(
+    html.indexOf("Agreed, keep it explicit"),
+  );
+  expect(html).toContain('placeholder="Reply to thread"');
+  expect(html).toContain('aria-label="Add reply"');
   expect(html).not.toContain(">Comment<");
+});
+
+it("renders a range comment thread after the final selected code line", () => {
+  const rangeComment: ViviComment = {
+    ...codeLineComment,
+    id: "range-comment",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 1,
+        lineEnd: 2,
+        quote: "export function start() {\n  return true;",
+        fileHash: "sha256:test",
+      },
+    },
+    body: "This applies to the full branch",
+  };
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={{ start: 1, end: 2 }}
+      comments={[rangeComment]}
+      activeCommentId={rangeComment.id}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Lines 1-2");
+  expect(html).toContain('aria-label="Comment thread for lines 1-2"');
+  expect(html).toContain(
+    'class="code-line selected selection-start has-comment active-comment"',
+  );
+  expect(html).toContain(
+    'class="code-line selected selection-end has-comment active-comment"',
+  );
+  expect(html.indexOf('data-line="2"')).toBeLessThan(
+    html.indexOf('aria-label="Comment thread for lines 1-2"'),
+  );
+  expect(
+    html.indexOf('aria-label="Comment thread for lines 1-2"'),
+  ).toBeLessThan(html.indexOf('data-line="3"'));
 });
 
 it("extracts shiki line spans without losing nested syntax spans", () => {
@@ -508,9 +566,7 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
   const inspector = Inspector({
     file: codeFile,
     outline: [],
-    reviewChanges: [
-      { path: "src/app.ts", status: "modified", source: "git" },
-    ],
+    reviewChanges: [{ path: "src/app.ts", status: "modified", source: "git" }],
     reviewDiffStats: {},
     loadingReviewDiffs: {},
     unreadReviewPaths: new Set(),
@@ -650,9 +706,7 @@ it("shows partial Review Queue results as a warning", () => {
     <Inspector
       file={null}
       outline={[]}
-      reviewChanges={[
-        { path: "README.md", status: "modified", source: "git" },
-      ]}
+      reviewChanges={[{ path: "README.md", status: "modified", source: "git" }]}
       reviewUnavailableReason="Git untracked scan timed out; showing tracked changes only."
       reviewDiffStats={{}}
       loadingReviewDiffs={{}}

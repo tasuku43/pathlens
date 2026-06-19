@@ -1275,7 +1275,7 @@ body.resizing-workbench-pane {
 .code-line {
   position: relative;
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 34px;
+  grid-template-columns: 64px max-content minmax(0, 1fr);
   min-height: 23px;
   color: var(--text);
 }
@@ -1284,7 +1284,6 @@ body.resizing-workbench-pane {
 }
 .code-line.selected {
   background: var(--accent-faint);
-  box-shadow: inset 3px 0 0 var(--accent);
 }
 .code-line.has-comment,
 .code-line.drafting-comment,
@@ -1318,6 +1317,7 @@ body.resizing-workbench-pane {
   color: var(--comment-text);
 }
 .line-number {
+  position: relative;
   border: 0;
   border-right: 1px solid var(--soft-line);
   background: transparent;
@@ -1328,6 +1328,30 @@ body.resizing-workbench-pane {
   padding: 0 12px 0 8px;
   text-align: right;
   user-select: none;
+}
+.code-line.selected .line-number::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+.code-line.selection-start .line-number::after {
+  top: 3px;
+  border-radius: 3px 3px 0 0;
+}
+.code-line.selection-end .line-number::after {
+  bottom: 3px;
+  border-radius: 0 0 3px 3px;
+}
+.code-line.selection-start.selection-end .line-number::after {
+  border-radius: 3px;
+}
+.code-line.drafting-comment .line-number::after {
+  background: var(--comment-text);
 }
 .line-number:hover,
 .code-line.selected .line-number {
@@ -1340,14 +1364,16 @@ body.resizing-workbench-pane {
   white-space: pre;
 }
 .code-line-comment-action {
-  position: relative;
-  align-self: center;
-  justify-self: center;
-  width: 22px;
-  height: 22px;
+  position: absolute;
+  z-index: 2;
+  left: 5px;
+  top: 2px;
+  width: 19px;
+  height: 19px;
   border: 0;
-  border-radius: 6px;
-  background: transparent;
+  border-radius: 5px;
+  background: var(--panel-2);
+  color: var(--accent);
   cursor: pointer;
   opacity: 0;
   padding: 0;
@@ -1356,35 +1382,260 @@ body.resizing-workbench-pane {
   content: "";
   position: absolute;
   left: 5px;
-  top: 5px;
-  width: 11px;
-  height: 9px;
-  border: 1.5px solid currentColor;
-  border-radius: 4px;
-  color: var(--comment-text);
+  top: 9px;
+  width: 9px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: currentColor;
 }
 .code-line-comment-action::after {
   content: "";
   position: absolute;
-  left: 8px;
-  top: 13px;
-  width: 5px;
-  height: 5px;
-  border-left: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
+  left: 9px;
+  top: 5px;
+  width: 1.5px;
+  height: 9px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.code-line-comment-action.has-thread {
   color: var(--comment-text);
+  opacity: 1;
+}
+.code-line-comment-action.has-thread::before {
+  left: 4px;
+  top: 4px;
+  width: 10px;
+  height: 8px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+.code-line-comment-action.has-thread::after {
+  left: 7px;
+  top: 11px;
+  width: 4px;
+  height: 4px;
+  border-left: 1.5px solid currentColor;
+  border-radius: 0;
+  background: transparent;
   transform: skew(-22deg);
 }
 .code-line:hover .code-line-comment-action,
 .code-line-comment-action:focus-visible,
-.code-line.drafting-comment .code-line-comment-action,
-.code-line.has-comment .code-line-comment-action {
+.code-line.selection-end .code-line-comment-action {
   opacity: 1;
+}
+.code-lines.is-line-dragging .code-line-comment-action,
+.code-line.drafting-comment .code-line-comment-action {
+  opacity: 0;
+  pointer-events: none;
 }
 .code-line-comment-action:hover,
 .code-line-comment-action:focus-visible {
   outline: none;
-  background: var(--comment-tint-active);
+  background: var(--accent-soft);
+}
+.code-line-comment-count {
+  position: absolute;
+  left: 13px;
+  top: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 14px;
+  height: 14px;
+  border: 1px solid var(--comment-line);
+  border-radius: 999px;
+  background: var(--palette);
+  color: var(--comment-text);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 3px;
+}
+.code-comment-thread-row {
+  display: grid;
+  grid-template-columns: 64px minmax(320px, 680px) minmax(0, 1fr);
+  width: 100%;
+  padding: 5px 0 11px;
+}
+.code-comment-thread {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--comment-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--code));
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow) 58%, transparent);
+  color: var(--text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+.code-comment-thread-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  border-bottom: 1px solid var(--soft-line);
+  background: color-mix(in srgb, var(--panel-2) 82%, var(--code));
+  padding: 6px 8px 6px 11px;
+}
+.code-comment-thread-header > div,
+.code-thread-comment-meta,
+.code-comment-thread-footer,
+.code-comment-thread-footer > div {
+  display: flex;
+  align-items: center;
+}
+.code-comment-thread-header > div {
+  min-width: 0;
+  gap: 8px;
+}
+.code-comment-thread-header strong {
+  font-size: 12px;
+}
+.code-comment-thread-header span:not(.comment-status) {
+  color: var(--muted);
+  font-size: 11px;
+}
+.code-comment-thread-icon {
+  position: relative;
+  width: 13px;
+  height: 10px;
+  flex: 0 0 auto;
+  border: 1.5px solid var(--comment-text);
+  border-radius: 4px;
+}
+.code-comment-thread-icon::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: -4px;
+  width: 4px;
+  height: 4px;
+  border-left: 1.5px solid var(--comment-text);
+  transform: skew(-25deg);
+}
+.code-comment-thread-header > button {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+.code-comment-thread-header > button:hover,
+.code-comment-thread-header > button:focus-visible {
+  outline: none;
+  background: var(--soft-line);
+  color: var(--text);
+}
+.code-comment-thread-messages {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.code-thread-comment {
+  border-bottom: 1px solid var(--soft-line);
+  padding: 10px 12px 11px;
+}
+.code-thread-comment.resolved,
+.code-thread-comment.archived {
+  background: color-mix(in srgb, var(--panel-2) 62%, transparent);
+}
+.code-thread-comment-meta {
+  gap: 8px;
+  color: var(--subtle);
+  font-size: 10px;
+}
+.code-thread-comment-meta strong {
+  color: var(--muted);
+  font-size: 11px;
+}
+.code-thread-comment p {
+  margin: 6px 0 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.code-comment-thread-reply {
+  padding: 9px;
+}
+.code-comment-thread-reply textarea {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--code);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+  padding: 8px 9px;
+}
+.code-comment-thread-reply textarea:focus {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px var(--accent-faint);
+}
+.code-comment-thread-footer {
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 28px;
+  margin-top: 7px;
+}
+.code-comment-thread-footer > div {
+  gap: 4px;
+}
+.code-comment-thread-footer button {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 7px;
+}
+.code-comment-thread-footer button:hover,
+.code-comment-thread-footer button:focus-visible {
+  outline: none;
+  background: var(--soft-line);
+  color: var(--text);
+}
+.code-comment-thread-footer .code-comment-submit {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  background: var(--comment-text);
+  color: var(--panel);
+  font-size: 17px;
+  font-weight: 800;
+  padding: 0;
+}
+.code-comment-thread-footer .code-comment-submit:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+.code-comment-thread-error {
+  color: var(--error);
+  font-size: 11px;
+  margin: 6px 2px 0;
 }
 .commented-source-lines {
   min-width: max-content;
@@ -3230,7 +3481,10 @@ kbd {
     display: none;
   }
   .code-line {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 48px max-content minmax(0, 1fr);
+  }
+  .code-comment-thread-row {
+    grid-template-columns: 48px minmax(280px, calc(100vw - 112px));
   }
   .line-code {
     padding: 0 12px;

@@ -171,6 +171,11 @@ views. The canonical source anchor is the primary location. Rendered and diff
 anchors are auxiliary view anchors that map back to that source anchor when
 available.
 
+Clients may group comments with the same canonical path and line range into a
+conversation. The code viewer uses this rule for inline threads; each reply is
+still a normal comment created through the existing endpoint, preserving API and
+JSONL compatibility.
+
 ### `POST /api/v1/comments`
 
 Creates a comment. The request must be JSON and is intended for local-server use.

@@ -20,6 +20,19 @@ export type CommentCreateHandler = (
   rect?: SelectionCommentTarget["rect"],
 ) => void | Promise<void>;
 
+export type CommentStatusChangeHandler = (
+  id: string,
+  status: CommentStatus,
+) => void | Promise<void>;
+
+export interface CodeCommentThread {
+  key: string;
+  path: string;
+  lineStart: number;
+  lineEnd: number;
+  comments: ViviComment[];
+}
+
 export interface SelectionCommentTarget {
   text: string;
   rect: {
@@ -75,11 +88,49 @@ export function sourceLineCommentDraft(
   lineNumber: number,
 ): CommentDraft {
   const line = file.content.split(/\r?\n/)[Math.max(0, lineNumber - 1)] ?? "";
-  return sourceCommentDraft(
-    file,
-    { start: lineNumber, end: lineNumber },
-    line,
-  );
+  return sourceCommentDraft(file, { start: lineNumber, end: lineNumber }, line);
+}
+
+export function codeCommentThreadKey(
+  path: string,
+  lineStart: number,
+  lineEnd = lineStart,
+): string {
+  return JSON.stringify([path, lineStart, lineEnd]);
+}
+
+export function codeCommentThreads(
+  comments: ViviComment[],
+): CodeCommentThread[] {
+  const byKey = new Map<string, CodeCommentThread>();
+  for (const comment of comments) {
+    const lineStart = comment.anchor.canonical.lineStart;
+    if (!lineStart) continue;
+    const lineEnd = comment.anchor.canonical.lineEnd ?? lineStart;
+    const key = codeCommentThreadKey(comment.path, lineStart, lineEnd);
+    const thread = byKey.get(key) ?? {
+      key,
+      path: comment.path,
+      lineStart,
+      lineEnd,
+      comments: [],
+    };
+    thread.comments.push(comment);
+    byKey.set(key, thread);
+  }
+  return [...byKey.values()]
+    .map((thread) => ({
+      ...thread,
+      comments: [...thread.comments].sort((a, b) =>
+        a.createdAt.localeCompare(b.createdAt),
+      ),
+    }))
+    .sort(
+      (a, b) =>
+        a.lineEnd - b.lineEnd ||
+        a.lineStart - b.lineStart ||
+        a.key.localeCompare(b.key),
+    );
 }
 
 export function renderedCommentDraft(
@@ -199,6 +250,19 @@ export function selectionCommentTargetInElement(
   };
 }
 
+export function selectedLineRangeInElement(
+  element: HTMLElement | null,
+): LineRange | null {
+  if (!element) return null;
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  const start = selectedLineNumber(range.startContainer, element);
+  const end = selectedLineNumber(range.endContainer, element);
+  if (!start || !end) return null;
+  return { start: Math.min(start, end), end: Math.max(start, end) };
+}
+
 export function statusLabel(status: CommentStatus): string {
   if (status === "resolved") return "Resolved";
   if (status === "archived") return "Archived";
@@ -236,6 +300,14 @@ export function commentContainsLine(
   if (!start) return false;
   const end = comment.anchor.canonical.lineEnd ?? start;
   return line >= start && line <= end;
+}
+
+function selectedLineNumber(node: Node, element: HTMLElement): number | null {
+  const owner = node instanceof Element ? node : node.parentElement;
+  const row = owner?.closest<HTMLElement>(".code-line[data-line]");
+  if (!row || !element.contains(row)) return null;
+  const line = Number(row.dataset.line);
+  return Number.isInteger(line) && line > 0 ? line : null;
 }
 
 export function truncateCommentPreview(

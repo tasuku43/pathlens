@@ -120,3 +120,17 @@ comment id and canonical source anchor. Saved comments are surfaced in files as
 line-level highlights and subtle gutter markers when a line anchor is available.
 The right inspector intentionally shows only a lightweight current-file summary;
 the global Comments panel is the primary browsing and processing surface.
+
+In the code viewer, comments with the same canonical path and line range are
+presented as one inline thread. Each persisted `ViviComment` remains an
+independent, ordered message, so replies continue to use the existing create
+endpoint and old JSONL files require no migration. Thread status is derived from
+its messages: any open message keeps the thread open; otherwise resolved takes
+precedence over archived. This grouping is currently limited to the code viewer.
+
+Code comment ranges can be created by dragging across the fixed line-number
+gutter, Shift-selecting line numbers, or selecting part of the source text. The
+selected rows retain a custom gutter bar after the native text selection is
+cleared, and the inline thread editor is inserted after the range's final line.
+Single-line comments use the fixed plus button beside the line number; no comment
+control follows the variable-width end of the source line.

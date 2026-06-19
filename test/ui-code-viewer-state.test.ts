@@ -14,7 +14,10 @@ import {
   recordReviewEvent,
   summarizeReviewEvents,
 } from "../src/ui/state/review-events.js";
-import { sourceLineCommentDraft } from "../src/ui/state/comments.js";
+import {
+  codeCommentThreads,
+  sourceLineCommentDraft,
+} from "../src/ui/state/comments.js";
 
 it("splits code lines without inventing a trailing empty line", () => {
   expect(splitCodeLines("one\ntwo\n")).toEqual(["one", "two"]);
@@ -117,6 +120,46 @@ it("creates source comment drafts anchored to exactly one code line", () => {
       },
     },
   });
+});
+
+it("groups multiple comments on one code line into an ordered thread", () => {
+  const anchor = {
+    surface: "source" as const,
+    canonical: { path: "src/app.ts", lineStart: 2, lineEnd: 2 },
+  };
+  const threads = codeCommentThreads([
+    {
+      id: "reply",
+      path: "src/app.ts",
+      viewerKind: "text",
+      anchor,
+      body: "Second",
+      status: "open",
+      createdAt: "2026-06-19T02:00:00.000Z",
+      updatedAt: "2026-06-19T02:00:00.000Z",
+    },
+    {
+      id: "root",
+      path: "src/app.ts",
+      viewerKind: "text",
+      anchor,
+      body: "First",
+      status: "open",
+      createdAt: "2026-06-19T01:00:00.000Z",
+      updatedAt: "2026-06-19T01:00:00.000Z",
+    },
+  ]);
+
+  expect(threads).toHaveLength(1);
+  expect(threads[0]).toMatchObject({
+    path: "src/app.ts",
+    lineStart: 2,
+    lineEnd: 2,
+  });
+  expect(threads[0]?.comments.map((comment) => comment.id)).toEqual([
+    "root",
+    "reply",
+  ]);
 });
 
 it("records and summarizes recent review events by file path", () => {

@@ -7,7 +7,10 @@ import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import type { LineRange } from "../state/code-viewer.js";
-import type { CommentCreateHandler } from "../state/comments.js";
+import type {
+  CommentCreateHandler,
+  CommentStatusChangeHandler,
+} from "../state/comments.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 
@@ -67,6 +70,8 @@ export function FileViewer({
   comments = [],
   activeCommentId,
   onOpenComment,
+  onCloseComment,
+  onCommentStatusChange,
   onCloseRemoved,
 }: {
   file: FilePayload | null;
@@ -88,6 +93,8 @@ export function FileViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCloseComment?: () => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
   onCloseRemoved?: () => void;
 }) {
   if (!file)
@@ -225,6 +232,8 @@ export function FileViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}
+          onCloseComment={onCloseComment}
+          onCommentStatusChange={onCommentStatusChange}
         />
       </LazyViewerFallback>
     );
