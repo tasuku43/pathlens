@@ -113,7 +113,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest release artifacts
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/release/vivi_*.tar.gz
