@@ -11,10 +11,19 @@ type Query {
   config: ViewerConfig!
   tree(path: String, depth: Int): TreeSnapshot!
   file(path: String!): FilePayload!
-  fileContext(path: String!, includeComments: Boolean = false, includeDiff: Boolean = false, diffBase: String): FileContext!
+  fileContext(
+    path: String!
+    includeComments: Boolean = false
+    includeDiff: Boolean = false
+    diffBase: String
+  ): FileContext!
   comments(path: String, status: CommentStatus): [Comment!]!
   commentThreads(path: String, status: CommentStatus): [CommentThread!]!
-  commentExport(path: String, status: CommentStatus, format: CommentExportFormat = jsonl): CommentExport!
+  commentExport(
+    path: String
+    status: CommentStatus
+    format: CommentExportFormat = jsonl
+  ): CommentExport!
   reviewQueue: ChangeReviewSummary!
   diffBases: DiffBaseSummary!
   diff(path: String!, base: String): TextDiff!
@@ -102,6 +111,7 @@ type CommentThread {
   path: String!
   status: CommentStatus!
   anchor: JSON
+  diffAnchor: DiffCommentAnchor
   updatedAt: String
   comments: [Comment!]!
 }
@@ -112,12 +122,33 @@ type Comment {
   path: String!
   viewerKind: String!
   anchor: JSON!
+  diffAnchor: DiffCommentAnchor
   body: String!
   status: CommentStatus!
   createdAt: String!
   updatedAt: String!
   resolvedAt: String
   archivedAt: String
+}
+
+"Stable location of a comment in a unified diff. Line numbers are 1-based."
+type DiffCommentAnchor {
+  path: String!
+  base: String!
+  ref: String!
+  hunkId: String!
+  side: DiffSide!
+  oldLineStart: Int
+  oldLineEnd: Int
+  newLineStart: Int
+  newLineEnd: Int
+  diffHash: String
+  fileHash: String
+}
+
+enum DiffSide {
+  old
+  new
 }
 
 type CommentExport {
@@ -174,7 +205,9 @@ type TextDiff {
   status: String!
   kind: String
   baseLabel: String!
+  baseRef: String!
   compareLabel: String!
+  diffHash: String
   content: String!
   reason: String
 }

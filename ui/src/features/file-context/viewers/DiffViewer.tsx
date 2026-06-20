@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
@@ -8,15 +8,20 @@ import {
   type ParsedDiffLine,
 } from "../../../state/git-review.js";
 import {
+  codeCommentThreadKey,
+  codeCommentThreads,
   commentsForLine,
   diffCommentDraft,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   type CommentCreateHandler,
   type CommentDraft,
+  type CommentStatusChangeHandler,
+  type CodeCommentThread as CodeCommentThreadModel,
 } from "../../../state/comments.js";
 import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
+import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
 import { renderMarkdownDocumentHtml } from "../rendering/markdown-rendering.js";
 
@@ -43,6 +48,7 @@ export function DiffViewer({
   comments = [],
   activeCommentId,
   onOpenComment,
+  onCommentStatusChange,
 }: {
   path: string;
   diff: TextDiff | null;
@@ -56,6 +62,7 @@ export function DiffViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
 }) {
   const [localFocusChanges, setLocalFocusChanges] = useState(false);
   const focusChanges = controlledFocusChanges ?? localFocusChanges;
@@ -93,6 +100,7 @@ export function DiffViewer({
             comments={comments}
             activeCommentId={activeCommentId}
             onOpenComment={onOpenComment}
+            onCommentStatusChange={onCommentStatusChange}
           />
         ) : (
           <RenderedDiff
@@ -120,6 +128,7 @@ function SourceDiff({
   comments,
   activeCommentId,
   onOpenComment,
+  onCommentStatusChange,
 }: {
   diff: TextDiff;
   focusChanges: boolean;
@@ -129,12 +138,14 @@ function SourceDiff({
   comments: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
 }) {
   const diffRef = useRef<HTMLDivElement | null>(null);
-  const [selectionComment, setSelectionComment] = useState<{
+  const [draftThread, setDraftThread] = useState<{
+    thread: CodeCommentThreadModel;
     draft: CommentDraft;
-    rect: DOMRectLike;
   } | null>(null);
+  const [openThreadKey, setOpenThreadKey] = useState<string | null>(null);
   const language = languageForPath(diff.path, "code");
   const lines = useMemo(
     () =>
@@ -150,6 +161,21 @@ function SourceDiff({
   const [highlightedLines, setHighlightedLines] = useState<string[] | null>(
     null,
   );
+  const diffComments = useMemo(
+    () => comments.filter((comment) => comment.anchor.surface === "diff"),
+    [comments],
+  );
+  const commentThreads = useMemo(
+    () => codeCommentThreads(diffComments),
+    [diffComments],
+  );
+  const activeThread = activeCommentId
+    ? commentThreads.find((thread) =>
+        thread.comments.some((comment) => comment.id === activeCommentId),
+      )
+    : undefined;
+  const visibleThreadKey =
+    draftThread?.thread.key ?? openThreadKey ?? activeThread?.key ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -180,40 +206,37 @@ function SourceDiff({
     );
     if (!marker) return;
     marker.scrollIntoView({ block: "center", behavior: "smooth" });
-    window.requestAnimationFrame(() => {
-      onOpenComment?.(activeCommentId, rectLikeFromElement(marker));
-    });
-  }, [activeCommentId, comments, onOpenComment]);
+  }, [activeCommentId, comments]);
+
+  useEffect(() => {
+    setDraftThread(null);
+    setOpenThreadKey(null);
+  }, [diff.path, diff.content]);
 
   const updateSelectionComment = () => {
     if (!file || !diffRef.current) return;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) {
-      setSelectionComment(null);
       return;
     }
     const text = selection.toString().trim();
     if (!text) {
-      setSelectionComment(null);
       return;
     }
     const range = selection.getRangeAt(0);
     if (!diffRef.current.contains(range.commonAncestorContainer)) {
-      setSelectionComment(null);
       return;
     }
     const selectedRows = Array.from(
       diffRef.current.querySelectorAll<HTMLElement>("[data-current-line]"),
     ).filter((row) => range.intersectsNode(row));
     if (!selectedRows.length) {
-      setSelectionComment(null);
       return;
     }
     const lineNumbers = selectedRows
       .map((row) => Number(row.dataset.currentLine))
       .filter((line) => Number.isSafeInteger(line));
     if (!lineNumbers.length) {
-      setSelectionComment(null);
       return;
     }
     const changeKind = selectedRows.some(
@@ -221,17 +244,52 @@ function SourceDiff({
     )
       ? "added"
       : "context";
-    setSelectionComment({
-      draft: diffCommentDraft(
-        file,
-        Math.min(...lineNumbers),
-        Math.max(...lineNumbers),
-        changeKind,
-        text,
-      ),
-      rect: rectFromRange(range),
+    startDiffComment(Math.min(...lineNumbers), Math.max(...lineNumbers), text, {
+      changeKind,
     });
+    window.getSelection()?.removeAllRanges();
   };
+
+  function startDiffComment(
+    lineStart: number,
+    lineEnd = lineStart,
+    quote?: string,
+    options: { changeKind?: "context" | "added" } = {},
+  ) {
+    if (!file) return;
+    const changeKind =
+      options.changeKind ??
+      (lines.some((line) => line.newLine === lineStart && line.kind === "add")
+        ? "added"
+        : "context");
+    const key = codeCommentThreadKey(diff.path, lineStart, lineEnd);
+    setDraftThread({
+      thread: {
+        key,
+        path: diff.path,
+        lineStart,
+        lineEnd,
+        comments: [],
+      },
+      draft: diffCommentDraft(file, lineStart, lineEnd, changeKind, quote, {
+        base: diff.baseRef ?? diff.baseLabel,
+        ref: diff.compareLabel,
+        hunkId: hunkIdForLines(lines, lineStart, lineEnd),
+        diffHash: diff.diffHash,
+      }),
+    });
+    setOpenThreadKey(null);
+  }
+
+  function openCommentThread(thread: CodeCommentThreadModel) {
+    setDraftThread(null);
+    setOpenThreadKey(thread.key);
+  }
+
+  function closeCommentThread() {
+    setDraftThread(null);
+    setOpenThreadKey(null);
+  }
 
   return (
     <div
@@ -241,57 +299,172 @@ function SourceDiff({
       onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
       onKeyUp={updateSelectionComment}
     >
-      {displayLines.map((line, index) => (
-        <SourceDiffLine
-          key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
-          line={line}
-          html={highlightedLines?.[index] ?? escapeHtml(line.text || " ")}
-          comments={comments}
-          onOpenComment={onOpenComment}
-        />
-      ))}
-      <SelectionCommentComposer
-        draft={selectionComment?.draft ?? null}
-        rect={selectionComment?.rect ?? null}
-        onSave={onCreateComment}
-        onDismiss={() => setSelectionComment(null)}
-      />
+      {displayLines.map((line, index) => {
+        const currentLine =
+          "newLine" in line && line.kind !== "remove" ? line.newLine : null;
+        const lineThreads = currentLine
+          ? commentThreads.filter(
+              (thread) =>
+                currentLine >= thread.lineStart &&
+                currentLine <= thread.lineEnd,
+            )
+          : [];
+        const firstThread = lineThreads[0];
+        const rowThread =
+          currentLine && firstThread?.lineEnd === currentLine
+            ? firstThread
+            : lineThreads.find(
+                (thread) =>
+                  currentLine &&
+                  thread.lineStart === currentLine &&
+                  thread.lineEnd === currentLine,
+              );
+        const displayedThread =
+          currentLine && visibleThreadKey
+            ? commentThreads.find(
+                (thread) =>
+                  thread.key === visibleThreadKey &&
+                  thread.lineEnd === currentLine,
+              )
+            : undefined;
+        const persistedDraftThread = draftThread
+          ? commentThreads.find((thread) => thread.key === draftThread.thread.key)
+          : undefined;
+        const draftingRangeLine = Boolean(
+          currentLine &&
+            draftThread &&
+            !persistedDraftThread &&
+            currentLine >= draftThread.thread.lineStart &&
+            currentLine <= draftThread.thread.lineEnd,
+        );
+        const draftingThread = Boolean(
+          currentLine &&
+            draftingRangeLine &&
+            draftThread?.thread.lineEnd === currentLine,
+        );
+        const threadForDisplay =
+          displayedThread ??
+          (draftingThread && draftThread ? draftThread.thread : null);
+        const firstDisplayedComment = displayedThread?.comments[0];
+        const threadDraft = displayedThread
+          ? firstDisplayedComment
+            ? {
+                path: firstDisplayedComment.path,
+                viewerKind: firstDisplayedComment.viewerKind,
+                anchor: firstDisplayedComment.anchor,
+              }
+            : null
+          : draftThread?.draft ?? null;
+        return (
+          <Fragment
+            key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
+          >
+            <SourceDiffLine
+              line={line}
+              html={highlightedLines?.[index] ?? escapeHtml(line.text || " ")}
+              comments={diffComments}
+              activeCommentId={activeCommentId}
+              rowThread={rowThread}
+              threadOpen={Boolean(threadForDisplay)}
+              drafting={draftingRangeLine}
+              onOpenThread={openCommentThread}
+              onStartLineComment={
+                currentLine ? () => startDiffComment(currentLine) : undefined
+              }
+            />
+            {threadForDisplay && threadDraft ? (
+              <div className="code-comment-thread-row" role="listitem">
+                <CodeCommentThread
+                  thread={threadForDisplay}
+                  draft={threadDraft}
+                  onCreateComment={onCreateComment}
+                  onStatusChange={onCommentStatusChange}
+                  onClose={closeCommentThread}
+                />
+              </div>
+            ) : null}
+          </Fragment>
+        );
+      })}
     </div>
   );
+}
+
+function hunkIdForLines(
+  lines: VisibleDiffLine[],
+  start: number,
+  end: number,
+): string {
+  const first = lines.find((line) => line.newLine === start);
+  const oldStart = first?.oldLine ?? 0;
+  return `@@ -${oldStart} +${start},${end - start + 1} @@`;
 }
 
 function SourceDiffLine({
   line,
   html,
   comments,
-  onOpenComment,
+  activeCommentId,
+  rowThread,
+  threadOpen,
+  drafting,
+  onOpenThread,
+  onStartLineComment,
 }: {
   line: SourceDiffRow;
   html: string;
   comments: ViviComment[];
-  onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  activeCommentId?: string | null;
+  rowThread?: CodeCommentThreadModel;
+  threadOpen?: boolean;
+  drafting?: boolean;
+  onOpenThread?: (thread: CodeCommentThreadModel) => void;
+  onStartLineComment?: () => void;
 }) {
   const currentLine =
     "newLine" in line && line.kind !== "remove" ? line.newLine : null;
   const lineComments = currentLine
     ? commentsForLine(comments, currentLine)
     : [];
-  const firstComment = lineComments[0];
+  const activeCommentLine = lineComments.some(
+    (comment) => comment.id === activeCommentId,
+  );
   return (
     <div
-      className={`diff-inline-row ${line.kind}${lineComments.length ? " has-comment" : ""}`}
+      className={`diff-inline-row ${line.kind}${lineComments.length ? " has-comment" : ""}${activeCommentLine ? " active-comment" : ""}${drafting ? " drafting-comment" : ""}`}
       data-current-line={currentLine ?? undefined}
       data-change-kind={
         currentLine ? (line.kind === "add" ? "added" : "context") : undefined
       }
       onClick={(event) => {
-        if (!firstComment) return;
-        onOpenComment?.(
-          firstComment.id,
-          rectLikeFromElement(event.currentTarget),
-        );
+        if (!rowThread) return;
+        onOpenThread?.(rowThread);
       }}
     >
+      {currentLine ? (
+        <button
+          className={`code-line-comment-action${rowThread ? " has-thread" : ""}`}
+          type="button"
+          aria-expanded={threadOpen}
+          aria-label={
+            rowThread
+              ? `Open comment thread on line ${currentLine}`
+              : `Add comment on line ${currentLine}`
+          }
+          data-comment-id={rowThread?.comments[0]?.id}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (rowThread) onOpenThread?.(rowThread);
+            else onStartLineComment?.();
+          }}
+        >
+          {rowThread ? (
+            <span className="code-line-comment-count">
+              {rowThread.comments.length}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
       <span className="diff-line-no">
         {line.kind === "gap"
           ? ""
@@ -301,21 +474,6 @@ function SourceDiffLine({
               ? (line.newLine ?? "")
               : (line.oldLine ?? "")}
       </span>
-      {firstComment ? (
-        <button
-          className="comment-gutter-marker diff-comment-marker"
-          type="button"
-          data-comment-id={firstComment.id}
-          aria-label={`Open comment on line ${currentLine}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenComment?.(
-              firstComment.id,
-              rectLikeFromElement(event.currentTarget),
-            );
-          }}
-        />
-      ) : null}
       <code dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );

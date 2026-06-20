@@ -3,6 +3,7 @@ package gitreview
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -46,7 +47,9 @@ type TextDiff struct {
 	Status       string `json:"status"`
 	Kind         string `json:"kind,omitempty"`
 	BaseLabel    string `json:"baseLabel"`
+	BaseRef      string `json:"baseRef"`
 	CompareLabel string `json:"compareLabel"`
+	DiffHash     string `json:"diffHash,omitempty"`
 	Content      string `json:"content"`
 	Reason       string `json:"reason,omitempty"`
 }
@@ -193,7 +196,7 @@ func (reviewer *Reviewer) ReadDiff(ctx context.Context, relativePath, baseRef st
 	if strings.Contains(output, "Binary files ") {
 		return TextDiff{Path: relativePath, Status: "binary", BaseLabel: base.Label, CompareLabel: "working tree", Content: "", Reason: "Binary diff is not shown in Vivi."}
 	}
-	return TextDiff{Path: relativePath, Status: "available", BaseLabel: base.Label, CompareLabel: "working tree", Content: output}
+	return availableDiff(relativePath, base, output)
 }
 
 func (reviewer *Reviewer) addedDiff(relativePath string, base DiffBase) TextDiff {
@@ -219,7 +222,12 @@ func (reviewer *Reviewer) addedDiff(relativePath string, base DiffBase) TextDiff
 	if workspace.IsBinary(content) {
 		return TextDiff{Path: relativePath, Status: "binary", BaseLabel: base.Label, CompareLabel: "working tree", Content: "", Reason: "Binary diff is not shown in Vivi."}
 	}
-	return TextDiff{Path: relativePath, Status: "available", BaseLabel: base.Label, CompareLabel: "working tree", Content: buildAddedDiff(relativePath, string(content))}
+	return availableDiff(relativePath, base, buildAddedDiff(relativePath, string(content)))
+}
+
+func availableDiff(path string, base DiffBase, content string) TextDiff {
+	hash := fmt.Sprintf("sha256:%x", sha256.Sum256([]byte(content)))
+	return TextDiff{Path: path, Status: "available", BaseLabel: base.Label, BaseRef: base.Ref, CompareLabel: "working tree", DiffHash: hash, Content: content}
 }
 
 func (reviewer *Reviewer) allowedBase(ctx context.Context, ref string) (DiffBase, bool) {

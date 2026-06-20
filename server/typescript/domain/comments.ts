@@ -34,9 +34,16 @@ export interface RenderedAnchor {
 
 export interface DiffAnchor {
   path: string;
-  lineStart: number;
-  lineEnd: number;
-  side: "current";
+  base: string;
+  ref: string;
+  hunkId: string;
+  side: "old" | "new";
+  oldLineStart?: number;
+  oldLineEnd?: number;
+  newLineStart?: number;
+  newLineEnd?: number;
+  diffHash?: string;
+  fileHash?: string;
   changeKind?: "context" | "added";
 }
 
@@ -232,7 +239,8 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
       } satisfies CommentThread);
     thread.comments.push(comment);
     if (comment.status === "open") thread.status = "open";
-    if (comment.updatedAt > thread.updatedAt) thread.updatedAt = comment.updatedAt;
+    if (comment.updatedAt > thread.updatedAt)
+      thread.updatedAt = comment.updatedAt;
     threads.set(threadId, thread);
   }
   return [...threads.values()];
@@ -261,8 +269,8 @@ function normalizeAnchor(
 
   if (surface === "diff") {
     anchor.diff = normalizeDiffAnchor(input.diff, path);
-    canonical.lineStart ??= anchor.diff.lineStart;
-    canonical.lineEnd ??= anchor.diff.lineEnd;
+    canonical.lineStart ??= anchor.diff.newLineStart;
+    canonical.lineEnd ??= anchor.diff.newLineEnd;
   }
 
   return anchor;
@@ -330,31 +338,39 @@ function normalizeRenderedAnchor(input: unknown): RenderedAnchor {
 
 function normalizeDiffAnchor(input: unknown, path: string): DiffAnchor {
   if (!isRecord(input)) throw new Error("diff comment anchor is required");
-  const side = stringField(input.side, "diff.side");
-  if (side !== "current") {
-    throw new Error("diff comments can only target current-file lines");
-  }
-  const changeKind = optionalString(input.changeKind);
-  if (
-    changeKind !== undefined &&
-    changeKind !== "context" &&
-    changeKind !== "added"
-  ) {
-    throw new Error("diff comments can only target context or added lines");
-  }
+  const legacySide = input.side === "current";
+  const side = legacySide ? "new" : stringField(input.side, "diff.side");
+  if (side !== "old" && side !== "new") throw new Error("invalid diff side");
   const anchorPath = stringField(input.path ?? path, "diff.path");
   if (anchorPath !== path) throw new Error("diff comment path must match path");
-  const lineStart = positiveInt(input.lineStart, "diff.lineStart");
-  const lineEnd = positiveInt(input.lineEnd, "diff.lineEnd");
-  if (lineEnd < lineStart) {
-    throw new Error("diff lineEnd must be greater than or equal to lineStart");
-  }
+  const oldLineStart = optionalPositiveInt(input.oldLineStart, "oldLineStart");
+  const oldLineEnd = optionalPositiveInt(input.oldLineEnd, "oldLineEnd");
+  const newLineStart = legacySide
+    ? positiveInt(input.lineStart, "diff.lineStart")
+    : optionalPositiveInt(input.newLineStart, "newLineStart");
+  const newLineEnd = legacySide
+    ? positiveInt(input.lineEnd, "diff.lineEnd")
+    : optionalPositiveInt(input.newLineEnd, "newLineEnd");
+  const start = side === "old" ? oldLineStart : newLineStart;
+  const end = side === "old" ? oldLineEnd : newLineEnd;
+  if (!start || !end || end < start)
+    throw new Error("diff line range is invalid");
   return {
     path,
-    lineStart,
-    lineEnd,
+    base: optionalString(input.base) ?? "HEAD",
+    ref: optionalString(input.ref) ?? "working-tree",
+    hunkId: optionalString(input.hunkId) ?? `legacy:${side}:${start}-${end}`,
     side,
-    changeKind,
+    oldLineStart,
+    oldLineEnd,
+    newLineStart,
+    newLineEnd,
+    diffHash: optionalString(input.diffHash),
+    fileHash: optionalString(input.fileHash),
+    changeKind:
+      input.changeKind === "context" || input.changeKind === "added"
+        ? input.changeKind
+        : undefined,
   };
 }
 

@@ -173,9 +173,18 @@ export function diffCommentDraft(
   file: FilePayload,
   lineStart: number,
   lineEnd: number,
-  changeKind: "context" | "added",
+  _changeKind: "context" | "added",
   quote?: string,
+  context: {
+    base?: string;
+    ref?: string;
+    hunkId?: string;
+    diffHash?: string;
+  } = {},
 ): CommentDraft {
+  const canonicalQuote =
+    sourceTextForLineRange(file.content, { start: lineStart, end: lineEnd }) ??
+    quote;
   return {
     path: file.path,
     viewerKind: commentViewerKindForFile(file),
@@ -185,15 +194,20 @@ export function diffCommentDraft(
         path: file.path,
         lineStart,
         lineEnd,
-        quote: quote?.trim() || undefined,
+        quote: canonicalQuote?.trim() || undefined,
         fileHash: file.etag,
       },
       diff: {
         path: file.path,
-        lineStart,
-        lineEnd,
-        side: "current",
-        changeKind,
+        base: context.base ?? "HEAD",
+        ref: context.ref ?? "working-tree",
+        hunkId: context.hunkId ?? `new:${lineStart}-${lineEnd}`,
+        side: "new",
+        newLineStart: lineStart,
+        newLineEnd: lineEnd,
+        diffHash: context.diffHash,
+        fileHash: file.etag,
+        changeKind: _changeKind,
       },
     },
   };

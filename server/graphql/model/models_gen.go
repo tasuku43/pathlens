@@ -19,17 +19,18 @@ type ChangeReviewSummary struct {
 }
 
 type Comment struct {
-	ID         string         `json:"id"`
-	ThreadID   *string        `json:"threadId,omitempty"`
-	Path       string         `json:"path"`
-	ViewerKind string         `json:"viewerKind"`
-	Anchor     map[string]any `json:"anchor"`
-	Body       string         `json:"body"`
-	Status     CommentStatus  `json:"status"`
-	CreatedAt  string         `json:"createdAt"`
-	UpdatedAt  string         `json:"updatedAt"`
-	ResolvedAt *string        `json:"resolvedAt,omitempty"`
-	ArchivedAt *string        `json:"archivedAt,omitempty"`
+	ID         string             `json:"id"`
+	ThreadID   *string            `json:"threadId,omitempty"`
+	Path       string             `json:"path"`
+	ViewerKind string             `json:"viewerKind"`
+	Anchor     map[string]any     `json:"anchor"`
+	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
+	Body       string             `json:"body"`
+	Status     CommentStatus      `json:"status"`
+	CreatedAt  string             `json:"createdAt"`
+	UpdatedAt  string             `json:"updatedAt"`
+	ResolvedAt *string            `json:"resolvedAt,omitempty"`
+	ArchivedAt *string            `json:"archivedAt,omitempty"`
 }
 
 type CommentExport struct {
@@ -54,12 +55,13 @@ type CommentMeta struct {
 }
 
 type CommentThread struct {
-	ID        string         `json:"id"`
-	Path      string         `json:"path"`
-	Status    CommentStatus  `json:"status"`
-	Anchor    map[string]any `json:"anchor,omitempty"`
-	UpdatedAt *string        `json:"updatedAt,omitempty"`
-	Comments  []*Comment     `json:"comments"`
+	ID         string             `json:"id"`
+	Path       string             `json:"path"`
+	Status     CommentStatus      `json:"status"`
+	Anchor     map[string]any     `json:"anchor,omitempty"`
+	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
+	UpdatedAt  *string            `json:"updatedAt,omitempty"`
+	Comments   []*Comment         `json:"comments"`
 }
 
 type CommentThreadUpdateInput struct {
@@ -69,6 +71,21 @@ type CommentThreadUpdateInput struct {
 type CommentUpdateInput struct {
 	Body   *string        `json:"body,omitempty"`
 	Status *CommentStatus `json:"status,omitempty"`
+}
+
+// Stable location of a comment in a unified diff. Line numbers are 1-based.
+type DiffCommentAnchor struct {
+	Path         string   `json:"path"`
+	Base         string   `json:"base"`
+	Ref          string   `json:"ref"`
+	HunkID       string   `json:"hunkId"`
+	Side         DiffSide `json:"side"`
+	OldLineStart *int     `json:"oldLineStart,omitempty"`
+	OldLineEnd   *int     `json:"oldLineEnd,omitempty"`
+	NewLineStart *int     `json:"newLineStart,omitempty"`
+	NewLineEnd   *int     `json:"newLineEnd,omitempty"`
+	DiffHash     *string  `json:"diffHash,omitempty"`
+	FileHash     *string  `json:"fileHash,omitempty"`
 }
 
 type FileContext struct {
@@ -236,6 +253,61 @@ func (e *CommentStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e CommentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DiffSide string
+
+const (
+	DiffSideOld DiffSide = "old"
+	DiffSideNew DiffSide = "new"
+)
+
+var AllDiffSide = []DiffSide{
+	DiffSideOld,
+	DiffSideNew,
+}
+
+func (e DiffSide) IsValid() bool {
+	switch e {
+	case DiffSideOld, DiffSideNew:
+		return true
+	}
+	return false
+}
+
+func (e DiffSide) String() string {
+	return string(e)
+}
+
+func (e *DiffSide) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DiffSide(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DiffSide", str)
+	}
+	return nil
+}
+
+func (e DiffSide) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DiffSide) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DiffSide) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -108,6 +108,46 @@ line
     });
   });
 
+  it("projects diff comments into rendered document blocks through canonical lines", () => {
+    expect(
+      renderedCommentSummaryForComment(
+        {
+          id: "diff-comment",
+          path: "README.md",
+          viewerKind: "markdown",
+          anchor: {
+            surface: "diff",
+            canonical: {
+              path: "README.md",
+              lineStart: 3,
+              lineEnd: 4,
+              quote: "current markdown",
+            },
+            diff: {
+              path: "README.md",
+              base: "HEAD",
+              ref: "working tree",
+              hunkId: "@@ -3,2 +3,2 @@",
+              side: "new",
+              newLineStart: 3,
+              newLineEnd: 4,
+            },
+          },
+          body: "Review this diff paragraph",
+          status: "open",
+          createdAt: "2026-06-19T00:00:00.000Z",
+          updatedAt: "2026-06-19T00:00:00.000Z",
+        },
+        "markdown",
+      ),
+    ).toMatchObject({
+      id: "diff-comment",
+      sourceLineStart: 3,
+      sourceLineEnd: 4,
+      textQuote: "current markdown",
+    });
+  });
+
   it("labels rendered comment markers with their message count", () => {
     expect(renderedCommentActionLabel(1)).toBe(
       "Open comment thread with 1 message",

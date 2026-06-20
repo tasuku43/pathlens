@@ -33,7 +33,9 @@ export interface TextDiff {
   status: DiffStatus;
   kind?: GitChangeKind;
   baseLabel: string;
+  baseRef?: string;
   compareLabel: string;
+  diffHash?: string;
   content: string;
   reason?: string;
 }

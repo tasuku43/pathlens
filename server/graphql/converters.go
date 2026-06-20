@@ -30,6 +30,7 @@ func commentFromMap(item map[string]any) *model.Comment {
 		Path:       stringValue(item["path"]),
 		ViewerKind: stringValue(item["viewerKind"]),
 		Anchor:     mapValue(item["anchor"]),
+		DiffAnchor: diffAnchorValue(item["anchor"]),
 		Body:       stringValue(item["body"]),
 		Status:     commentStatusValue(item["status"]),
 		CreatedAt:  stringValue(item["createdAt"]),
@@ -43,15 +44,63 @@ func commentThreadsFromDomain(items []application.CommentThread) []*model.Commen
 	threads := make([]*model.CommentThread, 0, len(items))
 	for _, item := range items {
 		threads = append(threads, &model.CommentThread{
-			ID:        item.ID,
-			Path:      item.Path,
-			Status:    commentStatusValue(item.Status),
-			Anchor:    mapValue(item.Anchor),
-			UpdatedAt: optionalStringValue(item.UpdatedAt),
-			Comments:  commentsFromMaps(item.Comments),
+			ID:         item.ID,
+			Path:       item.Path,
+			Status:     commentStatusValue(item.Status),
+			Anchor:     mapValue(item.Anchor),
+			DiffAnchor: diffAnchorValue(item.Anchor),
+			UpdatedAt:  optionalStringValue(item.UpdatedAt),
+			Comments:   commentsFromMaps(item.Comments),
 		})
 	}
 	return threads
+}
+
+func diffAnchorValue(value any) *model.DiffCommentAnchor {
+	anchor := mapValue(value)
+	diff := mapValue(anchor["diff"])
+	if len(diff) == 0 {
+		return nil
+	}
+	side := model.DiffSide(stringValue(diff["side"]))
+	if side == "current" {
+		side = model.DiffSideNew
+	}
+	if !side.IsValid() {
+		return nil
+	}
+	return &model.DiffCommentAnchor{
+		Path: stringValue(diff["path"]), Base: defaultString(diff["base"], "HEAD"),
+		Ref: defaultString(diff["ref"], "working-tree"), HunkID: defaultString(diff["hunkId"], "legacy"), Side: side,
+		OldLineStart: optionalJSONInt(diff["oldLineStart"]), OldLineEnd: optionalJSONInt(diff["oldLineEnd"]),
+		NewLineStart: firstJSONInt(diff["newLineStart"], diff["lineStart"]), NewLineEnd: firstJSONInt(diff["newLineEnd"], diff["lineEnd"]),
+		DiffHash: optionalStringValue(diff["diffHash"]), FileHash: optionalStringValue(diff["fileHash"]),
+	}
+}
+
+func defaultString(value any, fallback string) string {
+	if text := stringValue(value); text != "" {
+		return text
+	}
+	return fallback
+}
+func optionalJSONInt(value any) *int {
+	if number, ok := value.(float64); ok {
+		result := int(number)
+		return &result
+	}
+	if number, ok := value.(int); ok {
+		return &number
+	}
+	return nil
+}
+func firstJSONInt(values ...any) *int {
+	for _, value := range values {
+		if result := optionalJSONInt(value); result != nil {
+			return result
+		}
+	}
+	return nil
 }
 
 func workspaceEventFromDomain(event application.WorkspaceEvent) *model.WorkspaceEvent {

@@ -198,6 +198,51 @@ it("renders code line comments as an inline thread with replies", () => {
   expect(html).not.toContain(">Comment<");
 });
 
+it("projects diff-surface comments onto source code comment threads", () => {
+  const diffSurfaceComment: ViviComment = {
+    ...codeLineComment,
+    id: "diff-surface-comment",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        quote: "return true;",
+        fileHash: "sha256:test",
+      },
+      diff: {
+        path: "src/app.ts",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -1,3 +1,3 @@",
+        side: "new",
+        newLineStart: 2,
+        newLineEnd: 2,
+      },
+    },
+    body: "Only visible in diff mode",
+  };
+
+  const html = renderToStaticMarkup(
+    <CodeViewer
+      file={codeFile}
+      theme="dark"
+      selectedRange={null}
+      comments={[codeLineComment, diffSurfaceComment]}
+      activeCommentId={codeLineComment.id}
+      onSelectionChange={() => undefined}
+      onOpenComment={() => undefined}
+      onCreateComment={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("Check this return");
+  expect(html).toContain("Only visible in diff mode");
+  expect(html).toContain("2 comments");
+  expect(html).toContain('class="code-line-comment-count">2</span>');
+});
+
 it("renders a range comment thread after the final selected code line", () => {
   const rangeComment: ViviComment = {
     ...codeLineComment,
@@ -1137,6 +1182,67 @@ it("renders source diffs as inline line rows", () => {
   expect(html).not.toContain("index 0000000");
   expect(html).not.toContain("--- a/src/app.ts");
   expect(html).not.toContain("@@ -62,2 +62,2 @@");
+});
+
+it("renders diff comments as source-style inline threads after the selected new-line range", () => {
+  const diffComment: ViviComment = {
+    ...codeLineComment,
+    id: "diff-comment-1",
+    threadId: "diff-thread-1",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 20,
+        lineEnd: 21,
+        quote: "new line one\nnew line two",
+        fileHash: "sha256:test",
+      },
+      diff: {
+        path: "src/app.ts",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -10,1 +20,2 @@",
+        side: "new",
+        newLineStart: 20,
+        newLineEnd: 21,
+        diffHash: "sha256:diff",
+        fileHash: "sha256:test",
+        changeKind: "added",
+      },
+    },
+    body: "Review the new two-line block",
+  };
+
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="src/app.ts"
+      renderKind="source"
+      file={codeFile}
+      activeCommentId="diff-comment-1"
+      comments={[diffComment]}
+      diff={{
+        path: "src/app.ts",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        baseRef: "HEAD",
+        diffHash: "sha256:diff",
+        content:
+          "diff --git a/src/app.ts b/src/app.ts\n--- a/src/app.ts\n+++ b/src/app.ts\n@@ -10,1 +20,2 @@\n-old removed line\n+new line one\n+new line two",
+      }}
+    />,
+  );
+
+  expect(html).toContain("diff-inline-row add has-comment");
+  expect(html).toContain("code-comment-thread-row");
+  expect(html).toContain("Lines 20-21");
+  expect(html).toContain("Review the new two-line block");
+  expect(html).toContain("Resolve thread");
+  expect(html).not.toContain("Add comment on line 10");
+  expect(html.indexOf("new line two")).toBeLessThan(
+    html.indexOf("code-comment-thread-row"),
+  );
 });
 
 it("groups unified diff lines into rendered change blocks", () => {

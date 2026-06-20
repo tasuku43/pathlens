@@ -1502,6 +1502,7 @@ body.resizing-workbench-pane {
 .code-line.drafting-comment,
 .commented-source-line.has-comment,
 .diff-inline-row.has-comment,
+.diff-inline-row.drafting-comment,
 .rendered-markdown-diff-block.has-comment,
 .rendered-html-diff-block.has-comment {
   background: linear-gradient(
@@ -1512,7 +1513,8 @@ body.resizing-workbench-pane {
   );
   box-shadow: inset 2px 0 0 var(--comment-line);
 }
-.code-line.active-comment {
+.code-line.active-comment,
+.diff-inline-row.active-comment {
   background: linear-gradient(
     90deg,
     color-mix(in srgb, var(--comment-tint-active) 88%, var(--accent-faint)),
@@ -1526,7 +1528,8 @@ body.resizing-workbench-pane {
 .code-line.has-comment .line-number,
 .code-line.drafting-comment .line-number,
 .commented-source-line.has-comment .commented-source-gutter,
-.diff-inline-row.has-comment .diff-line-no {
+.diff-inline-row.has-comment .diff-line-no,
+.diff-inline-row.drafting-comment .diff-line-no {
   color: var(--comment-text);
 }
 .line-number {
@@ -1635,12 +1638,14 @@ body.resizing-workbench-pane {
   transform: skew(-22deg);
 }
 .code-line:hover .code-line-comment-action,
+.diff-inline-row:hover .code-line-comment-action,
 .code-line-comment-action:focus-visible,
 .code-line.selection-end .code-line-comment-action {
   opacity: 1;
 }
 .code-lines.is-line-dragging .code-line-comment-action,
-.code-line.drafting-comment .code-line-comment-action {
+.code-line.drafting-comment .code-line-comment-action,
+.diff-inline-row.drafting-comment .code-line-comment-action {
   opacity: 0;
   pointer-events: none;
 }

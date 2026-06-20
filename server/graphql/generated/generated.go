@@ -58,6 +58,7 @@ type ComplexityRoot struct {
 		ArchivedAt func(childComplexity int) int
 		Body       func(childComplexity int) int
 		CreatedAt  func(childComplexity int) int
+		DiffAnchor func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Path       func(childComplexity int) int
 		ResolvedAt func(childComplexity int) int
@@ -80,12 +81,13 @@ type ComplexityRoot struct {
 	}
 
 	CommentThread struct {
-		Anchor    func(childComplexity int) int
-		Comments  func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Path      func(childComplexity int) int
-		Status    func(childComplexity int) int
-		UpdatedAt func(childComplexity int) int
+		Anchor     func(childComplexity int) int
+		Comments   func(childComplexity int) int
+		DiffAnchor func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Path       func(childComplexity int) int
+		Status     func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
 	}
 
 	DiffBase struct {
@@ -98,6 +100,20 @@ type ComplexityRoot struct {
 		Available func(childComplexity int) int
 		Options   func(childComplexity int) int
 		Reason    func(childComplexity int) int
+	}
+
+	DiffCommentAnchor struct {
+		Base         func(childComplexity int) int
+		DiffHash     func(childComplexity int) int
+		FileHash     func(childComplexity int) int
+		HunkID       func(childComplexity int) int
+		NewLineEnd   func(childComplexity int) int
+		NewLineStart func(childComplexity int) int
+		OldLineEnd   func(childComplexity int) int
+		OldLineStart func(childComplexity int) int
+		Path         func(childComplexity int) int
+		Ref          func(childComplexity int) int
+		Side         func(childComplexity int) int
 	}
 
 	FileContext struct {
@@ -202,8 +218,10 @@ type ComplexityRoot struct {
 
 	TextDiff struct {
 		BaseLabel    func(childComplexity int) int
+		BaseRef      func(childComplexity int) int
 		CompareLabel func(childComplexity int) int
 		Content      func(childComplexity int) int
+		DiffHash     func(childComplexity int) int
 		Kind         func(childComplexity int) int
 		Path         func(childComplexity int) int
 		Reason       func(childComplexity int) int
@@ -380,6 +398,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Comment.CreatedAt(childComplexity), true
+	case "Comment.diffAnchor":
+		if e.ComplexityRoot.Comment.DiffAnchor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Comment.DiffAnchor(childComplexity), true
 	case "Comment.id":
 		if e.ComplexityRoot.Comment.ID == nil {
 			break
@@ -473,6 +497,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CommentThread.Comments(childComplexity), true
+	case "CommentThread.diffAnchor":
+		if e.ComplexityRoot.CommentThread.DiffAnchor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CommentThread.DiffAnchor(childComplexity), true
 	case "CommentThread.id":
 		if e.ComplexityRoot.CommentThread.ID == nil {
 			break
@@ -535,6 +565,73 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DiffBaseSummary.Reason(childComplexity), true
+
+	case "DiffCommentAnchor.base":
+		if e.ComplexityRoot.DiffCommentAnchor.Base == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.Base(childComplexity), true
+	case "DiffCommentAnchor.diffHash":
+		if e.ComplexityRoot.DiffCommentAnchor.DiffHash == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.DiffHash(childComplexity), true
+	case "DiffCommentAnchor.fileHash":
+		if e.ComplexityRoot.DiffCommentAnchor.FileHash == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.FileHash(childComplexity), true
+	case "DiffCommentAnchor.hunkId":
+		if e.ComplexityRoot.DiffCommentAnchor.HunkID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.HunkID(childComplexity), true
+	case "DiffCommentAnchor.newLineEnd":
+		if e.ComplexityRoot.DiffCommentAnchor.NewLineEnd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.NewLineEnd(childComplexity), true
+	case "DiffCommentAnchor.newLineStart":
+		if e.ComplexityRoot.DiffCommentAnchor.NewLineStart == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.NewLineStart(childComplexity), true
+	case "DiffCommentAnchor.oldLineEnd":
+		if e.ComplexityRoot.DiffCommentAnchor.OldLineEnd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.OldLineEnd(childComplexity), true
+	case "DiffCommentAnchor.oldLineStart":
+		if e.ComplexityRoot.DiffCommentAnchor.OldLineStart == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.OldLineStart(childComplexity), true
+	case "DiffCommentAnchor.path":
+		if e.ComplexityRoot.DiffCommentAnchor.Path == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.Path(childComplexity), true
+	case "DiffCommentAnchor.ref":
+		if e.ComplexityRoot.DiffCommentAnchor.Ref == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.Ref(childComplexity), true
+	case "DiffCommentAnchor.side":
+		if e.ComplexityRoot.DiffCommentAnchor.Side == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DiffCommentAnchor.Side(childComplexity), true
 
 	case "FileContext.commentThreads":
 		if e.ComplexityRoot.FileContext.CommentThreads == nil {
@@ -1031,6 +1128,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TextDiff.BaseLabel(childComplexity), true
+	case "TextDiff.baseRef":
+		if e.ComplexityRoot.TextDiff.BaseRef == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TextDiff.BaseRef(childComplexity), true
 	case "TextDiff.compareLabel":
 		if e.ComplexityRoot.TextDiff.CompareLabel == nil {
 			break
@@ -1043,6 +1146,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TextDiff.Content(childComplexity), true
+	case "TextDiff.diffHash":
+		if e.ComplexityRoot.TextDiff.DiffHash == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TextDiff.DiffHash(childComplexity), true
 	case "TextDiff.kind":
 		if e.ComplexityRoot.TextDiff.Kind == nil {
 			break
@@ -1359,10 +1468,19 @@ type Query {
   config: ViewerConfig!
   tree(path: String, depth: Int): TreeSnapshot!
   file(path: String!): FilePayload!
-  fileContext(path: String!, includeComments: Boolean = false, includeDiff: Boolean = false, diffBase: String): FileContext!
+  fileContext(
+    path: String!
+    includeComments: Boolean = false
+    includeDiff: Boolean = false
+    diffBase: String
+  ): FileContext!
   comments(path: String, status: CommentStatus): [Comment!]!
   commentThreads(path: String, status: CommentStatus): [CommentThread!]!
-  commentExport(path: String, status: CommentStatus, format: CommentExportFormat = jsonl): CommentExport!
+  commentExport(
+    path: String
+    status: CommentStatus
+    format: CommentExportFormat = jsonl
+  ): CommentExport!
   reviewQueue: ChangeReviewSummary!
   diffBases: DiffBaseSummary!
   diff(path: String!, base: String): TextDiff!
@@ -1450,6 +1568,7 @@ type CommentThread {
   path: String!
   status: CommentStatus!
   anchor: JSON
+  diffAnchor: DiffCommentAnchor
   updatedAt: String
   comments: [Comment!]!
 }
@@ -1460,12 +1579,33 @@ type Comment {
   path: String!
   viewerKind: String!
   anchor: JSON!
+  diffAnchor: DiffCommentAnchor
   body: String!
   status: CommentStatus!
   createdAt: String!
   updatedAt: String!
   resolvedAt: String
   archivedAt: String
+}
+
+"Stable location of a comment in a unified diff. Line numbers are 1-based."
+type DiffCommentAnchor {
+  path: String!
+  base: String!
+  ref: String!
+  hunkId: String!
+  side: DiffSide!
+  oldLineStart: Int
+  oldLineEnd: Int
+  newLineStart: Int
+  newLineEnd: Int
+  diffHash: String
+  fileHash: String
+}
+
+enum DiffSide {
+  old
+  new
 }
 
 type CommentExport {
@@ -1522,7 +1662,9 @@ type TextDiff {
   status: String!
   kind: String
   baseLabel: String!
+  baseRef: String!
   compareLabel: String!
+  diffHash: String
   content: String!
   reason: String
 }
@@ -1651,6 +1793,8 @@ func (ec *executionContext) childFields_Comment(ctx context.Context, field graph
 		return ec.fieldContext_Comment_viewerKind(ctx, field)
 	case "anchor":
 		return ec.fieldContext_Comment_anchor(ctx, field)
+	case "diffAnchor":
+		return ec.fieldContext_Comment_diffAnchor(ctx, field)
 	case "body":
 		return ec.fieldContext_Comment_body(ctx, field)
 	case "status":
@@ -1701,6 +1845,8 @@ func (ec *executionContext) childFields_CommentThread(ctx context.Context, field
 		return ec.fieldContext_CommentThread_status(ctx, field)
 	case "anchor":
 		return ec.fieldContext_CommentThread_anchor(ctx, field)
+	case "diffAnchor":
+		return ec.fieldContext_CommentThread_diffAnchor(ctx, field)
 	case "updatedAt":
 		return ec.fieldContext_CommentThread_updatedAt(ctx, field)
 	case "comments":
@@ -1731,6 +1877,34 @@ func (ec *executionContext) childFields_DiffBaseSummary(ctx context.Context, fie
 		return ec.fieldContext_DiffBaseSummary_options(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DiffBaseSummary", field.Name)
+}
+
+func (ec *executionContext) childFields_DiffCommentAnchor(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "path":
+		return ec.fieldContext_DiffCommentAnchor_path(ctx, field)
+	case "base":
+		return ec.fieldContext_DiffCommentAnchor_base(ctx, field)
+	case "ref":
+		return ec.fieldContext_DiffCommentAnchor_ref(ctx, field)
+	case "hunkId":
+		return ec.fieldContext_DiffCommentAnchor_hunkId(ctx, field)
+	case "side":
+		return ec.fieldContext_DiffCommentAnchor_side(ctx, field)
+	case "oldLineStart":
+		return ec.fieldContext_DiffCommentAnchor_oldLineStart(ctx, field)
+	case "oldLineEnd":
+		return ec.fieldContext_DiffCommentAnchor_oldLineEnd(ctx, field)
+	case "newLineStart":
+		return ec.fieldContext_DiffCommentAnchor_newLineStart(ctx, field)
+	case "newLineEnd":
+		return ec.fieldContext_DiffCommentAnchor_newLineEnd(ctx, field)
+	case "diffHash":
+		return ec.fieldContext_DiffCommentAnchor_diffHash(ctx, field)
+	case "fileHash":
+		return ec.fieldContext_DiffCommentAnchor_fileHash(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DiffCommentAnchor", field.Name)
 }
 
 func (ec *executionContext) childFields_FileContext(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1885,8 +2059,12 @@ func (ec *executionContext) childFields_TextDiff(ctx context.Context, field grap
 		return ec.fieldContext_TextDiff_kind(ctx, field)
 	case "baseLabel":
 		return ec.fieldContext_TextDiff_baseLabel(ctx, field)
+	case "baseRef":
+		return ec.fieldContext_TextDiff_baseRef(ctx, field)
 	case "compareLabel":
 		return ec.fieldContext_TextDiff_compareLabel(ctx, field)
+	case "diffHash":
+		return ec.fieldContext_TextDiff_diffHash(ctx, field)
 	case "content":
 		return ec.fieldContext_TextDiff_content(ctx, field)
 	case "reason":
@@ -2790,6 +2968,38 @@ func (ec *executionContext) fieldContext_Comment_anchor(_ context.Context, field
 	return graphql.NewScalarFieldContext("Comment", field, false, false, errors.New("field of type JSON does not have child fields"))
 }
 
+func (ec *executionContext) _Comment_diffAnchor(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Comment_diffAnchor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DiffAnchor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DiffCommentAnchor) graphql.Marshaler {
+			return ec.marshalODiffCommentAnchor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffCommentAnchor(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Comment_diffAnchor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Comment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DiffCommentAnchor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Comment_body(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3158,6 +3368,38 @@ func (ec *executionContext) fieldContext_CommentThread_anchor(_ context.Context,
 	return graphql.NewScalarFieldContext("CommentThread", field, false, false, errors.New("field of type JSON does not have child fields"))
 }
 
+func (ec *executionContext) _CommentThread_diffAnchor(ctx context.Context, field graphql.CollectedField, obj *model.CommentThread) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CommentThread_diffAnchor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DiffAnchor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DiffCommentAnchor) graphql.Marshaler {
+			return ec.marshalODiffCommentAnchor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffCommentAnchor(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CommentThread_diffAnchor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CommentThread",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DiffCommentAnchor(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CommentThread_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.CommentThread) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3358,6 +3600,259 @@ func (ec *executionContext) fieldContext_DiffBaseSummary_options(_ context.Conte
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _DiffCommentAnchor_path(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_path(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Path, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_path(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_base(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_base(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Base, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_base(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_ref(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_ref(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Ref, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_ref(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_hunkId(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_hunkId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HunkID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_hunkId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_side(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_side(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Side, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.DiffSide) graphql.Marshaler {
+			return ec.marshalNDiffSide2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffSide(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_side(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type DiffSide does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_oldLineStart(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_oldLineStart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OldLineStart, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_oldLineStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_oldLineEnd(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_oldLineEnd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OldLineEnd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_oldLineEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_newLineStart(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_newLineStart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.NewLineStart, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_newLineStart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_newLineEnd(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_newLineEnd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.NewLineEnd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_newLineEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_diffHash(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_diffHash(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DiffHash, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_diffHash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DiffCommentAnchor_fileHash(ctx context.Context, field graphql.CollectedField, obj *model.DiffCommentAnchor) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DiffCommentAnchor_fileHash(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FileHash, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DiffCommentAnchor_fileHash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DiffCommentAnchor", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
 func (ec *executionContext) _FileContext_file(ctx context.Context, field graphql.CollectedField, obj *model.FileContext) (ret graphql.Marshaler) {
@@ -5501,6 +5996,29 @@ func (ec *executionContext) fieldContext_TextDiff_baseLabel(_ context.Context, f
 	return graphql.NewScalarFieldContext("TextDiff", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _TextDiff_baseRef(ctx context.Context, field graphql.CollectedField, obj *gitreview.TextDiff) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TextDiff_baseRef(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.BaseRef, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TextDiff_baseRef(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TextDiff", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _TextDiff_compareLabel(ctx context.Context, field graphql.CollectedField, obj *gitreview.TextDiff) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5521,6 +6039,29 @@ func (ec *executionContext) _TextDiff_compareLabel(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_TextDiff_compareLabel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TextDiff", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TextDiff_diffHash(ctx context.Context, field graphql.CollectedField, obj *gitreview.TextDiff) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TextDiff_diffHash(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DiffHash, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalOString2string(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TextDiff_diffHash(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("TextDiff", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -7606,6 +8147,11 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "diffAnchor":
+			out.Values[i] = ec._Comment_diffAnchor(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "body":
 			out.Values[i] = ec._Comment_body(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -7788,6 +8334,11 @@ func (ec *executionContext) _CommentThread(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "diffAnchor":
+			out.Values[i] = ec._CommentThread_diffAnchor(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "updatedAt":
 			out.Values[i] = ec._CommentThread_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
@@ -7894,6 +8445,95 @@ func (ec *executionContext) _DiffBaseSummary(ctx context.Context, sel ast.Select
 		case "options":
 			out.Values[i] = ec._DiffBaseSummary_options(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferred), math.MaxInt32)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var diffCommentAnchorImplementors = []string{"DiffCommentAnchor"}
+
+func (ec *executionContext) _DiffCommentAnchor(ctx context.Context, sel ast.SelectionSet, obj *model.DiffCommentAnchor) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, diffCommentAnchorImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DiffCommentAnchor")
+		case "path":
+			out.Values[i] = ec._DiffCommentAnchor_path(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "base":
+			out.Values[i] = ec._DiffCommentAnchor_base(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ref":
+			out.Values[i] = ec._DiffCommentAnchor_ref(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hunkId":
+			out.Values[i] = ec._DiffCommentAnchor_hunkId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "side":
+			out.Values[i] = ec._DiffCommentAnchor_side(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "oldLineStart":
+			out.Values[i] = ec._DiffCommentAnchor_oldLineStart(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "oldLineEnd":
+			out.Values[i] = ec._DiffCommentAnchor_oldLineEnd(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "newLineStart":
+			out.Values[i] = ec._DiffCommentAnchor_newLineStart(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "newLineEnd":
+			out.Values[i] = ec._DiffCommentAnchor_newLineEnd(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "diffHash":
+			out.Values[i] = ec._DiffCommentAnchor_diffHash(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "fileHash":
+			out.Values[i] = ec._DiffCommentAnchor_fileHash(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -8948,9 +9588,19 @@ func (ec *executionContext) _TextDiff(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "baseRef":
+			out.Values[i] = ec._TextDiff_baseRef(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "compareLabel":
 			out.Values[i] = ec._TextDiff_compareLabel(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "diffHash":
+			out.Values[i] = ec._TextDiff_diffHash(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "content":
@@ -10033,6 +10683,16 @@ func (ec *executionContext) marshalNDiffBaseSummary2ᚖgithubᚗcomᚋtasuku43�
 	return ec._DiffBaseSummary(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNDiffSide2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffSide(ctx context.Context, v any) (model.DiffSide, error) {
+	var res model.DiffSide
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDiffSide2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffSide(ctx context.Context, sel ast.SelectionSet, v model.DiffSide) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) marshalNFileContext2githubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐFileContext(ctx context.Context, sel ast.SelectionSet, v model.FileContext) graphql.Marshaler {
 	return ec._FileContext(ctx, sel, &v)
 }
@@ -10600,6 +11260,13 @@ func (ec *executionContext) marshalOCommentStatus2ᚖgithubᚗcomᚋtasuku43ᚋv
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalODiffCommentAnchor2ᚖgithubᚗcomᚋtasuku43ᚋviviᚋserverᚋgraphqlᚋmodelᚐDiffCommentAnchor(ctx context.Context, sel ast.SelectionSet, v *model.DiffCommentAnchor) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DiffCommentAnchor(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOFloat2float64(ctx context.Context, v any) (float64, error) {
