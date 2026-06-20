@@ -16,6 +16,24 @@ import (
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
+// CreateThread is the resolver for the createThread field.
+func (r *mutationResolver) CreateThread(ctx context.Context, input model.CommentInput) (*model.CommentThread, error) {
+	thread, err := r.service.CreateCommentThread(commentInputMap(input))
+	if err != nil {
+		return nil, err
+	}
+	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
+}
+
+// AddComment is the resolver for the addComment field.
+func (r *mutationResolver) AddComment(ctx context.Context, threadID string, input model.AddCommentInput) (*model.Comment, error) {
+	comment, err := r.service.AddComment(threadID, addCommentInputMap(input))
+	if err != nil {
+		return nil, err
+	}
+	return commentFromMap(comment), nil
+}
+
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.CommentInput) (*model.Comment, error) {
 	comment, err := r.service.CreateComment(commentInputMap(input))
@@ -32,6 +50,33 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, input m
 		return nil, err
 	}
 	return commentFromMap(comment), nil
+}
+
+// ResolveThread is the resolver for the resolveThread field.
+func (r *mutationResolver) ResolveThread(ctx context.Context, id string) (*model.CommentThread, error) {
+	thread, err := r.service.ResolveCommentThread(id)
+	if err != nil {
+		return nil, err
+	}
+	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
+}
+
+// ArchiveThread is the resolver for the archiveThread field.
+func (r *mutationResolver) ArchiveThread(ctx context.Context, id string) (*model.CommentThread, error) {
+	thread, err := r.service.ArchiveCommentThread(id)
+	if err != nil {
+		return nil, err
+	}
+	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
+}
+
+// ReopenThread is the resolver for the reopenThread field.
+func (r *mutationResolver) ReopenThread(ctx context.Context, id string) (*model.CommentThread, error) {
+	thread, err := r.service.ReopenCommentThread(id)
+	if err != nil {
+		return nil, err
+	}
+	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
 }
 
 // UpdateCommentThread is the resolver for the updateCommentThread field.

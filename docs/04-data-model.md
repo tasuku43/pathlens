@@ -63,6 +63,10 @@ This avoids re-rendering the entire tree for every update and keeps expansion st
 
 ## Comments
 
+The normative thread/message responsibilities, lifecycle, compatibility
+projection, and export format are documented in
+[`22-comment-thread-lifecycle.md`](22-comment-thread-lifecycle.md).
+
 Comments are stored outside the viewed workspace so read-only mounts remain
 compatible. The first storage adapter writes JSONL to the Vivi data directory:
 `$VIVI_DATA_DIR/comments.jsonl` when set, then `$XDG_DATA_HOME/vivi/comments.jsonl`,
@@ -113,19 +117,17 @@ best-effort source line mapping available at creation time. Diff comments only
 target current-file lines. Deleted lines from the old file are not valid comment
 anchors.
 
-The UI treats comments as one entity regardless of where they were created.
+The UI treats comments as messages in a thread regardless of where they were created.
 Source, rendered, and diff views are creation contexts that feed the same stable
 comment id and canonical source anchor. Saved comments are surfaced in files as
 line-level highlights and subtle gutter markers when a line anchor is available.
 The right inspector intentionally shows only a lightweight current-file summary;
 the global Comments panel is the primary browsing and processing surface.
 
-In the code viewer, comments with the same canonical path and line range are
-presented as one inline thread. Each persisted `ViviComment` remains an
-independent, ordered message, so replies continue to use the existing create
-endpoint and old JSONL files require no migration. Thread status is derived from
-its messages: any open message keeps the thread open; otherwise resolved takes
-precedence over archived. This grouping is currently limited to the code viewer.
+New comments carry an explicit `threadId`; legacy comments without one project
+to a one-message thread whose id is the comment id. UI anchor grouping remains
+only as a fallback for old flat records. Thread lifecycle is the authoritative
+status; message status fields are compatibility projections.
 
 Code comment ranges can be created by dragging across the fixed line-number
 gutter, Shift-selecting line numbers, or selecting part of the source text. The

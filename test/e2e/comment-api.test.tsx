@@ -195,12 +195,11 @@ it("creates, lists, updates, persists, and exports comments", async () => {
   expect(lines.map((line) => JSON.parse(line))).toContainEqual(
     expect.objectContaining({
       path: "index.html",
-      body: "Rendered HTML note",
       status: "open",
-      source: expect.objectContaining({
-        path: "index.html",
-        quote: "Rendered HTML text",
-      }),
+      type: "commentThread",
+      comments: expect.arrayContaining([
+        expect.objectContaining({ body: "Rendered HTML note" }),
+      ]),
     }),
   );
 });

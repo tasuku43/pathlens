@@ -76,8 +76,9 @@ export function CodeCommentThread({
   }
 
   function updateThread(status: CommentStatus) {
-    for (const comment of thread.comments) {
-      if (comment.status !== status) void onStatusChange?.(comment.id, status);
+    const first = thread.comments[0];
+    if (first && threadStatus !== status) {
+      void onStatusChange?.(first.threadId ?? first.id, status);
     }
   }
 
@@ -123,7 +124,14 @@ export function CodeCommentThread({
               key={comment.id}
             >
               <div className="code-thread-comment-meta">
-                <strong>{index === 0 ? "Started" : "Reply"}</strong>
+                <strong>
+                  {index === 0 ? "Started" : "Reply"}
+                  {comment.author
+                    ? ` by ${comment.author}`
+                    : comment.source && comment.source !== "human"
+                      ? ` by ${comment.source}`
+                      : ""}
+                </strong>
                 <time dateTime={comment.createdAt}>
                   {formatCommentTime(comment.createdAt)}
                 </time>

@@ -303,16 +303,21 @@ export function SourceCommentSurface({
           displayedThread ??
           (draftingThread && draftThread ? draftThread.thread : null);
         const threadDraft = displayedThread
-          ? sourceCommentDraft(
-              file,
-              {
-                start: displayedThread.lineStart,
-                end: displayedThread.lineEnd,
-              },
-              lines
-                .slice(displayedThread.lineStart - 1, displayedThread.lineEnd)
-                .join("\n"),
-            )
+          ? {
+              ...sourceCommentDraft(
+                file,
+                {
+                  start: displayedThread.lineStart,
+                  end: displayedThread.lineEnd,
+                },
+                lines
+                  .slice(displayedThread.lineStart - 1, displayedThread.lineEnd)
+                  .join("\n"),
+              ),
+              threadId:
+                displayedThread.comments[0]?.threadId ??
+                displayedThread.comments[0]?.id,
+            }
           : (draftThread?.draft ?? sourceLineCommentDraft(file, lineNumber));
         return (
           <Fragment key={lineNumber}>

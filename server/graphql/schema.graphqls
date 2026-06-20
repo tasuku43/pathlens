@@ -35,8 +35,13 @@ type Query {
 }
 
 type Mutation {
+  createThread(input: CommentInput!): CommentThread!
+  addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
+  resolveThread(id: ID!): CommentThread!
+  archiveThread(id: ID!): CommentThread!
+  reopenThread(id: ID!): CommentThread!
   updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
 }
 
@@ -113,6 +118,9 @@ type CommentThread {
   anchor: JSON
   diffAnchor: DiffCommentAnchor
   updatedAt: String
+  createdAt: String!
+  resolvedAt: String
+  archivedAt: String
   comments: [Comment!]!
 }
 
@@ -124,6 +132,8 @@ type Comment {
   anchor: JSON!
   diffAnchor: DiffCommentAnchor
   body: String!
+  author: String
+  source: CommentSource!
   status: CommentStatus!
   createdAt: String!
   updatedAt: String!
@@ -163,7 +173,15 @@ input CommentInput {
   viewerKind: String
   anchor: JSON!
   body: String!
+  author: String
+  source: CommentSource
   status: CommentStatus
+}
+
+input AddCommentInput {
+  body: String!
+  author: String
+  source: CommentSource
 }
 
 input CommentUpdateInput {
@@ -285,6 +303,13 @@ enum CommentStatus {
   open
   resolved
   archived
+}
+
+enum CommentSource {
+  human
+  claude_code
+  codex
+  unknown
 }
 
 enum CommentExportFormat {

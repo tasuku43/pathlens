@@ -14,7 +14,12 @@ import type {
   SearchStats,
   TextSearchResult,
 } from "../domain/search.js";
-import type { CommentListFilters, ViviComment } from "../domain/comments.js";
+import type {
+  CommentListFilters,
+  CommentStatus,
+  CommentThread,
+  ViviComment,
+} from "../domain/comments.js";
 
 export interface FileSystemPort {
   readTree(): Promise<TreeSnapshot>;
@@ -64,6 +69,13 @@ export interface CommentStorePort {
   createComment(comment: ViviComment): Promise<ViviComment>;
   updateComment(comment: ViviComment): Promise<ViviComment>;
   getComment(id: string): Promise<ViviComment | null>;
+  listCommentThreads?(filters?: CommentListFilters): Promise<CommentThread[]>;
+  createCommentThread?(thread: CommentThread): Promise<CommentThread>;
+  updateCommentThreadStatus?(
+    id: string,
+    status: CommentStatus,
+    at: string,
+  ): Promise<CommentThread>;
 }
 
 export interface ViewerServiceOptions {

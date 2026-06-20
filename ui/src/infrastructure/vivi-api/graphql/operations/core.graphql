@@ -60,9 +60,21 @@ fragment CommentFields on Comment {
   viewerKind
   anchor
   diffAnchor {
-    path base ref hunkId side oldLineStart oldLineEnd newLineStart newLineEnd diffHash fileHash
+    path
+    base
+    ref
+    hunkId
+    side
+    oldLineStart
+    oldLineEnd
+    newLineStart
+    newLineEnd
+    diffHash
+    fileHash
   }
   body
+  author
+  source
   status
   createdAt
   updatedAt
@@ -75,9 +87,22 @@ fragment ThreadFields on CommentThread {
   status
   anchor
   diffAnchor {
-    path base ref hunkId side oldLineStart oldLineEnd newLineStart newLineEnd diffHash fileHash
+    path
+    base
+    ref
+    hunkId
+    side
+    oldLineStart
+    oldLineEnd
+    newLineStart
+    newLineEnd
+    diffHash
+    fileHash
   }
   updatedAt
+  createdAt
+  resolvedAt
+  archivedAt
   comments {
     ...CommentFields
   }
@@ -205,6 +230,31 @@ query ViviTextSearch($query: String!, $limit: Int) {
 mutation CreateComment($input: CommentInput!) {
   createComment(input: $input) {
     ...CommentFields
+  }
+}
+mutation CreateThread($input: CommentInput!) {
+  createThread(input: $input) {
+    ...ThreadFields
+  }
+}
+mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
+  addComment(threadId: $threadId, input: $input) {
+    ...CommentFields
+  }
+}
+mutation ResolveThread($id: ID!) {
+  resolveThread(id: $id) {
+    ...ThreadFields
+  }
+}
+mutation ArchiveThread($id: ID!) {
+  archiveThread(id: $id) {
+    ...ThreadFields
+  }
+}
+mutation ReopenThread($id: ID!) {
+  reopenThread(id: $id) {
+    ...ThreadFields
   }
 }
 mutation UpdateCommentStatus($id: ID!, $status: CommentStatus!) {

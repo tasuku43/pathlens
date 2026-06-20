@@ -55,35 +55,27 @@ func (s *CommentService) List(filters comments.Filters) ([]map[string]any, error
 	return s.comments.List(filters)
 }
 func (s *CommentService) Threads(filters comments.Filters) ([]CommentThread, error) {
-	items, err := s.List(filters)
+	items, err := s.comments.ListThreads(filters)
 	if err != nil {
 		return nil, err
 	}
 	threads := []CommentThread{}
-	indexByID := map[string]int{}
 	for _, item := range items {
-		id := stringValue(item["threadId"])
-		if id == "" {
-			id = stringValue(item["id"])
-		}
-		if id == "" {
-			id = fmt.Sprintf("comment-thread-%d", len(threads)+1)
-		}
-		index, ok := indexByID[id]
-		if !ok {
-			threads = append(threads, CommentThread{ID: id, Path: stringValue(item["path"]), Status: stringValue(item["status"]), Anchor: item["anchor"], UpdatedAt: stringValue(item["updatedAt"]), Comments: []map[string]any{}})
-			index = len(threads) - 1
-			indexByID[id] = index
-		}
-		threads[index].Comments = append(threads[index].Comments, item)
-		if updated := stringValue(item["updatedAt"]); updated > threads[index].UpdatedAt {
-			threads[index].UpdatedAt = updated
-		}
-		if stringValue(item["status"]) == "open" {
-			threads[index].Status = "open"
-		}
+		threads = append(threads, threadFromMap(item))
 	}
 	return threads, nil
+}
+func (s *CommentService) Thread(id string) (CommentThread, error) {
+	threads, err := s.Threads(comments.Filters{})
+	if err != nil {
+		return CommentThread{}, err
+	}
+	for _, thread := range threads {
+		if thread.ID == id {
+			return thread, nil
+		}
+	}
+	return CommentThread{}, fmt.Errorf("comment thread not found")
 }
 func (s *CommentService) Create(input map[string]any) (map[string]any, error) {
 	file, err := s.workspace.ReadFile(stringValue(input["path"]))
@@ -102,40 +94,33 @@ func (s *CommentService) UpdateThread(id, status string) (CommentThread, error) 
 	if status == "" {
 		return CommentThread{}, fmt.Errorf("comment thread status is required")
 	}
-	items, err := s.List(comments.Filters{})
+	item, err := s.comments.UpdateThreadStatus(id, status)
 	if err != nil {
 		return CommentThread{}, err
 	}
-	updated := false
-	for _, item := range items {
-		threadID := stringValue(item["threadId"])
-		if threadID == "" {
-			threadID = stringValue(item["id"])
-		}
-		if threadID != id {
-			continue
-		}
-		if _, err := s.Update(stringValue(item["id"]), map[string]any{"status": status}); err != nil {
-			return CommentThread{}, err
-		}
-		updated = true
-	}
-	if !updated {
-		return CommentThread{}, fmt.Errorf("comment thread not found")
-	}
-	threads, err := s.Threads(comments.Filters{})
+	return threadFromMap(item), nil
+}
+func (s *CommentService) AddComment(threadID string, input map[string]any) (map[string]any, error) {
+	thread, err := s.Thread(threadID)
 	if err != nil {
-		return CommentThread{}, err
+		return nil, err
 	}
-	for _, thread := range threads {
-		if thread.ID == id {
-			return thread, nil
-		}
+	if thread.Status != "open" {
+		return nil, fmt.Errorf("comment thread must be reopened before adding a comment")
 	}
-	return CommentThread{}, fmt.Errorf("comment thread not found")
+	input["threadId"] = threadID
+	input["path"] = thread.Path
+	input["anchor"] = thread.Anchor
+	input["status"] = "open"
+	return s.Create(input)
 }
 func (s *CommentService) Export(filters comments.Filters) (string, error) {
 	return s.comments.ExportJSONL(filters)
+}
+
+func threadFromMap(item map[string]any) CommentThread {
+	commentsValue, _ := item["comments"].([]map[string]any)
+	return CommentThread{ID: stringValue(item["id"]), Path: stringValue(item["path"]), Status: stringValue(item["status"]), Anchor: item["anchor"], UpdatedAt: stringValue(item["updatedAt"]), CreatedAt: stringValue(item["createdAt"]), ResolvedAt: stringValue(item["resolvedAt"]), ArchivedAt: stringValue(item["archivedAt"]), Comments: commentsValue}
 }
 
 type EventService struct {

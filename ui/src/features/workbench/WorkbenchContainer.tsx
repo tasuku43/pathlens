@@ -88,7 +88,10 @@ import {
   shouldStartGitReviewPolling,
   startGitReviewPolling,
 } from "../../state/git-review-refresh.js";
-import type { CommentDraft } from "../../state/comments.js";
+import {
+  activeCommentsForPath,
+  type CommentDraft,
+} from "../../state/comments.js";
 import {
   isThemePreference,
   nextThemePreference,
@@ -328,15 +331,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ) {
     const trimmedBody = body.trim();
     if (!trimmedBody) return;
-    const comment = await client.createComment({ ...draft, body: trimmedBody });
+    const comment = await client.createComment({
+      ...draft,
+      body: trimmedBody,
+      source: "human",
+    });
     setComments((items) => mergeComments(items, [comment], null));
     setActiveCommentId(comment.id);
     setActiveCommentRect(rect ?? null);
   }
 
   async function updateCommentStatus(id: string, status: CommentStatus) {
-    const comment = await client.updateCommentStatus({ id, status });
-    setComments((items) => mergeComments(items, [comment], null));
+    const comment = comments.find((item) => item.id === id);
+    const thread = await client.updateCommentThreadStatus({
+      id: comment?.threadId ?? id,
+      status,
+    });
+    setComments((items) => mergeComments(items, thread.comments, null));
   }
 
   function openInlineComment(id: string, rect: DOMRectLike) {
@@ -370,10 +381,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       )
     : null;
   const activeFileComments = useMemo(
-    () =>
-      selectedPath
-        ? comments.filter((comment) => comment.path === selectedPath)
-        : [],
+    () => (selectedPath ? activeCommentsForPath(comments, selectedPath) : []),
     [comments, selectedPath],
   );
   const activeComment = activeCommentId

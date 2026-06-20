@@ -328,19 +328,21 @@ function SourceDiff({
               )
             : undefined;
         const persistedDraftThread = draftThread
-          ? commentThreads.find((thread) => thread.key === draftThread.thread.key)
+          ? commentThreads.find(
+              (thread) => thread.key === draftThread.thread.key,
+            )
           : undefined;
         const draftingRangeLine = Boolean(
           currentLine &&
-            draftThread &&
-            !persistedDraftThread &&
-            currentLine >= draftThread.thread.lineStart &&
-            currentLine <= draftThread.thread.lineEnd,
+          draftThread &&
+          !persistedDraftThread &&
+          currentLine >= draftThread.thread.lineStart &&
+          currentLine <= draftThread.thread.lineEnd,
         );
         const draftingThread = Boolean(
           currentLine &&
-            draftingRangeLine &&
-            draftThread?.thread.lineEnd === currentLine,
+          draftingRangeLine &&
+          draftThread?.thread.lineEnd === currentLine,
         );
         const threadForDisplay =
           displayedThread ??
@@ -349,12 +351,14 @@ function SourceDiff({
         const threadDraft = displayedThread
           ? firstDisplayedComment
             ? {
+                threadId:
+                  firstDisplayedComment.threadId ?? firstDisplayedComment.id,
                 path: firstDisplayedComment.path,
                 viewerKind: firstDisplayedComment.viewerKind,
                 anchor: firstDisplayedComment.anchor,
               }
             : null
-          : draftThread?.draft ?? null;
+          : (draftThread?.draft ?? null);
         return (
           <Fragment
             key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}

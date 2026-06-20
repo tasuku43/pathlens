@@ -12,6 +12,12 @@ import (
 	"github.com/tasuku43/vivi/server/workspace"
 )
 
+type AddCommentInput struct {
+	Body   string         `json:"body"`
+	Author *string        `json:"author,omitempty"`
+	Source *CommentSource `json:"source,omitempty"`
+}
+
 type ChangeReviewSummary struct {
 	Available bool                `json:"available"`
 	Reason    *string             `json:"reason,omitempty"`
@@ -26,6 +32,8 @@ type Comment struct {
 	Anchor     map[string]any     `json:"anchor"`
 	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
 	Body       string             `json:"body"`
+	Author     *string            `json:"author,omitempty"`
+	Source     CommentSource      `json:"source"`
 	Status     CommentStatus      `json:"status"`
 	CreatedAt  string             `json:"createdAt"`
 	UpdatedAt  string             `json:"updatedAt"`
@@ -45,6 +53,8 @@ type CommentInput struct {
 	ViewerKind *string        `json:"viewerKind,omitempty"`
 	Anchor     map[string]any `json:"anchor"`
 	Body       string         `json:"body"`
+	Author     *string        `json:"author,omitempty"`
+	Source     *CommentSource `json:"source,omitempty"`
 	Status     *CommentStatus `json:"status,omitempty"`
 }
 
@@ -61,6 +71,9 @@ type CommentThread struct {
 	Anchor     map[string]any     `json:"anchor,omitempty"`
 	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
 	UpdatedAt  *string            `json:"updatedAt,omitempty"`
+	CreatedAt  string             `json:"createdAt"`
+	ResolvedAt *string            `json:"resolvedAt,omitempty"`
+	ArchivedAt *string            `json:"archivedAt,omitempty"`
 	Comments   []*Comment         `json:"comments"`
 }
 
@@ -196,6 +209,65 @@ func (e *CommentExportFormat) UnmarshalJSON(b []byte) error {
 }
 
 func (e CommentExportFormat) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type CommentSource string
+
+const (
+	CommentSourceHuman      CommentSource = "human"
+	CommentSourceClaudeCode CommentSource = "claude_code"
+	CommentSourceCodex      CommentSource = "codex"
+	CommentSourceUnknown    CommentSource = "unknown"
+)
+
+var AllCommentSource = []CommentSource{
+	CommentSourceHuman,
+	CommentSourceClaudeCode,
+	CommentSourceCodex,
+	CommentSourceUnknown,
+}
+
+func (e CommentSource) IsValid() bool {
+	switch e {
+	case CommentSourceHuman, CommentSourceClaudeCode, CommentSourceCodex, CommentSourceUnknown:
+		return true
+	}
+	return false
+}
+
+func (e CommentSource) String() string {
+	return string(e)
+}
+
+func (e *CommentSource) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CommentSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CommentSource", str)
+	}
+	return nil
+}
+
+func (e CommentSource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CommentSource) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CommentSource) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

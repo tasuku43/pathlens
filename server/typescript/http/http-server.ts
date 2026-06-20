@@ -324,10 +324,12 @@ async function handleGraphqlRequest(
   if (req.method === "GET") {
     const host = req.headers.host ?? `${options.host}:${options.port}`;
     const url = new URL(req.url ?? "/", `http://${host}`);
-    if (isGraphqlWorkspaceEventsRequest({
-      operationName: url.searchParams.get("operationName") ?? undefined,
-      query: url.searchParams.get("query") ?? undefined,
-    })) {
+    if (
+      isGraphqlWorkspaceEventsRequest({
+        operationName: url.searchParams.get("operationName") ?? undefined,
+        query: url.searchParams.get("query") ?? undefined,
+      })
+    ) {
       streamGraphqlWorkspaceEvents(req, res, options);
       return;
     }
@@ -404,7 +406,9 @@ async function executeGraphqlOperation(
     case "ViviConfig":
       return { config: options.service.getConfig() };
     case "ViviFile": {
-      return { file: await options.service.readFile(requiredString(variables, "path")) };
+      return {
+        file: await options.service.readFile(requiredString(variables, "path")),
+      };
     }
     case "ViviFileContext": {
       const requestedPath = requiredString(variables, "path");
@@ -507,6 +511,40 @@ async function executeGraphqlOperation(
         createComment: await options.service.createComment(
           variables.input ?? {},
         ),
+      };
+    case "CreateThread":
+      return {
+        createThread: await options.service.createCommentThread(
+          variables.input ?? {},
+        ),
+      };
+    case "AddComment":
+      return {
+        addComment: await options.service.addComment(
+          requiredString(variables, "threadId"),
+          variables.input ?? {},
+        ),
+      };
+    case "ResolveThread":
+      return {
+        resolveThread: await options.service.updateCommentThreadStatus({
+          id: requiredString(variables, "id"),
+          status: "resolved",
+        }),
+      };
+    case "ArchiveThread":
+      return {
+        archiveThread: await options.service.updateCommentThreadStatus({
+          id: requiredString(variables, "id"),
+          status: "archived",
+        }),
+      };
+    case "ReopenThread":
+      return {
+        reopenThread: await options.service.updateCommentThreadStatus({
+          id: requiredString(variables, "id"),
+          status: "open",
+        }),
       };
     case "UpdateComment":
     case "UpdateCommentStatus":
@@ -692,13 +730,19 @@ function optionalString(
   return typeof value === "string" ? value : undefined;
 }
 
-function requiredString(variables: Record<string, unknown>, key: string): string {
+function requiredString(
+  variables: Record<string, unknown>,
+  key: string,
+): string {
   const value = optionalString(variables, key)?.trim();
   if (!value) throw new Error(`${key} is required`);
   return value;
 }
 
-function boolVariable(variables: Record<string, unknown>, key: string): boolean {
+function boolVariable(
+  variables: Record<string, unknown>,
+  key: string,
+): boolean {
   return variables[key] === true;
 }
 

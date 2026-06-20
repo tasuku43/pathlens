@@ -239,10 +239,8 @@ original file and injected as reserved `data-vivi-*` attributes; page-authored
 values for those attributes are not trusted. The existing iframe sandbox and
 script opt-in policy remain in force.
 
-Clients may group comments with the same canonical path and line range into a
-conversation. The code viewer uses this rule for inline threads; each reply is
-still a normal comment created through the existing endpoint, preserving API and
-JSONL compatibility.
+New clients use explicit thread ids for conversations. Anchor grouping is a
+legacy UI fallback only. See `docs/22-comment-thread-lifecycle.md`.
 
 ### `POST /api/v1/comments`
 
@@ -288,9 +286,9 @@ Updates a comment body or status.
 
 ### `GET /api/v1/comments/export?status=open&format=jsonl`
 
-Exports comments as JSONL for coding agents. `format=jsonl` is required. Each
-line includes the comment id, path, source line range when known, selected quote
-when known, body, status, and any rendered or diff anchor metadata.
+Exports thread-aware JSONL for coding agents. `format=jsonl` is required. Each
+line is a schema v2 `commentThread` record containing thread status, anchor,
+lifecycle timestamps, and ordered messages. Filters apply to threads.
 
 ### `GET /api/changes`
 

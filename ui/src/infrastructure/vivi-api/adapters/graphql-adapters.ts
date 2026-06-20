@@ -9,7 +9,10 @@ import type {
   TreeSnapshot,
   ViewerConfig,
 } from "../../../domain/fs-node.js";
-import type { FileSearchResult, TextSearchResult } from "../../../domain/search.js";
+import type {
+  FileSearchResult,
+  TextSearchResult,
+} from "../../../domain/search.js";
 import type {
   CommentFieldsFragment,
   ConfigFieldsFragment,
@@ -25,17 +28,22 @@ import type {
 
 export const adaptGraphqlTree = (dto: TreeFieldsFragment): TreeSnapshot =>
   dto as unknown as TreeSnapshot;
-export const adaptGraphqlConfig = (
-  dto: ConfigFieldsFragment,
-): ViewerConfig => dto as ViewerConfig;
+export const adaptGraphqlConfig = (dto: ConfigFieldsFragment): ViewerConfig =>
+  dto as ViewerConfig;
 export const adaptGraphqlFile = (dto: FileFieldsFragment): FilePayload =>
   dto as unknown as FilePayload;
 export const adaptGraphqlComment = (
   dto: CommentFieldsFragment,
-): ViviComment => dto as unknown as ViviComment;
+): ViviComment => ({
+  ...(dto as unknown as ViviComment),
+  source: dto.source === "claude_code" ? "claude-code" : dto.source,
+});
 export const adaptGraphqlCommentThread = (
   dto: ThreadFieldsFragment,
-): CommentThread => dto as unknown as CommentThread;
+): CommentThread => ({
+  ...(dto as unknown as CommentThread),
+  comments: dto.comments.map(adaptGraphqlComment),
+});
 export const adaptGraphqlReviewQueue = (
   dto: ViviReviewQueueQuery["reviewQueue"],
 ): ChangeReviewSummary => dto as unknown as ChangeReviewSummary;

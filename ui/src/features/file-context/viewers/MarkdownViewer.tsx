@@ -184,6 +184,7 @@ export function MarkdownViewer({
   const openRenderedDraft = (
     target: RenderedCommentBlockTarget,
     blocks: HTMLElement[],
+    comment?: ViviComment,
   ) => {
     const hostBlock = blocks.at(-1);
     if (!hostBlock) return;
@@ -193,17 +194,20 @@ export function MarkdownViewer({
       blockIds: target.blockIds,
       host,
       mount,
-      draft: renderedCommentDraft(file, "markdown", {
-        text: target.text,
-        blockId: target.blockId,
-        selector: target.selector,
-        sourceLineStart: target.sourceLineStart,
-        sourceLineEnd: target.sourceLineEnd,
-        sourceQuote: sourceTextForLineRange(
-          file.content,
-          sourceRangeForTarget(target),
-        ),
-      }),
+      draft: {
+        ...renderedCommentDraft(file, "markdown", {
+          text: target.text,
+          blockId: target.blockId,
+          selector: target.selector,
+          sourceLineStart: target.sourceLineStart,
+          sourceLineEnd: target.sourceLineEnd,
+          sourceQuote: sourceTextForLineRange(
+            file.content,
+            sourceRangeForTarget(target),
+          ),
+        }),
+        threadId: comment?.threadId ?? comment?.id,
+      },
     });
   };
 
@@ -222,7 +226,7 @@ export function MarkdownViewer({
       blocks.length ? blocks : [block],
     );
     if (!target) return false;
-    openRenderedDraft(target, blocks.length ? blocks : [block]);
+    openRenderedDraft(target, blocks.length ? blocks : [block], comment);
     onOpenComment?.(id, target?.rect ?? rectLikeFromElement(block));
     return true;
   };
@@ -459,7 +463,9 @@ function renderedThreadModel(
   const lineStart = draft.anchor.canonical.lineStart ?? 1;
   const lineEnd = draft.anchor.canonical.lineEnd ?? lineStart;
   return {
-    key: JSON.stringify([path, lineStart, lineEnd]),
+    key: draft.threadId
+      ? JSON.stringify(["thread", draft.threadId])
+      : JSON.stringify([path, lineStart, lineEnd]),
     path,
     lineStart,
     lineEnd,

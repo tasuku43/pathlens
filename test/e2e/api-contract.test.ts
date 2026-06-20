@@ -240,8 +240,11 @@ it("serves the language-independent workspace API contract", async () => {
     expect.objectContaining({
       id: created.id,
       path: "README.md",
-      body: "Contract comment",
       status: "resolved",
+      type: "commentThread",
+      comments: expect.arrayContaining([
+        expect.objectContaining({ body: "Contract comment" }),
+      ]),
     }),
   );
 });

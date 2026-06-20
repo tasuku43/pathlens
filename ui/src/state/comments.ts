@@ -9,6 +9,7 @@ import type { FilePayload } from "../domain/fs-node.js";
 import type { LineRange } from "./code-viewer.js";
 
 export interface CommentDraft {
+  threadId?: string;
   path: string;
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
@@ -107,7 +108,9 @@ export function codeCommentThreads(
     const lineStart = comment.anchor.canonical.lineStart;
     if (!lineStart) continue;
     const lineEnd = comment.anchor.canonical.lineEnd ?? lineStart;
-    const key = codeCommentThreadKey(comment.path, lineStart, lineEnd);
+    const key = comment.threadId
+      ? JSON.stringify(["thread", comment.threadId])
+      : codeCommentThreadKey(comment.path, lineStart, lineEnd);
     const thread = byKey.get(key) ?? {
       key,
       path: comment.path,
@@ -131,6 +134,15 @@ export function codeCommentThreads(
         a.lineStart - b.lineStart ||
         a.key.localeCompare(b.key),
     );
+}
+
+export function activeCommentsForPath(
+  comments: ViviComment[],
+  path: string,
+): ViviComment[] {
+  return comments.filter(
+    (comment) => comment.path === path && comment.status === "open",
+  );
 }
 
 export function renderedCommentDraft(

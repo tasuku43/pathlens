@@ -255,13 +255,16 @@ it("groups comments into application-level threads", async () => {
   };
   const service = new ViewerService({ fileSystem: fsPort, commentStore });
 
-  await expect(service.listCommentThreads({ path: "README.md" })).resolves.toEqual([
+  await expect(
+    service.listCommentThreads({ path: "README.md" }),
+  ).resolves.toEqual([
     {
       id: "t1",
       path: "README.md",
       status: "open",
       anchor: comments[0]!.anchor,
       updatedAt: comments[1]!.updatedAt,
+      createdAt: comments[0]!.createdAt,
       comments,
     },
   ]);

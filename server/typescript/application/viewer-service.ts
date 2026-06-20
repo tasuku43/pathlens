@@ -6,7 +6,7 @@ import type {
 import {
   applyCommentUpdate,
   buildCommentThreads,
-  exportCommentAsJsonLine,
+  exportThreadAsJsonLine,
   normalizeCommentCreateInput,
   normalizeCommentUpdateInput,
   type CommentThread,
@@ -177,7 +177,11 @@ export class ViewerService {
   async listCommentThreads(
     filters: CommentListFilters = {},
   ): Promise<CommentThread[]> {
-    return buildCommentThreads(await this.listComments(filters));
+    const store = this.requireCommentStore();
+    return (
+      store.listCommentThreads?.(filters) ??
+      buildCommentThreads(await this.listComments(filters))
+    );
   }
 
   async createComment(input: unknown): Promise<ViviComment> {
@@ -191,13 +195,60 @@ export class ViewerService {
     return this.createNormalizedComment(normalized);
   }
 
+  async createCommentThread(input: unknown): Promise<CommentThread> {
+    const comment = await this.createComment(input);
+    return (await this.listCommentThreads()).find(
+      (thread) => thread.id === comment.threadId,
+    )!;
+  }
+
+  async addComment(threadId: string, input: unknown): Promise<ViviComment> {
+    const thread = (await this.listCommentThreads()).find(
+      (item) => item.id === threadId,
+    );
+    if (!thread) throw new Error("comment thread not found");
+    if (thread.status !== "open")
+      throw new Error(
+        "comment thread must be reopened before adding a comment",
+      );
+    if (typeof input !== "object" || input === null || Array.isArray(input))
+      throw new Error("invalid comment payload");
+    const value = input as Record<string, unknown>;
+    return this.createComment({
+      threadId,
+      path: thread.path,
+      anchor: thread.anchor,
+      body: value.body,
+      author: value.author,
+      source: value.source,
+      status: "open",
+    });
+  }
+
   async updateComment(id: string, input: unknown): Promise<ViviComment> {
     if (!id.trim()) throw new Error("comment id is required");
     const store = this.requireCommentStore();
     const current = await store.getComment(id.trim());
     if (!current) throw new Error("comment not found");
     const update = normalizeCommentUpdateInput(input);
-    return store.updateComment(applyCommentUpdate(current, update, isoNow()));
+    const transitionedThread = update.status
+      ? await this.updateCommentThreadStatus({
+          id: current.threadId ?? current.id,
+          status: update.status,
+        })
+      : undefined;
+    const updated =
+      update.body === undefined
+        ? current
+        : await store.updateComment(
+            applyCommentUpdate(current, { body: update.body }, isoNow()),
+          );
+    return {
+      ...updated,
+      status: update.status ?? updated.status,
+      resolvedAt: transitionedThread?.resolvedAt,
+      archivedAt: transitionedThread?.archivedAt,
+    };
   }
 
   async updateCommentThreadStatus(input: {
@@ -206,12 +257,20 @@ export class ViewerService {
   }): Promise<CommentThread> {
     if (!input.id.trim()) throw new Error("comment thread id is required");
     const store = this.requireCommentStore();
+    const existing = (await this.listCommentThreads()).find(
+      (thread) => thread.id === input.id,
+    );
+    if (!existing) throw new Error("comment thread not found");
+    assertThreadTransition(existing.status, input.status);
+    const now = isoNow();
+    if (store.updateCommentThreadStatus) {
+      return store.updateCommentThreadStatus(input.id, input.status, now);
+    }
     const comments = await store.listComments();
     const members = comments.filter(
       (comment) => (comment.threadId ?? comment.id) === input.id,
     );
     if (!members.length) throw new Error("comment thread not found");
-    const now = isoNow();
     const updated: ViviComment[] = [];
     for (const comment of members) {
       updated.push(
@@ -226,8 +285,8 @@ export class ViewerService {
   async exportCommentsAsJsonl(
     filters: CommentListFilters = {},
   ): Promise<string> {
-    const comments = await this.listComments(filters);
-    return comments.map(exportCommentAsJsonLine).join("\n");
+    const threads = await this.listCommentThreads(filters);
+    return threads.map(exportThreadAsJsonLine).join("\n");
   }
 
   subscribe(listener: (event: FsEvent) => void): () => void {
@@ -259,13 +318,20 @@ export class ViewerService {
       viewerKind: input.viewerKind ?? "unknown",
       anchor: input.anchor,
       body: input.body,
+      author: input.author,
+      source: input.source ?? "unknown",
       status: input.status ?? "open",
       createdAt: now,
       updatedAt: now,
       resolvedAt: input.status === "resolved" ? now : undefined,
       archivedAt: input.status === "archived" ? now : undefined,
     };
-    return this.requireCommentStore().createComment(comment);
+    const store = this.requireCommentStore();
+    const created = await store.createComment(comment);
+    if (!input.threadId && store.createCommentThread) {
+      await store.createCommentThread(buildCommentThreads([created])[0]!);
+    }
+    return created;
   }
 
   private requireCommentStore() {
@@ -274,6 +340,21 @@ export class ViewerService {
     }
     return this.commentStore;
   }
+}
+
+function assertThreadTransition(
+  from: ViviComment["status"],
+  to: ViviComment["status"],
+): void {
+  if (from === to) return;
+  const allowed =
+    from === "open"
+      ? ["resolved", "archived"]
+      : from === "resolved"
+        ? ["open", "archived"]
+        : ["open"];
+  if (!allowed.includes(to))
+    throw new Error(`invalid comment thread transition: ${from} -> ${to}`);
 }
 
 function fallbackFileScore(path: string, terms: string[]): number {

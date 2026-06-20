@@ -32,6 +32,8 @@ func commentFromMap(item map[string]any) *model.Comment {
 		Anchor:     mapValue(item["anchor"]),
 		DiffAnchor: diffAnchorValue(item["anchor"]),
 		Body:       stringValue(item["body"]),
+		Author:     optionalStringValue(item["author"]),
+		Source:     commentSourceValue(item["source"]),
 		Status:     commentStatusValue(item["status"]),
 		CreatedAt:  stringValue(item["createdAt"]),
 		UpdatedAt:  stringValue(item["updatedAt"]),
@@ -50,6 +52,9 @@ func commentThreadsFromDomain(items []application.CommentThread) []*model.Commen
 			Anchor:     mapValue(item.Anchor),
 			DiffAnchor: diffAnchorValue(item.Anchor),
 			UpdatedAt:  optionalStringValue(item.UpdatedAt),
+			CreatedAt:  item.CreatedAt,
+			ResolvedAt: optionalStringValue(item.ResolvedAt),
+			ArchivedAt: optionalStringValue(item.ArchivedAt),
 			Comments:   commentsFromMaps(item.Comments),
 		})
 	}
@@ -169,6 +174,23 @@ func commentInputMap(input model.CommentInput) map[string]any {
 	if input.Status != nil {
 		result["status"] = input.Status.String()
 	}
+	if input.Author != nil {
+		result["author"] = *input.Author
+	}
+	if input.Source != nil {
+		result["source"] = commentSourceStorageValue(*input.Source)
+	}
+	return result
+}
+
+func addCommentInputMap(input model.AddCommentInput) map[string]any {
+	result := map[string]any{"body": input.Body}
+	if input.Author != nil {
+		result["author"] = *input.Author
+	}
+	if input.Source != nil {
+		result["source"] = commentSourceStorageValue(*input.Source)
+	}
 	return result
 }
 
@@ -201,6 +223,23 @@ func commentStatusValue(value any) model.CommentStatus {
 		return status
 	}
 	return model.CommentStatusOpen
+}
+
+func commentSourceValue(value any) model.CommentSource {
+	if stringValue(value) == "claude-code" {
+		return model.CommentSourceClaudeCode
+	}
+	source := model.CommentSource(stringValue(value))
+	if source.IsValid() {
+		return source
+	}
+	return model.CommentSourceUnknown
+}
+func commentSourceStorageValue(value model.CommentSource) string {
+	if value == model.CommentSourceClaudeCode {
+		return "claude-code"
+	}
+	return value.String()
 }
 
 func mapValue(value any) map[string]any {

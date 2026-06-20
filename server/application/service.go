@@ -26,12 +26,15 @@ type Options struct {
 }
 
 type CommentThread struct {
-	ID        string           `json:"id"`
-	Path      string           `json:"path"`
-	Status    string           `json:"status"`
-	Anchor    any              `json:"anchor,omitempty"`
-	UpdatedAt string           `json:"updatedAt,omitempty"`
-	Comments  []map[string]any `json:"comments"`
+	ID         string           `json:"id"`
+	Path       string           `json:"path"`
+	Status     string           `json:"status"`
+	Anchor     any              `json:"anchor,omitempty"`
+	UpdatedAt  string           `json:"updatedAt,omitempty"`
+	CreatedAt  string           `json:"createdAt,omitempty"`
+	ResolvedAt string           `json:"resolvedAt,omitempty"`
+	ArchivedAt string           `json:"archivedAt,omitempty"`
+	Comments   []map[string]any `json:"comments"`
 }
 
 type WorkspaceEvent struct {
@@ -98,12 +101,34 @@ func (service *Service) CreateComment(input map[string]any) (map[string]any, err
 	return service.Comment.Create(input)
 }
 
+func (service *Service) CreateCommentThread(input map[string]any) (CommentThread, error) {
+	comment, err := service.Comment.Create(input)
+	if err != nil {
+		return CommentThread{}, err
+	}
+	return service.Comment.Thread(stringValue(comment["threadId"]))
+}
+
+func (service *Service) AddComment(threadID string, input map[string]any) (map[string]any, error) {
+	return service.Comment.AddComment(threadID, input)
+}
+
 func (service *Service) UpdateComment(id string, input map[string]any) (map[string]any, error) {
 	return service.Comment.Update(id, input)
 }
 
 func (service *Service) UpdateCommentThread(id string, input map[string]any) (CommentThread, error) {
 	return service.CommentThread.UpdateThread(id, stringValue(input["status"]))
+}
+
+func (service *Service) ResolveCommentThread(id string) (CommentThread, error) {
+	return service.Comment.UpdateThread(id, "resolved")
+}
+func (service *Service) ArchiveCommentThread(id string) (CommentThread, error) {
+	return service.Comment.UpdateThread(id, "archived")
+}
+func (service *Service) ReopenCommentThread(id string) (CommentThread, error) {
+	return service.Comment.UpdateThread(id, "open")
 }
 
 func (service *Service) ExportCommentsJSONL(filters comments.Filters) (string, error) {

@@ -1,6 +1,7 @@
 import type { ViewerKind } from "./viewer-kind.js";
 
 export type CommentStatus = "open" | "resolved" | "archived";
+export type CommentSource = "human" | "claude-code" | "codex" | "unknown";
 export type CommentSurface = "source" | "rendered" | "diff";
 export type CommentViewerKind =
   | "text"
@@ -61,6 +62,8 @@ export interface ViviComment {
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
   body: string;
+  author?: string;
+  source?: CommentSource;
   status: CommentStatus;
   createdAt: string;
   updatedAt: string;
@@ -74,6 +77,8 @@ export interface CreateCommentInput {
   viewerKind?: CommentViewerKind;
   anchor: CommentAnchor;
   body: string;
+  author?: string;
+  source?: CommentSource;
   status?: CommentStatus;
 }
 
@@ -93,6 +98,9 @@ export interface CommentThread {
   status: CommentStatus;
   anchor: CommentAnchor;
   updatedAt: string;
+  createdAt: string;
+  resolvedAt?: string;
+  archivedAt?: string;
   comments: ViviComment[];
 }
 
@@ -103,6 +111,12 @@ export interface CommentExportFilters {
 
 const commentStatuses: CommentStatus[] = ["open", "resolved", "archived"];
 const commentSurfaces: CommentSurface[] = ["source", "rendered", "diff"];
+const commentSources: CommentSource[] = [
+  "human",
+  "claude-code",
+  "codex",
+  "unknown",
+];
 
 export function isCommentStatus(value: unknown): value is CommentStatus {
   return (
@@ -141,6 +155,8 @@ export function normalizeCommentCreateInput(
       commentViewerKindFor(options.viewerKind, path),
     anchor,
     body,
+    author: optionalString(input.author),
+    source: normalizeCommentSource(input.source),
     status,
   };
 }
@@ -180,6 +196,8 @@ export function exportCommentAsJsonLine(comment: ViviComment): string {
     viewerKind: comment.viewerKind,
     status: comment.status,
     body: comment.body,
+    author: comment.author,
+    origin: comment.source ?? "unknown",
     source: {
       path: comment.anchor.canonical.path,
       lineStart: comment.anchor.canonical.lineStart,
@@ -235,15 +253,37 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
         status: comment.status,
         anchor: comment.anchor,
         updatedAt: comment.updatedAt,
+        createdAt: comment.createdAt,
         comments: [],
       } satisfies CommentThread);
     thread.comments.push(comment);
-    if (comment.status === "open") thread.status = "open";
+    if (commentStatusRank(comment.status) > commentStatusRank(thread.status))
+      thread.status = comment.status;
     if (comment.updatedAt > thread.updatedAt)
       thread.updatedAt = comment.updatedAt;
+    if (comment.createdAt < thread.createdAt)
+      thread.createdAt = comment.createdAt;
+    if (
+      comment.resolvedAt &&
+      (!thread.resolvedAt || comment.resolvedAt > thread.resolvedAt)
+    )
+      thread.resolvedAt = comment.resolvedAt;
+    if (
+      comment.archivedAt &&
+      (!thread.archivedAt || comment.archivedAt > thread.archivedAt)
+    )
+      thread.archivedAt = comment.archivedAt;
     threads.set(threadId, thread);
   }
   return [...threads.values()];
+}
+
+function commentStatusRank(status: CommentStatus): number {
+  return status === "open" ? 3 : status === "resolved" ? 2 : 1;
+}
+
+export function exportThreadAsJsonLine(thread: CommentThread): string {
+  return JSON.stringify({ schemaVersion: 2, type: "commentThread", ...thread });
 }
 
 function normalizeAnchor(
@@ -407,6 +447,16 @@ function normalizeCommentViewerKind(
     return value;
   }
   throw new Error("invalid comment viewerKind");
+}
+
+function normalizeCommentSource(value: unknown): CommentSource {
+  if (value === undefined) return "unknown";
+  if (
+    typeof value === "string" &&
+    commentSources.includes(value as CommentSource)
+  )
+    return value as CommentSource;
+  throw new Error("invalid comment source");
 }
 
 export function commentViewerKindFor(

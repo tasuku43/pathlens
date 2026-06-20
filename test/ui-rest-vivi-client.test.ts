@@ -30,6 +30,7 @@ const commentThread = {
   status: "open" as const,
   anchor: comment.anchor,
   updatedAt: comment.updatedAt,
+  createdAt: comment.createdAt,
   comments: [comment],
 };
 const diff = {
@@ -75,9 +76,9 @@ it("groups REST comments into compatibility comment threads", async () => {
   const request = vi.fn<typeof fetch>(async () => Response.json([comment]));
   const client = new RestViviClient({ fetch: request });
 
-  await expect(client.getCommentThreads({ path: "README.md" })).resolves.toEqual(
-    [commentThread],
-  );
+  await expect(
+    client.getCommentThreads({ path: "README.md" }),
+  ).resolves.toEqual([commentThread]);
   expect(request.mock.calls.map(([url]) => String(url))).toEqual([
     "/api/v1/comments?path=README.md",
   ]);

@@ -164,6 +164,33 @@ func TestHandlerServesWorkspaceAndCommentThreads(t *testing.T) {
 	}
 }
 
+func TestHandlerSupportsExplicitThreadLifecycleMutations(t *testing.T) {
+	root := t.TempDir()
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, _ := workspace.New(workspace.Options{Root: root})
+	reviewer, _ := gitreview.New(root, time.Second)
+	store, _ := comments.NewStore(dataDir)
+	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
+	created := graphql(t, handler, map[string]any{"operationName": "CreateThread", "query": `mutation CreateThread($input: CommentInput!) { createThread(input: $input) { id status createdAt comments { id source body } } }`, "variables": map[string]any{"input": map[string]any{"path": "README.md", "body": "human request", "source": "human", "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md", "lineStart": float64(1)}}}}})["createThread"].(map[string]any)
+	id := created["id"].(string)
+	if created["status"] != "open" {
+		t.Fatalf("created = %#v", created)
+	}
+	added := graphql(t, handler, map[string]any{"operationName": "AddComment", "query": `mutation AddComment($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { threadId source body } }`, "variables": map[string]any{"threadId": id, "input": map[string]any{"body": "fixed", "source": "codex"}}})["addComment"].(map[string]any)
+	if added["threadId"] != id || added["source"] != "codex" {
+		t.Fatalf("added = %#v", added)
+	}
+	for _, transition := range []struct{ operation, field, status string }{{"ResolveThread", "resolveThread", "resolved"}, {"ArchiveThread", "archiveThread", "archived"}, {"ReopenThread", "reopenThread", "open"}} {
+		result := graphql(t, handler, map[string]any{"operationName": transition.operation, "query": `mutation ` + transition.operation + `($id: ID!) { ` + transition.field + `(id: $id) { id status comments { status } } }`, "variables": map[string]any{"id": id}})[transition.field].(map[string]any)
+		if result["status"] != transition.status {
+			t.Fatalf("%s = %#v", transition.operation, result)
+		}
+	}
+}
+
 func graphql(t *testing.T, handler http.Handler, request map[string]any) map[string]any {
 	t.Helper()
 	body, err := json.Marshal(request)
