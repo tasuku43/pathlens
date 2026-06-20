@@ -25,6 +25,7 @@ export interface SourceAnchor {
 
 export interface RenderedAnchor {
   kind: "markdown" | "html";
+  blockId?: string;
   selector?: string;
   textQuote?: string;
   sourceLineStart?: number;
@@ -271,6 +272,7 @@ function normalizeRenderedAnchor(input: unknown): RenderedAnchor {
   }
   const anchor: RenderedAnchor = {
     kind,
+    blockId: optionalString(input.blockId),
     selector: optionalString(input.selector),
     textQuote: optionalString(input.textQuote),
     sourceLineStart: optionalPositiveInt(

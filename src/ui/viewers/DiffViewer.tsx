@@ -608,7 +608,9 @@ function RenderedMarkdownDiffBlock({
         className={markdownBlockClass(row.source)}
         data-comment-line={range?.start}
         dangerouslySetInnerHTML={{
-          __html: row.html ?? renderMarkdownDocumentHtml(row.source),
+          __html:
+            row.html ??
+            renderMarkdownDocumentHtml(row.source, { commentBlocks: false }),
         }}
       />
     </div>
@@ -677,7 +679,7 @@ function RenderedDiffLine({
       <article
         className="markdown markdown-document rendered-diff-line"
         dangerouslySetInnerHTML={{
-          __html: renderMarkdownDocumentHtml(source),
+          __html: renderMarkdownDocumentHtml(source, { commentBlocks: false }),
         }}
       />
     );

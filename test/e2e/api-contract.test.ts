@@ -121,9 +121,7 @@ it("serves the language-independent workspace API contract", async () => {
   expect(preview.headers.get("content-security-policy")).not.toContain(
     "script-src 'self' 'unsafe-inline'",
   );
-  expect(await preview.text()).toContain(
-    '<h1 id="html-fixture">HTML Fixture</h1>',
-  );
+  expect(await preview.text()).toContain('<h1 id="html-fixture"');
 
   const changes = await fetchJson<{
     available: boolean;

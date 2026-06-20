@@ -67,6 +67,10 @@ try {
     () => document.querySelectorAll(".code-line").length > 20,
     10_000,
   );
+  await waitForExpression(
+    () => Boolean(document.querySelector(".line-code span[style]")),
+    10_000,
+  );
   await selectElementText('.code-line[data-line="19"] .line-code', 24);
   await waitForExpression(
     () => Boolean(document.querySelector(".code-comment-thread")),
@@ -152,55 +156,49 @@ try {
     "Source segmented control",
   );
   await waitForExpression(
-    () => document.querySelectorAll(".commented-source-line").length > 20,
+    () =>
+      document.querySelectorAll(".source-comment-surface .code-line").length >
+      20,
     10_000,
   );
 
-  const selection = await dragSelectLine(3, 260);
+  await selectElementText(
+    '.source-comment-surface .code-line[data-line="3"] .line-code',
+    260,
+  );
   await waitForExpression(
-    () => Boolean(document.querySelector(".selection-comment-composer")),
+    () => Boolean(document.querySelector(".code-comment-thread")),
     5_000,
   );
-  const composerState = await pageValue((selectionRect) => {
-    const composer = document
-      .querySelector(".selection-comment-composer")
-      ?.getBoundingClientRect();
-    const selected = window.getSelection()?.toString() ?? "";
+  const composerState = await pageValue(() => {
     const standaloneButtons = [...document.querySelectorAll("button")].filter(
       (button) => button.textContent?.trim() === "Comment",
     ).length;
     return {
-      composer: composer
-        ? {
-            left: composer.left,
-            top: composer.top,
-            bottom: composer.bottom,
-            width: composer.width,
-          }
-        : null,
-      selected,
-      selectionRect,
+      threadLabel: document
+        .querySelector(".code-comment-thread")
+        ?.getAttribute("aria-label"),
+      selectedLines: [...document.querySelectorAll(".code-line.selected")].map(
+        (row) => row.dataset.line,
+      ),
+      floatingComposer: Boolean(
+        document.querySelector(".selection-comment-composer"),
+      ),
       standaloneButtons,
     };
-  }, selection);
-  assert(composerState.composer, "selection composer did not open");
+  });
+  assert(
+    composerState.threadLabel === "Comment thread for line 3" &&
+      composerState.selectedLines.join(",") === "3" &&
+      !composerState.floatingComposer,
+    `Markdown source did not normalize selection into an inline thread: ${JSON.stringify(composerState)}`,
+  );
   assert(
     composerState.standaloneButtons === 0,
     "standalone Comment button is still visible",
   );
-  assert(
-    Math.abs(composerState.composer.left - selection.left) < 24,
-    `composer left edge is not aligned with selection: ${JSON.stringify(
-      composerState,
-    )}`,
-  );
-
   const saveDisabledInitially = await pageValue(() =>
-    Boolean(
-      [...document.querySelectorAll(".selection-comment-composer button")].find(
-        (button) => button.textContent?.trim() === "Save",
-      )?.disabled,
-    ),
+    Boolean(document.querySelector(".code-comment-submit")?.disabled),
   );
   assert(saveDisabledInitially, "empty comment body should disable Save");
 
@@ -213,7 +211,7 @@ try {
     text: "second line",
   });
   const textareaValue = await pageValue(
-    () => document.querySelector(".selection-comment-composer textarea")?.value,
+    () => document.querySelector(".code-comment-thread textarea")?.value,
   );
   assert(
     textareaValue === commentBody,
@@ -227,22 +225,27 @@ try {
   );
   await waitForExpression(
     () =>
-      document.querySelectorAll(".comment-gutter-marker").length > 0 &&
+      document.querySelectorAll(".code-line-comment-action.has-thread").length >
+        0 &&
       document.querySelectorAll(".has-comment").length > 0 &&
-      Boolean(document.querySelector(".inline-comment-card")),
+      document
+        .querySelector(".code-comment-thread")
+        ?.textContent?.includes("CDP browser selected-text comment") &&
+      !document.querySelector(".inline-comment-card"),
     10_000,
   );
   const savedState = await pageValue(() => ({
-    markers: document.querySelectorAll(".comment-gutter-marker").length,
+    markers: document.querySelectorAll(".code-line-comment-action.has-thread")
+      .length,
     highlights: document.querySelectorAll(".has-comment").length,
-    inlineCard: document.querySelector(".inline-comment-card")?.innerText,
+    inlineThread: document.querySelector(".code-comment-thread")?.innerText,
     inspector: document.querySelector(".inspector")?.innerText,
   }));
   assert(savedState.markers > 0, "saved comment marker is missing");
   assert(savedState.highlights > 0, "saved comment highlight is missing");
   assert(
-    savedState.inlineCard?.includes("CDP browser selected-text comment"),
-    "inline card did not show the saved comment",
+    savedState.inlineThread?.includes("CDP browser selected-text comment"),
+    "inline thread did not show the saved Markdown source comment",
   );
   assert(
     !savedState.inspector?.includes("CDP browser selected-text comment"),
@@ -251,7 +254,7 @@ try {
 
   const sourceShot = await screenshot("source-inline");
 
-  await closeInlineComment("source inline comment");
+  await closeCodeCommentThread("Markdown source inline comment");
 
   await openTreeFile("README.md");
   await waitForExpression(
@@ -269,10 +272,30 @@ try {
     () => Boolean(document.querySelector(".markdown-document")),
     10_000,
   );
+  const renderedActions = await pageValue(() => ({
+    blocks: document.querySelectorAll(".vivi-rendered-comment-block").length,
+    markers: document.querySelectorAll(".rendered-comment-marker").length,
+  }));
+  assert(renderedActions.blocks > 0, "rendered Markdown has no comment blocks");
+  assert(
+    renderedActions.markers === 0,
+    `rendered Markdown still shows redundant comment markers: ${JSON.stringify(renderedActions)}`,
+  );
   await selectElementText(".markdown-document p", 60);
   await waitForExpression(
-    () => Boolean(document.querySelector(".selection-comment-composer")),
+    () =>
+      Boolean(
+        document.querySelector(
+          ".rendered-comment-thread-host .code-comment-thread",
+        ),
+      ) &&
+      !document.querySelector(".selection-comment-composer") &&
+      Boolean(document.querySelector(".drafting-rendered-comment")),
     5_000,
+  );
+  await clickElement(
+    () => document.querySelector(".rendered-comment-thread textarea"),
+    "rendered Markdown comment textarea",
   );
   await cdp.send("Input.insertText", {
     text: "CDP rendered markdown comment",
@@ -293,14 +316,226 @@ try {
     renderedMarkdownComment.anchor?.canonical?.quote,
     "rendered Markdown comment did not preserve selected quote",
   );
+  assert(
+    renderedMarkdownComment.anchor?.canonical?.lineStart === 3 &&
+      renderedMarkdownComment.anchor?.canonical?.lineEnd === 3,
+    `rendered Markdown comment did not preserve its source line: ${JSON.stringify(renderedMarkdownComment)}`,
+  );
+  await waitForExpression(
+    () =>
+      Boolean(document.querySelector(".has-rendered-comment")) &&
+      document
+        .querySelector(".rendered-comment-thread")
+        ?.textContent?.includes("CDP rendered markdown comment") &&
+      !document.querySelector(".inline-comment-card") &&
+      document
+        .querySelector('.rendered-comment-marker[data-comment-count="1"]')
+        ?.getAttribute("aria-label") === "Open comment thread with 1 message",
+    5_000,
+  );
+  await closeCodeCommentThread("rendered Markdown thread");
+  await clickElement(
+    () => document.querySelector(".rendered-comment-marker"),
+    "rendered Markdown comment marker",
+  );
   await waitForExpression(
     () =>
       document
-        .querySelector(".inline-comment-card")
+        .querySelector(".rendered-comment-thread")
         ?.textContent?.includes("CDP rendered markdown comment"),
-    10_000,
+    5_000,
   );
-  await closeInlineComment("rendered Markdown inline comment");
+  await clickElement(
+    () => document.querySelector(".rendered-comment-thread textarea"),
+    "rendered Markdown reply textarea before Escape",
+  );
+  await pressEscape();
+  await waitForExpression(
+    () => !document.querySelector(".rendered-comment-thread"),
+    2_000,
+  );
+  await clickElement(
+    () => document.querySelector(".rendered-comment-marker"),
+    "rendered Markdown comment marker after Escape",
+  );
+  await waitForExpression(
+    () =>
+      document
+        .querySelector(".rendered-comment-thread")
+        ?.textContent?.includes("CDP rendered markdown comment"),
+    5_000,
+  );
+  await pageValue(() => {
+    const textarea = document.querySelector(
+      ".rendered-comment-thread textarea",
+    );
+    textarea?.scrollIntoView({ block: "center" });
+  });
+  await delay(100);
+  await clickElement(
+    () => document.querySelector(".rendered-comment-thread textarea"),
+    "rendered Markdown reply textarea",
+  );
+  await cdp.send("Input.insertText", {
+    text: "CDP rendered thread reply",
+  });
+  await waitForExpression(() => {
+    const button = document.querySelector(
+      '.rendered-comment-thread [aria-label="Add reply"]',
+    );
+    return button instanceof HTMLButtonElement && !button.disabled;
+  }, 2_000);
+  await clickElement(
+    () =>
+      document.querySelector(
+        '.rendered-comment-thread [aria-label="Add reply"]',
+      ),
+    "rendered Markdown reply button",
+  );
+  await waitForApiComment("CDP rendered thread reply", 10_000, "README.md");
+  await waitForExpression(
+    () =>
+      document
+        .querySelector(".rendered-comment-thread")
+        ?.textContent?.includes("CDP rendered thread reply") &&
+      document
+        .querySelector('.rendered-comment-marker[data-comment-count="2"]')
+        ?.getAttribute("aria-label") === "Open comment thread with 2 messages",
+    5_000,
+  );
+  const renderedShot = await screenshot("rendered-block-comment");
+  const renderedThreadScroll = await pageValue(() => {
+    const block = document.querySelector(".has-rendered-comment");
+    const host = document.querySelector(".rendered-comment-thread-host");
+    const scroller = document.querySelector(".viewer-pane");
+    if (!block || !host || !(scroller instanceof HTMLElement)) return null;
+    const beforeBlock = block.getBoundingClientRect();
+    const beforeHost = host.getBoundingClientRect();
+    const before = {
+      hostTop: beforeHost.top,
+      gap: beforeHost.top - beforeBlock.bottom,
+      scrollTop: scroller.scrollTop,
+    };
+    scroller.scrollTop += 180;
+    const afterBlock = block.getBoundingClientRect();
+    const afterHost = host.getBoundingClientRect();
+    return {
+      before,
+      after: {
+        hostTop: afterHost.top,
+        gap: afterHost.top - afterBlock.bottom,
+        scrollTop: scroller.scrollTop,
+      },
+    };
+  });
+  assert(
+    renderedThreadScroll &&
+      renderedThreadScroll.after.scrollTop >
+        renderedThreadScroll.before.scrollTop &&
+      renderedThreadScroll.after.hostTop <
+        renderedThreadScroll.before.hostTop - 100 &&
+      Math.abs(
+        renderedThreadScroll.after.gap - renderedThreadScroll.before.gap,
+      ) < 2,
+    `rendered thread did not stay with its block while scrolling: ${JSON.stringify(renderedThreadScroll)}`,
+  );
+
+  await activateMarkdownMode("Source");
+  await waitForExpression(
+    () => document.querySelectorAll(".markdown-source .code-line").length > 5,
+    5_000,
+  );
+  const markdownSourceState = await pageValue(() => ({
+    surfaces: document.querySelectorAll(".markdown-source").length,
+    commentedLines: [
+      ...document.querySelectorAll(".markdown-source .code-line.has-comment"),
+    ].map((line) => line.getAttribute("data-line")),
+    lineThreeClass: document
+      .querySelector('.markdown-source .code-line[data-line="3"]')
+      ?.getAttribute("class"),
+  }));
+  assert(
+    markdownSourceState.commentedLines.includes("3"),
+    `rendered Markdown comment was not projected onto source line 3: ${JSON.stringify(markdownSourceState)}`,
+  );
+  await pageValue(() => {
+    const action = document.querySelector(
+      ".markdown-source .code-line-comment-action.has-thread",
+    );
+    action?.scrollIntoView({ block: "center" });
+  });
+  await delay(100);
+  await clickElement(
+    () =>
+      document.querySelector(
+        ".markdown-source .code-line-comment-action.has-thread",
+      ),
+    "README source comment thread button",
+  );
+  await waitForExpression(
+    () =>
+      document
+        .querySelector(".code-comment-thread")
+        ?.textContent?.includes("CDP rendered markdown comment"),
+    5_000,
+  );
+  await clickElement(
+    () => document.querySelector(".code-comment-thread textarea"),
+    "README source reply textarea",
+  );
+  await cdp.send("Input.insertText", {
+    text: "CDP source comment visible in rendered",
+  });
+  await pressEnter({ shift: true });
+  const sourceToRenderedComment = await waitForApiComment(
+    "CDP source comment visible in rendered",
+    10_000,
+    "README.md",
+  );
+  assert(
+    sourceToRenderedComment.anchor?.surface === "source" &&
+      sourceToRenderedComment.anchor?.canonical?.lineStart,
+    `Markdown source reply did not keep a canonical source anchor: ${JSON.stringify(sourceToRenderedComment)}`,
+  );
+  await activateMarkdownMode("Rendered");
+  await waitForExpression(
+    () => Boolean(document.querySelector(".markdown-document")),
+    5_000,
+  );
+  await waitForExpression(
+    () => Boolean(document.querySelector(".has-rendered-comment")),
+    5_000,
+  );
+  await clickElement(
+    () => document.querySelector(".has-rendered-comment"),
+    "rendered Markdown block with source comments",
+  );
+  await waitForExpression(
+    () =>
+      document
+        .querySelector(".rendered-comment-thread")
+        ?.textContent?.includes("CDP source comment visible in rendered"),
+    5_000,
+  );
+  const renderedProjectionState = await pageValue(() => ({
+    highlightedBlocks: document.querySelectorAll(".has-rendered-comment")
+      .length,
+    threadComments: document.querySelectorAll(
+      ".rendered-comment-thread .code-thread-comment",
+    ).length,
+    markers: document.querySelectorAll(".rendered-comment-marker").length,
+    markerCount: document
+      .querySelector(".rendered-comment-marker")
+      ?.getAttribute("data-comment-count"),
+    inlineCardOpen: Boolean(document.querySelector(".inline-comment-card")),
+  }));
+  assert(
+    renderedProjectionState.threadComments === 3 &&
+      renderedProjectionState.markers === 1 &&
+      renderedProjectionState.markerCount === "3" &&
+      !renderedProjectionState.inlineCardOpen,
+    `source comment was not projected back onto its rendered block: ${JSON.stringify(renderedProjectionState)}`,
+  );
 
   await pressShortcut("C", { ctrl: true, shift: true });
   await waitForExpression(
@@ -322,8 +557,8 @@ try {
   });
   assert(panelState.panel, "global comments panel did not open");
   assert(
-    panelState.rowCount === 2,
-    "global comments panel should list two rows",
+    panelState.rowCount === 4,
+    "global comments panel should list four rows",
   );
   assert(!panelState.inlineCardOpen, "inline card overlaps global panel");
   assert(
@@ -334,6 +569,14 @@ try {
     panelState.text?.includes("CDP rendered markdown comment"),
     "global panel did not list the rendered Markdown comment",
   );
+  assert(
+    panelState.text?.includes("CDP rendered thread reply"),
+    "global panel did not list the rendered thread reply",
+  );
+  assert(
+    panelState.text?.includes("CDP source comment visible in rendered"),
+    "global panel did not list the Markdown source reply",
+  );
   const panelShot = await screenshot("global-panel");
 
   await clickElement(
@@ -343,11 +586,10 @@ try {
   await waitForExpression(
     () =>
       !document.querySelector(".global-comments-panel") &&
-      Boolean(document.querySelector(".inline-comment-card")),
+      Boolean(document.querySelector(".code-comment-thread")) &&
+      !document.querySelector(".inline-comment-card"),
     5_000,
   );
-  await closeInlineComment("panel-opened inline comment");
-
   await openTreeFile("AGENTS.md");
   await waitForExpression(
     () =>
@@ -414,7 +656,9 @@ try {
       {
         ok: true,
         commentId: created.id,
-        screenshots: [sourceShot, panelShot, diffShot].filter(Boolean),
+        screenshots: [sourceShot, renderedShot, panelShot, diffShot].filter(
+          Boolean,
+        ),
         composerState,
         savedState: {
           markers: savedState.markers,
@@ -508,14 +752,34 @@ async function closeInlineComment(label) {
 }
 
 async function closeCodeCommentThread(label) {
-  await clickElement(
-    () => document.querySelector('[aria-label="Close comment thread"]'),
-    `${label} close button`,
-  );
+  const clicked = await pageValue(() => {
+    const button = document.querySelector(
+      '[aria-label="Close comment thread"]',
+    );
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  });
+  assert(clicked, `could not close ${label}`);
   await waitForExpression(
     () => !document.querySelector(".code-comment-thread"),
     5_000,
   );
+}
+
+async function activateMarkdownMode(label) {
+  const clicked = await pageValue((targetLabel) => {
+    const control = document.querySelector(
+      '.segmented-control[aria-label="Markdown view mode"]',
+    );
+    const button = [...(control?.querySelectorAll("button") ?? [])].find(
+      (item) => item.textContent?.trim() === targetLabel,
+    );
+    if (!(button instanceof HTMLButtonElement)) return false;
+    button.click();
+    return true;
+  }, label);
+  assert(clicked, `could not activate Markdown ${label} mode`);
 }
 
 async function openTreeFile(filePath) {
@@ -764,6 +1028,23 @@ async function pressEnter({ shift = false } = {}) {
     windowsVirtualKeyCode: 13,
     nativeVirtualKeyCode: 13,
     modifiers,
+  });
+}
+
+async function pressEscape() {
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "rawKeyDown",
+    key: "Escape",
+    code: "Escape",
+    windowsVirtualKeyCode: 27,
+    nativeVirtualKeyCode: 27,
+  });
+  await cdp.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    key: "Escape",
+    code: "Escape",
+    windowsVirtualKeyCode: 27,
+    nativeVirtualKeyCode: 27,
   });
 }
 

@@ -150,6 +150,8 @@ export function FileViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}
+          onCloseComment={onCloseComment}
+          onCommentStatusChange={onCommentStatusChange}
         />
       </LazyViewerFallback>
     );
@@ -172,6 +174,7 @@ export function FileViewer({
           comments={comments}
           activeCommentId={activeCommentId}
           onOpenComment={onOpenComment}
+          onCloseComment={onCloseComment}
         />
       </LazyViewerFallback>
     );

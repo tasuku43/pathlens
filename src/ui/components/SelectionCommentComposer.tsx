@@ -25,8 +25,9 @@ export function SelectionCommentComposer({
   const [position, setPosition] = useState<{
     left: number;
     top: number;
-    placement: "above" | "below";
+    placement: "above" | "below" | "side";
     arrowLeft: number;
+    arrowTop: number;
   } | null>(null);
   const composerRef = useRef<HTMLFormElement | null>(null);
 
@@ -39,6 +40,26 @@ export function SelectionCommentComposer({
     const element = composerRef.current;
     const width = element?.offsetWidth || composerWidth;
     const height = element?.offsetHeight || 170;
+    const prefersSide = draft.anchor.surface === "rendered";
+    const sideLeft = rect.left + rect.width + 16;
+    if (
+      prefersSide &&
+      sideLeft + width + composerMargin <= window.innerWidth
+    ) {
+      const top = clamp(
+        rect.top - 8,
+        composerMargin,
+        Math.max(composerMargin, window.innerHeight - height - composerMargin),
+      );
+      setPosition({
+        left: sideLeft,
+        top,
+        placement: "side",
+        arrowLeft: 0,
+        arrowTop: clamp(rect.top - top + 18, 18, height - 18),
+      });
+      return;
+    }
     const rawLeft = rect.left;
     const left = clamp(
       rawLeft,
@@ -79,6 +100,7 @@ export function SelectionCommentComposer({
         18,
         width - 18,
       ),
+      arrowTop: 24,
     });
   }, [draft, rect, body]);
 
@@ -118,6 +140,7 @@ export function SelectionCommentComposer({
           left: position?.left ?? rect.left,
           top: position?.top ?? rect.top + rect.height + 10,
           "--comment-arrow-left": `${position?.arrowLeft ?? 24}px`,
+          "--comment-arrow-top": `${position?.arrowTop ?? 24}px`,
         } as CSSProperties
       }
       onSubmit={(event) => {

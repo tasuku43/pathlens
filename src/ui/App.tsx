@@ -370,6 +370,11 @@ export function App() {
     setActiveCommentRect(rect);
   }
 
+  function closeInlineComment() {
+    setActiveCommentId(null);
+    setActiveCommentRect(null);
+  }
+
   async function openCommentFromPanel(comment: ViviComment) {
     setCommentsPanelOpen(false);
     setDiffEnabled(false);
@@ -402,10 +407,16 @@ export function App() {
     : null;
   const visibleActiveComment =
     activeComment?.path === selectedPath ? activeComment : null;
-  const usesInlineCodeThread = Boolean(
-    file?.viewerKind === "code" &&
+  const activeViewerMode = file
+    ? (viewerModes[file.path] ?? defaultViewerMode(file))
+    : undefined;
+  const usesInlineCommentThread = Boolean(
     !diffEnabled &&
-    visibleActiveComment?.anchor.canonical.lineStart,
+    visibleActiveComment &&
+    ((file?.viewerKind === "markdown" && activeViewerMode === "rendered") ||
+      ((file?.viewerKind === "code" ||
+        (file?.viewerKind === "markdown" && activeViewerMode === "source")) &&
+        visibleActiveComment.anchor.canonical.lineStart)),
   );
   const openCommentCount = comments.filter(
     (comment) => comment.status === "open",
@@ -1469,15 +1480,12 @@ export function App() {
       />
       <InlineCommentCard
         comment={
-          commentsPanelOpen || usesInlineCodeThread
+          commentsPanelOpen || usesInlineCommentThread
             ? null
             : visibleActiveComment
         }
         rect={activeCommentRect}
-        onClose={() => {
-          setActiveCommentId(null);
-          setActiveCommentRect(null);
-        }}
+        onClose={closeInlineComment}
         onStatusChange={(id, status) =>
           void updateCommentStatus(id, status).catch((err) =>
             setError(String(err)),
@@ -1540,10 +1548,18 @@ export function App() {
         data-pane-id={pane.id}
         key={pane.id}
         onFocus={() =>
-          setLayout((current) => ({ ...current, activePaneId: pane.id }))
+          setLayout((current) =>
+            current.activePaneId === pane.id
+              ? current
+              : { ...current, activePaneId: pane.id },
+          )
         }
         onMouseDown={() =>
-          setLayout((current) => ({ ...current, activePaneId: pane.id }))
+          setLayout((current) =>
+            current.activePaneId === pane.id
+              ? current
+              : { ...current, activePaneId: pane.id },
+          )
         }
         onDragLeave={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null))
@@ -1625,10 +1641,7 @@ export function App() {
               }
               activeCommentId={activeCommentId}
               onOpenComment={openInlineComment}
-              onCloseComment={() => {
-                setActiveCommentId(null);
-                setActiveCommentRect(null);
-              }}
+              onCloseComment={closeInlineComment}
               onCommentStatusChange={updateCommentStatus}
               onCodeSelectionChange={(range) => {
                 if (!paneFile?.path) return;

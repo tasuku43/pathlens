@@ -55,7 +55,7 @@ export function renderMarkdownHtmlWithHeadingIds(
         /\sid\s*=/i.test(rawAttributes)
       )
         return match;
-      return `<h${rawLevel}${rawAttributes} id="${escapeAttribute(heading.id)}">`;
+      return `<h${rawLevel} id="${escapeAttribute(heading.id)}"${rawAttributes}>`;
     },
   );
 }
@@ -74,7 +74,7 @@ export function addHtmlHeadingIds(html: string): string {
         /\sid\s*=/i.test(rawAttributes)
       )
         return match;
-      return `<h${rawLevel}${rawAttributes} id="${escapeAttribute(heading.id)}">`;
+      return `<h${rawLevel} id="${escapeAttribute(heading.id)}"${rawAttributes}>`;
     },
   );
 }

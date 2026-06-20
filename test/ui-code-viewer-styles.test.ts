@@ -16,3 +16,37 @@ describe("code viewer line actions", () => {
     );
   });
 });
+
+describe("rendered comment block ranges", () => {
+  it("defines one layout-independent surface for document blocks", () => {
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: -12px;[\s\S]*?--rendered-comment-block-right: -12px;/,
+    );
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?left: var\(--rendered-comment-block-left\);/,
+    );
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block:not\(tr\):hover::before,[\s\S]*?background: var\(--soft-line\);/,
+    );
+  });
+
+  it("paints list markers inside the highlight without moving the list item", () => {
+    expect(styles).toMatch(
+      /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: calc\(-1\.45em - 12px\);/,
+    );
+  });
+
+  it("uses the block surface for comment highlights", () => {
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before,[\s\S]*?background: linear-gradient/,
+    );
+  });
+
+  it("paints a bridge through vertical gaps for multi-block comments", () => {
+    expect(styles).toContain("rendered-comment-range-join-after");
+    expect(styles).toContain("--rendered-comment-join-after");
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block\.rendered-comment-range-join-after[\s\S]*?::after \{[\s\S]*?top: 100%;[\s\S]*?height: var\(--rendered-comment-join-after, 0\);/,
+    );
+  });
+});

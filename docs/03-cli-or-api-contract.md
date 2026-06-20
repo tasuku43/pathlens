@@ -170,6 +170,31 @@ Each comment has one shared identity and body across source, rendered, and diff
 views. The canonical source anchor is the primary location. Rendered and diff
 anchors are auxiliary view anchors that map back to that source anchor when
 available.
+Code and Markdown source views share one source-comment interaction: gutter
+clicks, gutter drags, and partial text selections resolve to a canonical line or
+line range and open an inline thread. A comment created on either source or
+rendered Markdown is projected into the other view through that canonical
+range; the persisted comment format and identity do not change.
+Rendered Markdown and HTML comments target a readable rendered block rather than
+an arbitrary text range. `rendered.blockId` is Vivi's per-render block identity
+for paragraphs, headings, list items, code blocks, table rows, and similar
+reader-visible units; `selector` and `textQuote` remain as fallback anchors.
+In rendered mode, the same block owns the click-to-add interaction, drafting
+highlight, persisted highlight, and active-comment highlight. A saved Markdown
+block also shows a compact comment marker whose badge reports the number of
+messages mapped to that block; both the marker and highlighted block open the
+same replyable inline thread. A rendered Markdown selection may span multiple
+blocks; Vivi normalizes that selection to one canonical source line range,
+highlights every intersecting rendered block, and places the inline thread and
+count marker at the final selected block, matching source range comments. Because the thread
+remains in document flow, it stays at the commented location while the reader
+scrolls. Sandboxed HTML previews keep the
+same block anchor and highlight model, while the HTML iframe receives only
+anchor summaries and never comment bodies. Markdown source ranges come from
+lexer tokens. HTML source ranges are computed by the parent/server from the
+original file and injected as reserved `data-vivi-*` attributes; page-authored
+values for those attributes are not trusted. The existing iframe sandbox and
+script opt-in policy remain in force.
 
 Clients may group comments with the same canonical path and line range into a
 conversation. The code viewer uses this rule for inline threads; each reply is
@@ -198,6 +223,7 @@ accepted for `side: "current"` and `changeKind: "context"` or `"added"`.
     },
     "rendered": {
       "kind": "markdown",
+      "blockId": "vivi-block-4",
       "selector": "p:nth-of-type(3)",
       "textQuote": "Rendered selected text",
       "sourceLineStart": 12,

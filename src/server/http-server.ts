@@ -21,6 +21,7 @@ import {
   escapeHtml,
   hasCustomMermaidStyle,
 } from "../domain/mermaid-preview.js";
+import { addRenderedCommentBlockIdsToHtml } from "../domain/rendered-comment-blocks.js";
 
 export interface ServerOptions {
   host: string;
@@ -237,7 +238,9 @@ async function routeRequest(
     const theme = parseHtmlPreviewTheme(url.searchParams.get("theme"));
     const nonce = randomBytes(16).toString("base64");
     const previewHtml = renderEmbeddedMermaidPreviewHtml(
-      addHtmlHeadingIds(withPreviewBase(html, requestedPath)),
+      addRenderedCommentBlockIdsToHtml(
+        addHtmlHeadingIds(withPreviewBase(html, requestedPath)),
+      ),
       {
         enabled: true,
         allowHtmlScripts,
@@ -583,7 +586,8 @@ function renderEmbeddedMermaidPreviewHtml(
           const scriptStatus = options.allowHtmlScripts
             ? "user scripts active"
             : "user scripts inactive";
-          return `<figure class="html-mermaid" id="${id}" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
+          const commentAttributes = htmlCommentBlockAttributes(rawAttributes);
+          return `<figure class="html-mermaid" id="${id}" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"${commentAttributes}><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
         },
       )
     : html;
@@ -593,6 +597,16 @@ function renderEmbeddedMermaidPreviewHtml(
     theme: options.theme,
     path: options.path,
   });
+}
+
+function htmlCommentBlockAttributes(attributes: string): string {
+  return [
+    /\sdata-vivi-comment-block-id="[^"]*"/i.exec(attributes)?.[0],
+    /\sdata-vivi-source-line-start="\d+"/i.exec(attributes)?.[0],
+    /\sdata-vivi-source-line-end="\d+"/i.exec(attributes)?.[0],
+  ]
+    .filter(Boolean)
+    .join("");
 }
 
 function hasMermaidClass(attributes: string): boolean {
@@ -643,13 +657,34 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 .markdown-mermaid-source summary{cursor:pointer;}
 .markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
 .html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
+.vivi-html-comment-block{position:relative;transition:background 140ms ease,box-shadow 140ms ease;}
+.vivi-html-comment-block:hover{background:rgba(169,134,255,.06);}
+.vivi-html-comment-block.has-vivi-comment,.vivi-html-comment-block.drafting-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.19),rgba(169,134,255,.08) 68%,transparent);box-shadow:inset 2px 0 0 rgba(169,134,255,.54);}
+.vivi-html-comment-block.active-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.28),rgba(169,134,255,.12) 72%,transparent);box-shadow:inset 3px 0 0 rgba(169,134,255,.76),0 0 0 1px rgba(169,134,255,.18);}
+.vivi-html-comment-marker{position:absolute;z-index:2147483646;right:4px;top:8px;width:18px;height:18px;border:1px solid rgba(169,134,255,.54);border-radius:999px;background:${palette.panel};box-shadow:0 0 0 4px rgba(169,134,255,.12);cursor:pointer;opacity:0;padding:0;transition:background 140ms ease,opacity 140ms ease,transform 140ms ease;}
+.vivi-html-comment-marker::before{content:"";position:absolute;left:5px;top:4px;width:7px;height:6px;border:1.5px solid ${palette.accent};border-radius:5px;}
+.vivi-html-comment-marker::after{content:"";position:absolute;left:8px;top:10px;border-width:3px 0 0 4px;border-style:solid;border-color:transparent transparent transparent ${palette.accent};}
+.vivi-html-comment-action-host{position:relative;}
+.vivi-html-comment-block:hover .vivi-html-comment-marker,.vivi-html-comment-block.has-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-block.drafting-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-marker:focus-visible{opacity:1;}
+.vivi-html-comment-block:is(tr) .vivi-html-comment-marker{top:50%;transform:translateY(-50%);}
+.vivi-html-comment-marker:hover,.vivi-html-comment-marker:focus-visible{outline:none;background:rgba(169,134,255,.18);transform:translateY(-1px);}
+.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:hover,.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:focus-visible{transform:translateY(calc(-50% - 1px));}
 </style>`;
   const selectionBridge = `<script nonce="${escapeAttribute(options.nonce)}">
 (() => {
   const path = ${JSON.stringify(options.path)};
+  const blockSelector = "[data-vivi-comment-block-id]";
+  const preferredBlockSelectors = ["tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p"];
+  const interactiveSelector = "a,button,input,select,textarea,summary,[contenteditable]";
+  let renderedComments = [];
+  let activeCommentId = null;
+  let draftingBlockId = null;
+  const post = (message) => parent.postMessage({ path, ...message }, "*");
+  const escapeSelectorValue = (value) => String(value).replace(/\\\\/g, "\\\\\\\\").replace(/"/g, '\\\\"');
+  const escapeCssIdentifier = (value) => globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character);
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
-    if (element.id) return "#" + CSS.escape(element.id);
+    if (element.id) return "#" + escapeCssIdentifier(element.id);
     const parts = [];
     let current = element;
     while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
@@ -663,27 +698,166 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     return parts.join(">");
   };
-  const publish = () => {
-    const selection = document.getSelection();
-    const text = selection?.toString().trim() ?? "";
-    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-    const node = range?.commonAncestorContainer ?? null;
-    const element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
-    const rect = range?.getBoundingClientRect();
-    parent.postMessage({
-      type: "vivi-html-selection",
-      path,
+  const readableText = (element) => (element?.innerText || element?.textContent || "").replace(/\\s+/g, " ").trim();
+  const rectLike = (element) => {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  };
+  const closestBlock = (target) => {
+    if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
+    for (const selector of preferredBlockSelectors) {
+      const block = target.closest(\`\${selector}\${blockSelector}\`);
+      if (block) return block;
+    }
+    return target.closest(blockSelector);
+  };
+  const commentForBlock = (block) => {
+    const commentId = block?.dataset.viviCommentId;
+    return commentId ? renderedComments.find((comment) => comment.id === commentId) ?? null : null;
+  };
+  const findBlocksForComment = (comment) => {
+    if (comment.blockId) {
+      const byBlock = document.querySelector(\`[data-vivi-comment-block-id="\${escapeSelectorValue(comment.blockId)}"]\`);
+      if (byBlock) return [byBlock];
+    }
+    if (comment.selector) {
+      try {
+        const bySelector = document.querySelector(comment.selector);
+        if (bySelector?.matches(blockSelector)) return [bySelector];
+        const nearest = bySelector?.closest(blockSelector);
+        if (nearest) return [nearest];
+      } catch {}
+    }
+    if (Number.isInteger(comment.sourceLineStart)) {
+      const commentEnd = Number.isInteger(comment.sourceLineEnd) ? comment.sourceLineEnd : comment.sourceLineStart;
+      const byRange = commentableBlocks().filter((block) => {
+        const start = Number(block.dataset.viviSourceLineStart);
+        const end = Number(block.dataset.viviSourceLineEnd);
+        return Number.isInteger(start) && Number.isInteger(end) && start <= commentEnd && end >= comment.sourceLineStart;
+      });
+      if (byRange.length) return byRange;
+    }
+    const quote = comment.textQuote?.trim();
+    const byQuote = quote ? Array.from(document.querySelectorAll(blockSelector)).find((block) => readableText(block).includes(quote)) ?? null : null;
+    return byQuote ? [byQuote] : [];
+  };
+  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
+  const actionLabel = (count) => count <= 0 ? "Add comment" : count === 1 ? "Open comment" : \`Open \${count} comments\`;
+  const ensureAction = (block) => {
+    const host = block.localName === "tr" && block.lastElementChild ? block.lastElementChild : block;
+    if (host !== block) host.classList.add("vivi-html-comment-action-host");
+    let action = Array.from(host.children).find((child) => child.classList.contains("vivi-html-comment-marker"));
+    if (!action) {
+      action = document.createElement("button");
+      action.type = "button";
+      action.className = "vivi-html-comment-marker";
+      host.append(action);
+    }
+    delete action.dataset.commentId;
+    delete action.dataset.commentCount;
+    action.setAttribute("aria-label", actionLabel(0));
+    return action;
+  };
+  const applyHighlights = () => {
+    document.querySelectorAll(blockSelector).forEach((block) => {
+      block.classList.remove("vivi-html-comment-block", "has-vivi-comment", "active-vivi-comment", "drafting-vivi-comment");
+      delete block.dataset.viviCommentId;
+      delete block.dataset.viviCommentCount;
+    });
+    const blocks = commentableBlocks();
+    blocks.forEach((block) => {
+      block.classList.add("vivi-html-comment-block");
+      ensureAction(block);
+    });
+    const commentsByBlock = new Map();
+    for (const comment of renderedComments) {
+      for (const block of findBlocksForComment(comment)) {
+        const target = closestBlock(block);
+        if (!target) continue;
+        const list = commentsByBlock.get(target) || [];
+        list.push(comment);
+        commentsByBlock.set(target, list);
+      }
+    }
+    for (const [block, comments] of commentsByBlock) {
+      const firstComment = comments[0];
+      block.classList.add("has-vivi-comment");
+      if (comments.some((comment) => comment.id === activeCommentId)) block.classList.add("active-vivi-comment");
+      block.dataset.viviCommentId = firstComment.id;
+      block.dataset.viviCommentCount = String(comments.length);
+      const action = ensureAction(block);
+      action.dataset.commentId = firstComment.id;
+      action.dataset.commentCount = String(comments.length);
+      action.setAttribute("aria-label", actionLabel(comments.length));
+    }
+    const drafting = blocks.find((block) => block.dataset.viviCommentBlockId === draftingBlockId);
+    drafting?.classList.add("drafting-vivi-comment");
+  };
+  const publishBlockTarget = (block) => {
+    const text = readableText(block);
+    const blockId = block?.dataset.viviCommentBlockId;
+    if (!blockId || !text) return;
+    post({
+      type: "vivi-html-block-target",
+      blockId,
       text,
-      selector: cssPath(element),
-      rect: rect ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height } : undefined
-    }, window.location.origin);
+      selector: cssPath(block),
+      rect: rectLike(block)
+    });
+  };
+  const publishSelectionBlock = () => {
+    const selection = document.getSelection();
+    if (!selection?.toString().trim() || !selection.rangeCount) return;
+    const node = selection.getRangeAt(0).startContainer;
+    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    const block = closestBlock(element);
+    if (block) publishBlockTarget(block);
   };
   const publishSoon = () => {
-    window.requestAnimationFrame(() => window.setTimeout(publish, 0));
+    window.requestAnimationFrame(() => window.setTimeout(publishSelectionBlock, 0));
   };
-  document.addEventListener("selectionchange", publish);
+  window.addEventListener("message", (event) => {
+    if (event.source !== parent) return;
+    const data = event.data;
+    if (data?.type !== "vivi-html-comments" || data.path !== path) return;
+    renderedComments = Array.isArray(data.comments) ? data.comments : [];
+    activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
+    draftingBlockId = typeof data.draftingBlockId === "string" ? data.draftingBlockId : null;
+    applyHighlights();
+  });
+  document.addEventListener("click", (event) => {
+    const marker = event.target.closest?.(".vivi-html-comment-marker");
+    const block = closestBlock(marker || event.target);
+    if (marker) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (marker.dataset.commentId) {
+        post({ type: "vivi-html-comment-open", id: marker.dataset.commentId, rect: rectLike(block) });
+      } else if (block) {
+        publishBlockTarget(block);
+      }
+      return;
+    }
+    if (!block) {
+      post({ type: "vivi-html-comment-clear" });
+      return;
+    }
+    if (event.target.closest?.(interactiveSelector)) return;
+    if (document.getSelection()?.toString().trim()) return;
+    const comment = commentForBlock(block);
+    if (comment) {
+      post({ type: "vivi-html-comment-open", id: comment.id, rect: rectLike(block) });
+      return;
+    }
+    publishBlockTarget(block);
+  });
   document.addEventListener("mouseup", publishSoon);
   document.addEventListener("keyup", publishSoon);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applyHighlights, { once: true });
+  } else {
+    applyHighlights();
+  }
 })();
 </script>`;
   const mermaidScripts = options.includeMermaidRuntime

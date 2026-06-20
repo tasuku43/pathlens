@@ -5,11 +5,17 @@ import {
   useRef,
   useState,
 } from "react";
+import type { MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { marked } from "marked";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
 import { escapeAttribute } from "../../domain/mermaid-preview.js";
+import {
+  addRenderedCommentBlockIdsToHtml,
+  renderedCommentBlockAttribute,
+} from "../../domain/rendered-comment-blocks.js";
 import {
   extractMarkdownOutline,
   renderMarkdownHtmlWithHeadingIds,
@@ -20,18 +26,35 @@ import {
   type FrontMatterValue,
 } from "../state/markdown-frontmatter.js";
 import {
-  lineRangeForQuote,
   renderedCommentDraft,
   scheduleSelectionCommentUpdate,
-  selectionCommentTargetInElement,
-  sourceCommentDraft,
+  sourceTextForLineRange,
+  type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
   type CommentDraft,
+  type CommentStatusChangeHandler,
 } from "../state/comments.js";
+import type { LineRange } from "../state/code-viewer.js";
+import {
+  markdownBodyLineOffset,
+  renderMarkdownHtmlWithSourceRanges,
+} from "../state/markdown-comment-blocks.js";
+import {
+  applyRenderedCommentHighlights,
+  closestRenderedCommentBlock,
+  findBlocksForRenderedComment,
+  isInteractiveRenderedCommentTarget,
+  renderedCommentBlocksForSelection,
+  renderedCommentSummaryForComment,
+  rectLikeFromElement,
+  type RenderedCommentBlockTarget,
+  targetForRenderedCommentBlock,
+  targetForRenderedCommentBlocks,
+} from "../state/rendered-comment-blocks.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
-import { CommentedSourceLines } from "../components/CommentedSourceLines.js";
-import { SelectionCommentComposer } from "../components/SelectionCommentComposer.js";
+import { CodeCommentThread } from "../components/CodeCommentThread.js";
+import { SourceCommentSurface } from "../components/SourceCommentSurface.js";
 import { DiffViewer } from "./DiffViewer.js";
 import { renderMermaidBlocks } from "./MermaidViewer.js";
 
@@ -50,6 +73,8 @@ export function MarkdownViewer({
   comments = [],
   activeCommentId,
   onOpenComment,
+  onCloseComment,
+  onCommentStatusChange,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
@@ -65,21 +90,27 @@ export function MarkdownViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCloseComment?: () => void;
+  onCommentStatusChange?: CommentStatusChangeHandler;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
-  const [selectionComment, setSelectionComment] = useState<{
+  const [renderedThreadTarget, setRenderedThreadTarget] = useState<{
+    blockId: string;
+    blockIds: string[];
     draft: CommentDraft;
-    rect: DOMRectLike;
+    host: HTMLElement;
+    mount: HTMLElement;
   } | null>(null);
+  const [sourceSelectedRange, setSourceSelectedRange] =
+    useState<LineRange | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "rendered"
       ? controlledMode
       : localMode;
   const html = renderMarkdownDocumentHtml(file.content);
   const markdownRef = useRef<HTMLElement | null>(null);
-  const sourceRef = useRef<HTMLDivElement | null>(null);
   const setMode = (nextMode: ViewerMode) => {
-    setSelectionComment(null);
+    setRenderedThreadTarget(null);
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
@@ -89,57 +120,178 @@ export function MarkdownViewer({
     if (!markdown) return;
     renderMermaidBlocks(markdown, theme);
   }, [diffEnabled, mode, theme]);
-  const attachMarkdownRef = useCallback(
-    (node: HTMLElement | null) => {
-      markdownRef.current = node;
-      if (!node) return;
-      window.requestAnimationFrame(() => {
-        if (markdownRef.current === node) renderPendingMermaid();
-      });
-    },
-    [html, renderPendingMermaid],
-  );
   const updateRenderedSelectionComment = () => {
-    const selection = selectionCommentTargetInElement(markdownRef.current);
-    if (!selection) {
-      setSelectionComment(null);
-      return;
-    }
-    const range = lineRangeForQuote(file.content, selection.text);
-    setSelectionComment({
-      draft: renderedCommentDraft(file, "markdown", {
-        text: selection.text,
-        sourceLineStart: range?.start,
-        sourceLineEnd: range?.end,
-      }),
-      rect: selection.rect,
-    });
-  };
-  const updateSourceSelectionComment = () => {
-    const selection = selectionCommentTargetInElement(sourceRef.current);
-    if (!selection) {
-      setSelectionComment(null);
-      return;
-    }
-    setSelectionComment({
-      draft: sourceCommentDraft(
-        file,
-        lineRangeForQuote(file.content, selection.text),
-        selection.text,
-      ),
-      rect: selection.rect,
-    });
+    const blocks = renderedCommentBlocksForSelection(markdownRef.current);
+    const target = targetForRenderedCommentBlocks(
+      blocks,
+      window.getSelection()?.toString(),
+    );
+    if (!target) return;
+    openRenderedDraft(target, blocks);
+    window.getSelection()?.removeAllRanges();
   };
 
   useLayoutEffect(() => {
+    if (mode !== "rendered" || diffEnabled || !markdownRef.current) return;
+    markdownRef.current.innerHTML = html;
     renderPendingMermaid();
-  });
+  }, [diffEnabled, html, mode, renderPendingMermaid]);
 
   useEffect(() => {
     renderPendingMermaid();
     const timeout = window.setTimeout(renderPendingMermaid, 0);
     return () => window.clearTimeout(timeout);
   });
+
+  useLayoutEffect(() => {
+    if (mode !== "rendered" || diffEnabled) return;
+    applyRenderedCommentHighlights(
+      markdownRef.current,
+      comments,
+      activeCommentId,
+      renderedThreadTarget?.blockIds,
+    );
+  }, [
+    activeCommentId,
+    comments,
+    diffEnabled,
+    html,
+    mode,
+    renderedThreadTarget,
+  ]);
+
+  useLayoutEffect(() => {
+    if (
+      mode !== "rendered" ||
+      diffEnabled ||
+      !renderedThreadTarget ||
+      !markdownRef.current
+    ) {
+      return;
+    }
+    const hostBlockId = renderedThreadTarget.blockIds.at(-1);
+    const block = Array.from(
+      markdownRef.current.querySelectorAll<HTMLElement>(
+        `[${renderedCommentBlockAttribute}]`,
+      ),
+    ).find((candidate) => candidate.dataset.viviCommentBlockId === hostBlockId);
+    if (!block) return;
+    placeRenderedThreadHost(block, renderedThreadTarget.host);
+  });
+
+  useLayoutEffect(
+    () => () => {
+      renderedThreadTarget?.host.remove();
+    },
+    [renderedThreadTarget],
+  );
+
+  useEffect(() => {
+    setRenderedThreadTarget(null);
+  }, [file.path]);
+
+  const openRenderedDraft = (
+    target: RenderedCommentBlockTarget,
+    blocks: HTMLElement[],
+  ) => {
+    const hostBlock = blocks.at(-1);
+    if (!hostBlock) return;
+    const { host, mount } = createRenderedThreadHost(hostBlock);
+    setRenderedThreadTarget({
+      blockId: target.blockId,
+      blockIds: target.blockIds,
+      host,
+      mount,
+      draft: renderedCommentDraft(file, "markdown", {
+        text: target.text,
+        blockId: target.blockId,
+        selector: target.selector,
+        sourceLineStart: target.sourceLineStart,
+        sourceLineEnd: target.sourceLineEnd,
+        sourceQuote: sourceTextForLineRange(
+          file.content,
+          sourceRangeForTarget(target),
+        ),
+      }),
+    });
+  };
+
+  const openRenderedComment = (block: HTMLElement | null) => {
+    const id = block?.dataset.viviCommentId;
+    if (!id || !block) return false;
+    const comment = comments.find((item) => item.id === id);
+    const summary = comment
+      ? renderedCommentSummaryForComment(comment, "markdown")
+      : null;
+    const blocks =
+      summary && markdownRef.current
+        ? findBlocksForRenderedComment(markdownRef.current, summary)
+        : [block];
+    const target = targetForRenderedCommentBlocks(
+      blocks.length ? blocks : [block],
+    );
+    if (!target) return false;
+    openRenderedDraft(target, blocks.length ? blocks : [block]);
+    onOpenComment?.(id, target?.rect ?? rectLikeFromElement(block));
+    return true;
+  };
+
+  const startRenderedComment = (block: HTMLElement) => {
+    const target = targetForRenderedCommentBlock(block);
+    if (!target) return;
+    openRenderedDraft(target, [block]);
+    onCloseComment?.();
+  };
+
+  const closeRenderedThread = () => {
+    setRenderedThreadTarget(null);
+    onCloseComment?.();
+  };
+
+  const onRenderedClick = (event: MouseEvent<HTMLElement>) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".rendered-comment-thread")
+    ) {
+      return;
+    }
+    const block = closestRenderedCommentBlock(
+      markdownRef.current,
+      event.target,
+    );
+    if (!block) {
+      closeRenderedThread();
+      return;
+    }
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".rendered-comment-marker")
+    ) {
+      event.preventDefault();
+      openRenderedComment(block);
+      return;
+    }
+    if (isInteractiveRenderedCommentTarget(event.target)) return;
+    if (window.getSelection()?.toString().trim()) return;
+    if (openRenderedComment(block)) return;
+
+    startRenderedComment(block);
+  };
+
+  const renderedThreadComments = renderedThreadTarget
+    ? commentsForRenderedTarget(
+        markdownRef.current,
+        renderedThreadTarget,
+        comments,
+      )
+    : [];
+  const renderedThread = renderedThreadTarget
+    ? renderedThreadModel(
+        file.path,
+        renderedThreadTarget.draft,
+        renderedThreadComments,
+      )
+    : null;
 
   return (
     <section className="document-viewer">
@@ -190,33 +342,40 @@ export function MarkdownViewer({
       ) : mode === "rendered" ? (
         <article
           className="markdown markdown-document"
-          ref={attachMarkdownRef}
+          ref={markdownRef}
           onMouseUp={() =>
             scheduleSelectionCommentUpdate(updateRenderedSelectionComment)
           }
           onKeyUp={updateRenderedSelectionComment}
-          dangerouslySetInnerHTML={{ __html: html }}
+          onClick={onRenderedClick}
         />
       ) : (
-        <CommentedSourceLines
-          content={file.content}
+        <SourceCommentSurface
+          file={file}
           className="markdown-source"
-          containerRef={sourceRef}
+          selectedRange={sourceSelectedRange}
           comments={comments}
           activeCommentId={activeCommentId}
+          onSelectionChange={setSourceSelectedRange}
+          onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
-          onMouseUp={() =>
-            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
-          }
-          onKeyUp={updateSourceSelectionComment}
+          onCloseComment={onCloseComment}
+          onCommentStatusChange={onCommentStatusChange}
         />
       )}
-      <SelectionCommentComposer
-        draft={selectionComment?.draft ?? null}
-        rect={selectionComment?.rect ?? null}
-        onSave={onCreateComment}
-        onDismiss={() => setSelectionComment(null)}
-      />
+      {renderedThread && renderedThreadTarget
+        ? createPortal(
+            <CodeCommentThread
+              className="rendered-comment-thread"
+              thread={renderedThread}
+              draft={renderedThreadTarget.draft}
+              onCreateComment={onCreateComment}
+              onStatusChange={onCommentStatusChange}
+              onClose={closeRenderedThread}
+            />,
+            renderedThreadTarget.mount,
+          )
+        : null}
     </section>
   );
 }
@@ -228,17 +387,123 @@ interface DOMRectLike {
   height: number;
 }
 
-export function renderMarkdownDocumentHtml(markdown: string): string {
+export function renderMarkdownDocumentHtml(
+  markdown: string,
+  options: { commentBlocks?: boolean } = {},
+): string {
   const frontMatter = parseMarkdownFrontMatter(markdown);
   const body = frontMatter.status === "none" ? markdown : frontMatter.body;
-  const markdownWithSafeDiagrams = injectMermaidPreviewBlocks(body);
+  const renderedBody =
+    options.commentBlocks === false
+      ? (marked.parse(injectMermaidPreviewBlocks(body)) as string)
+      : renderMarkdownHtmlWithSourceRanges(
+          body,
+          markdownBodyLineOffset(markdown),
+        );
   const html = renderMarkdownHtmlWithHeadingIds(
-    marked.parse(markdownWithSafeDiagrams) as string,
+    renderedBody,
     extractMarkdownOutline(body),
   );
   const metadataHtml =
     frontMatter.status === "none" ? "" : renderFrontMatterPanel(frontMatter);
-  return metadataHtml + enhanceMarkdownHtml(html);
+  const bodyHtml = enhanceMarkdownHtml(html);
+  return (
+    metadataHtml +
+    (options.commentBlocks === false
+      ? bodyHtml
+      : addRenderedCommentBlockIdsToHtml(bodyHtml, {
+          preserveSourceRanges: true,
+        }))
+  );
+}
+
+function sourceRangeForTarget(target: {
+  sourceLineStart?: number;
+  sourceLineEnd?: number;
+}): LineRange | null {
+  if (!target.sourceLineStart) return null;
+  return {
+    start: target.sourceLineStart,
+    end: target.sourceLineEnd ?? target.sourceLineStart,
+  };
+}
+
+function createRenderedThreadHost(block: HTMLElement): {
+  host: HTMLElement;
+  mount: HTMLElement;
+} {
+  if (block.localName === "tr") {
+    const host = document.createElement("tr");
+    host.className = "rendered-comment-thread-table-row";
+    const mount = document.createElement("td");
+    mount.className = "rendered-comment-thread-host";
+    mount.colSpan = Math.max(1, block.children.length);
+    host.append(mount);
+    return { host, mount };
+  }
+
+  const host = document.createElement("div");
+  host.className = "rendered-comment-thread-host";
+  return { host, mount: host };
+}
+
+function placeRenderedThreadHost(block: HTMLElement, host: HTMLElement): void {
+  if (block.localName === "li") {
+    if (host.parentElement !== block) block.append(host);
+    return;
+  }
+  if (block.nextElementSibling !== host) block.after(host);
+}
+
+function commentsForRenderedTarget(
+  root: HTMLElement | null,
+  target: { blockIds: string[]; draft: CommentDraft },
+  comments: ViviComment[],
+): ViviComment[] {
+  if (!root) return [];
+  const targetStart = target.draft.anchor.canonical.lineStart;
+  const targetEnd =
+    target.draft.anchor.canonical.lineEnd ??
+    target.draft.anchor.canonical.lineStart;
+  const targetBlockIds = new Set(target.blockIds);
+  return comments
+    .filter((comment) => {
+      const summary = renderedCommentSummaryForComment(comment, "markdown");
+      const lineStart = comment.anchor.canonical.lineStart;
+      const lineEnd =
+        comment.anchor.canonical.lineEnd ?? comment.anchor.canonical.lineStart;
+      if (
+        targetStart !== undefined &&
+        targetEnd !== undefined &&
+        lineStart !== undefined &&
+        lineEnd !== undefined
+      ) {
+        return lineStart === targetStart && lineEnd === targetEnd;
+      }
+      return Boolean(
+        summary &&
+        findBlocksForRenderedComment(root, summary).some((block) =>
+          targetBlockIds.has(block.dataset.viviCommentBlockId ?? ""),
+        ),
+      );
+    })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+function renderedThreadModel(
+  path: string,
+  draft: CommentDraft,
+  comments: ViviComment[],
+): CodeCommentThreadModel {
+  const lineStart = draft.anchor.canonical.lineStart ?? 1;
+  const lineEnd = draft.anchor.canonical.lineEnd ?? lineStart;
+  return {
+    key: JSON.stringify([path, lineStart, lineEnd]),
+    path,
+    lineStart,
+    lineEnd,
+    comments,
+  };
 }
 
 export function injectMermaidPreviewBlocks(markdown: string): string {
@@ -267,8 +532,8 @@ function wrapTables(html: string): string {
 
 function renderGitHubAlerts(html: string): string {
   return html.replace(
-    /<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\n)?([\s\S]*?)<\/blockquote>/g,
-    (_match, rawKind: string, rawBody: string) => {
+    /<blockquote(\s[^>]*)?>\s*<p(?:\s[^>]*)?>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\](?:\n)?([\s\S]*?)<\/blockquote>/g,
+    (_match, rawAttributes = "", rawKind: string, rawBody: string) => {
       const kind = rawKind.toLowerCase();
       const label = alertLabelForKind(kind);
       const body = rawBody
@@ -276,7 +541,7 @@ function renderGitHubAlerts(html: string): string {
         .replace(/^<\/p>\s*/i, "")
         .trim();
       const bodyHtml = alertBodyHtml(body);
-      return `<aside class="markdown-callout ${kind}"><p class="markdown-callout-title">${label}</p>${bodyHtml}</aside>`;
+      return `<aside class="markdown-callout ${kind}"${rawAttributes}><p class="markdown-callout-title">${label}</p>${bodyHtml}</aside>`;
     },
   );
 }

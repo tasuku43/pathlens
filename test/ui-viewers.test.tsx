@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import type { ViviComment } from "../src/domain/comments.js";
 import type { FilePayload } from "../src/domain/fs-node.js";
+import { CodeCommentThread } from "../src/ui/components/CodeCommentThread.js";
 import { FileViewer } from "../src/ui/components/FileViewer.js";
 import { Inspector } from "../src/ui/components/Inspector.js";
 import { ShortcutHelp } from "../src/ui/components/ShortcutHelp.js";
@@ -30,11 +31,13 @@ import {
 import { HtmlViewer } from "../src/ui/viewers/HtmlViewer.js";
 import { ImageViewer } from "../src/ui/viewers/ImageViewer.js";
 import { JsonViewer } from "../src/ui/viewers/JsonViewer.js";
+import { MarkdownViewer } from "../src/ui/viewers/MarkdownViewer.js";
 import {
   hasCustomMermaidStyle,
   MermaidViewer,
 } from "../src/ui/viewers/MermaidViewer.js";
 import { TextViewer } from "../src/ui/viewers/TextViewer.js";
+import type { CommentDraft } from "../src/ui/state/comments.js";
 
 const codeFile: FilePayload = {
   path: "src/app.ts",
@@ -72,6 +75,16 @@ const codeLineReply: ViviComment = {
   body: "Agreed, keep it explicit",
   createdAt: "2026-01-01T00:01:00.000Z",
   updatedAt: "2026-01-01T00:01:00.000Z",
+};
+
+const markdownFile: FilePayload = {
+  path: "README.md",
+  viewerKind: "markdown",
+  encoding: "utf8",
+  content: "# Title\n\nParagraph text\n",
+  etag: "sha256:markdown",
+  size: 24,
+  mtimeMs: 1,
 };
 
 it("renders the topbar as brand, workspace identity, and distinct actions", () => {
@@ -225,6 +238,121 @@ it("renders a range comment thread after the final selected code line", () => {
   expect(
     html.indexOf('aria-label="Comment thread for lines 1-2"'),
   ).toBeLessThan(html.indexOf('data-line="3"'));
+});
+
+it("uses the inline source thread experience for Markdown source mode", () => {
+  const comment: ViviComment = {
+    ...codeLineComment,
+    id: "markdown-source-comment",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 3,
+        quote: "Paragraph text",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <MarkdownViewer
+      file={markdownFile}
+      mode="source"
+      comments={[comment]}
+      activeCommentId={comment.id}
+      onCreateComment={() => undefined}
+      onOpenComment={() => undefined}
+      onCommentStatusChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("source-comment-surface markdown-source");
+  expect(html).toContain('aria-label="Open comment thread on line 3"');
+  expect(html).toContain('aria-label="Comment thread for line 3"');
+  expect(html).toContain("Check this return");
+  expect(html).not.toContain('aria-label="New comment"');
+});
+
+it("renders a replyable document thread with the code-thread width contract", () => {
+  const comment: ViviComment = {
+    ...codeLineComment,
+    id: "markdown-rendered-thread",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 4,
+        quote: "Paragraph text",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "vivi-block-2",
+        sourceLineStart: 3,
+        sourceLineEnd: 4,
+      },
+    },
+  };
+  const draft: CommentDraft = {
+    path: comment.path,
+    viewerKind: "markdown",
+    anchor: comment.anchor,
+  };
+  const html = renderToStaticMarkup(
+    <CodeCommentThread
+      className="rendered-comment-thread"
+      thread={{
+        key: "README.md:vivi-block-2",
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 4,
+        comments: [comment],
+      }}
+      draft={draft}
+      onCreateComment={() => undefined}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('class="code-comment-thread rendered-comment-thread"');
+  expect(html).toContain("Lines 3-4");
+  expect(html).toContain('placeholder="Reply to thread"');
+  expect(html).toContain("Check this return");
+});
+
+it("projects a rendered Markdown comment onto its canonical source line", () => {
+  const comment: ViviComment = {
+    ...codeLineComment,
+    id: "markdown-rendered-comment",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "rendered",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 3,
+        quote: "Paragraph text",
+      },
+      rendered: {
+        kind: "markdown",
+        blockId: "vivi-block-2",
+        textQuote: "Paragraph text",
+        sourceLineStart: 3,
+        sourceLineEnd: 3,
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <MarkdownViewer file={markdownFile} mode="source" comments={[comment]} />,
+  );
+
+  expect(html).toContain('aria-label="Open comment thread on line 3"');
+  expect(html).toContain('class="code-line has-comment"');
 });
 
 it("extracts shiki line spans without losing nested syntax spans", () => {

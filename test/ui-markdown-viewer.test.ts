@@ -20,9 +20,56 @@ describe("renderMarkdownDocumentHtml", () => {
 | API | stable |
 `);
 
-    expect(html).toContain('<h1 id="title">Title</h1>');
+    expect(html).toContain('<h1 id="title"');
+    expect(html).toContain('data-vivi-comment-block-id="vivi-block-1"');
     expect(html).toContain('<div class="markdown-table-wrap"><table>');
+    expect(html).toContain('data-vivi-source-line-start="3"');
+    expect(html).toContain('data-vivi-source-line-start="5"');
     expect(html).toContain("<td>stable</td>");
+  });
+
+  it("maps formatted document blocks back to canonical source lines", () => {
+    const html = renderMarkdownDocumentHtml(`# **Title**
+
+Paragraph with **bold text**
+continued on another line.
+
+- first item
+- second item
+
+\`\`\`ts
+const value = 1;
+\`\`\`
+`);
+
+    expect(html).toMatch(
+      /<h1[^>]*data-vivi-source-line-start="1"[^>]*data-vivi-source-line-end="1"/,
+    );
+    expect(html).toMatch(
+      /<p[^>]*data-vivi-source-line-start="3"[^>]*data-vivi-source-line-end="4"/,
+    );
+    expect(html).toMatch(
+      /<li[^>]*data-vivi-source-line-start="6"[^>]*data-vivi-source-line-end="6"/,
+    );
+    expect(html).toMatch(
+      /<li[^>]*data-vivi-source-line-start="7"[^>]*data-vivi-source-line-end="7"/,
+    );
+    expect(html).toMatch(
+      /<pre[^>]*data-vivi-source-line-start="9"[^>]*data-vivi-source-line-end="11"/,
+    );
+  });
+
+  it("keeps source ranges on raw HTML blocks inside Markdown", () => {
+    const html = renderMarkdownDocumentHtml(`# Title
+
+<section>
+  <p>Embedded HTML</p>
+</section>
+`);
+
+    expect(html).toMatch(
+      /<p[^>]*data-vivi-source-line-start="4"[^>]*data-vivi-source-line-end="4"/,
+    );
   });
 
   it("renders front matter as a quiet metadata panel and removes it from the body", () => {
@@ -36,7 +83,7 @@ describe("renderMarkdownDocumentHtml", () => {
     expect(html).toContain('<code class="frontmatter-boolean">false</code>');
     expect(html).toContain("note");
     expect(html).toContain("draft");
-    expect(html).toContain('<h1 id="body-heading">Body Heading</h1>');
+    expect(html).toContain('<h1 id="body-heading"');
     expect(html).toContain("The Markdown body starts here.");
     expect(html).not.toContain("<hr");
     expect(html).not.toContain(">---<");
@@ -45,7 +92,7 @@ describe("renderMarkdownDocumentHtml", () => {
   it("leaves Markdown without front matter on the existing render path", () => {
     const html = renderMarkdownDocumentHtml(fixture("no-frontmatter.md"));
 
-    expect(html).toContain('<h1 id="plain-markdown">Plain Markdown</h1>');
+    expect(html).toContain('<h1 id="plain-markdown"');
     expect(html).toContain("This document has no front matter");
     expect(html).not.toContain("markdown-frontmatter");
   });
@@ -61,7 +108,7 @@ describe("renderMarkdownDocumentHtml", () => {
     expect(nestedHtml).toContain("<dt>owner</dt>");
     expect(nestedHtml).toContain("<dt>active</dt>");
     expect(longHtml).toContain("deliberately long metadata value");
-    expect(longHtml).toContain('<h1 id="long-values">Long Values</h1>');
+    expect(longHtml).toContain('<h1 id="long-values"');
   });
 
   it("shows malformed front matter as a warning panel without crashing the viewer", () => {
@@ -78,8 +125,9 @@ describe("renderMarkdownDocumentHtml", () => {
     const html = renderMarkdownDocumentHtml(`> [!WARNING]
 > Check paths before serving files.`);
 
-    expect(html).toContain('<aside class="markdown-callout warning">');
-    expect(html).toContain('<p class="markdown-callout-title">Warning</p>');
+    expect(html).toContain('<aside class="markdown-callout warning"');
+    expect(html).toContain('<p class="markdown-callout-title"');
+    expect(html).toContain(">Warning</p>");
     expect(html).toContain("Check paths before serving files.");
   });
 

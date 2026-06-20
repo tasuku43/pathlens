@@ -85,7 +85,7 @@ it("opens every file returned by the tree API", async () => {
 
   const preview = await fetch(`${server.url}/preview/html?path=index.html`);
   expect(preview.status).toBe(200);
-  expect(await preview.text()).toContain('<h1 id="preview">Preview</h1>');
+  expect(await preview.text()).toContain('<h1 id="preview"');
 }, 10000);
 
 function flattenFiles(nodes: FsNode[]): FsNode[] {

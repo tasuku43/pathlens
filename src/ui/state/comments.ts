@@ -138,9 +138,11 @@ export function renderedCommentDraft(
   kind: "markdown" | "html",
   selection: {
     text: string;
+    blockId?: string;
     selector?: string;
     sourceLineStart?: number;
     sourceLineEnd?: number;
+    sourceQuote?: string;
   },
 ): CommentDraft {
   return {
@@ -152,11 +154,12 @@ export function renderedCommentDraft(
         path: file.path,
         lineStart: selection.sourceLineStart,
         lineEnd: selection.sourceLineEnd,
-        quote: selection.text,
+        quote: selection.sourceQuote?.trim() || selection.text,
         fileHash: file.etag,
       },
       rendered: {
         kind,
+        blockId: selection.blockId,
         selector: selection.selector,
         textQuote: selection.text,
         sourceLineStart: selection.sourceLineStart,
@@ -211,6 +214,17 @@ export function lineRangeForQuote(
     start: lineStart,
     end: lineStart + lineCount - 1,
   };
+}
+
+export function sourceTextForLineRange(
+  content: string,
+  range: LineRange | null,
+): string | undefined {
+  if (!range) return undefined;
+  return content
+    .split(/\r?\n/)
+    .slice(range.start - 1, range.end)
+    .join("\n");
 }
 
 export function selectedTextInElement(element: HTMLElement | null): string {

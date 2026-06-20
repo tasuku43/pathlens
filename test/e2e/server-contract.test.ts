@@ -122,7 +122,17 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   );
   const previewHtml = await preview.text();
   expect(previewHtml).toContain('<base href="/preview/raw/">');
-  expect(previewHtml).toContain('<h1 id="hello">Hello</h1>');
+  expect(previewHtml).toContain('<h1 id="hello"');
+  expect(previewHtml).toContain('data-vivi-comment-block-id="vivi-block-1"');
+  expect(previewHtml).toContain('data-vivi-source-line-start="1"');
+  expect(previewHtml).toContain('data-vivi-source-line-end="1"');
+  expect(previewHtml).toContain("vivi-html-block-target");
+  expect(previewHtml).toContain("if (event.source !== parent) return;");
+  expect(previewHtml).toContain('action.setAttribute("aria-label", actionLabel(0))');
+  expect(previewHtml).toContain("drafting-vivi-comment");
+  expect(previewHtml).toContain(
+    'replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character)',
+  );
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("background:#0e1316");
 

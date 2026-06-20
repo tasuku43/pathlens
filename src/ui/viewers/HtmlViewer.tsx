@@ -2,15 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import type { TextDiff } from "../../domain/change-review.js";
 import type { ViviComment } from "../../domain/comments.js";
 import type { FilePayload } from "../../domain/fs-node.js";
+import { renderedCommentBlocksForHtml } from "../../domain/rendered-comment-blocks.js";
 import {
   lineRangeForQuote,
   renderedCommentDraft,
   scheduleSelectionCommentUpdate,
   selectionCommentTargetInElement,
   sourceCommentDraft,
+  sourceTextForLineRange,
   type CommentCreateHandler,
   type CommentDraft,
 } from "../state/comments.js";
+import { renderedCommentSummaryForComment } from "../state/rendered-comment-blocks.js";
 import type { ResolvedTheme } from "../state/theme.js";
 import type { ViewerMode } from "../state/viewer-mode.js";
 import { CommentedSourceLines } from "../components/CommentedSourceLines.js";
@@ -33,6 +36,7 @@ export function HtmlViewer({
   comments = [],
   activeCommentId,
   onOpenComment,
+  onCloseComment,
 }: {
   file: FilePayload;
   allowHtmlScripts: boolean;
@@ -49,6 +53,7 @@ export function HtmlViewer({
   comments?: ViviComment[];
   activeCommentId?: string | null;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onCloseComment?: () => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("preview");
   const [selectionComment, setSelectionComment] = useState<{
@@ -61,25 +66,63 @@ export function HtmlViewer({
     controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
       : localMode;
+  const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
   const setMode = (nextMode: ViewerMode) => {
     setSelectionComment(null);
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
+
+  const postRenderedCommentState = () => {
+    const frame = iframeRef.current?.contentWindow;
+    if (!frame) return;
+    frame.postMessage(
+      {
+        type: "vivi-html-comments",
+        path: file.path,
+        activeCommentId,
+        draftingBlockId: selectionComment?.draft.anchor.rendered?.blockId,
+        comments: comments
+          .map((comment) => renderedCommentSummaryForComment(comment, "html"))
+          .filter(Boolean),
+      },
+      "*",
+    );
+  };
+
   useEffect(() => {
     setSelectionComment(null);
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      if (event.source !== iframeRef.current?.contentWindow) return;
       const data = event.data as {
         type?: string;
         path?: string;
+        id?: string;
+        blockId?: string;
         text?: string;
         selector?: string;
         rect?: { left: number; top: number; width: number; height: number };
       } | null;
+      if (data?.path !== file.path) return;
+      if (data.type === "vivi-html-comment-open") {
+        const iframeRect = iframeRef.current?.getBoundingClientRect();
+        if (!data.id || !data.rect || !iframeRect) return;
+        setSelectionComment(null);
+        onOpenComment?.(data.id, {
+          left: iframeRect.left + data.rect.left,
+          top: iframeRect.top + data.rect.top,
+          width: data.rect.width,
+          height: data.rect.height,
+        });
+        return;
+      }
+      if (data.type === "vivi-html-comment-clear") {
+        setSelectionComment(null);
+        onCloseComment?.();
+        return;
+      }
       if (
-        data?.type !== "vivi-html-selection" ||
-        data.path !== file.path ||
+        data?.type !== "vivi-html-block-target" ||
         typeof data.text !== "string"
       ) {
         return;
@@ -90,13 +133,23 @@ export function HtmlViewer({
         setSelectionComment(null);
         return;
       }
-      const range = lineRangeForQuote(file.content, text);
+      const mappedBlock = data.blockId
+        ? htmlSourceBlocks.find((block) => block.blockId === data.blockId)
+        : undefined;
+      const range = mappedBlock
+        ? {
+            start: mappedBlock.sourceLineStart,
+            end: mappedBlock.sourceLineEnd,
+          }
+        : lineRangeForQuote(file.content, text);
       setSelectionComment({
         draft: renderedCommentDraft(file, "html", {
           text,
+          blockId: data.blockId,
           selector: data.selector,
           sourceLineStart: range?.start,
           sourceLineEnd: range?.end,
+          sourceQuote: sourceTextForLineRange(file.content, range),
         }),
         rect: {
           left: iframeRect.left + data.rect.left,
@@ -105,10 +158,17 @@ export function HtmlViewer({
           height: data.rect.height,
         },
       });
+      onCloseComment?.();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [file.content, file.path]);
+  }, [file.content, file.path, onCloseComment, onOpenComment]);
+
+  useEffect(() => {
+    postRenderedCommentState();
+    const timeout = window.setTimeout(postRenderedCommentState, 0);
+    return () => window.clearTimeout(timeout);
+  }, [activeCommentId, comments, file.path, mode, selectionComment]);
 
   const updateSourceSelectionComment = () => {
     const selection = selectionCommentTargetInElement(sourceRef.current);
@@ -186,6 +246,7 @@ export function HtmlViewer({
               ? "allow-scripts allow-same-origin"
               : "allow-scripts"
           }
+          onLoad={postRenderedCommentState}
           src={`/preview/html?path=${encodeURIComponent(file.path)}&theme=${theme}&v=${encodeURIComponent(file.etag)}`}
         />
       ) : (

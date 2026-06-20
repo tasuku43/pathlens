@@ -1109,6 +1109,219 @@ body.resizing-workbench-pane {
 .markdown tr:last-child td {
   border-bottom: 0;
 }
+.markdown .vivi-rendered-comment-block {
+  --rendered-comment-block-left: -12px;
+  --rendered-comment-block-right: -12px;
+  isolation: isolate;
+  position: relative;
+  border-radius: 8px;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.markdown li.vivi-rendered-comment-block {
+  --rendered-comment-block-left: calc(-1.45em - 12px);
+}
+.markdown .vivi-rendered-comment-block:not(tr)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: var(--rendered-comment-block-right);
+  bottom: 0;
+  left: var(--rendered-comment-block-left);
+  border-radius: inherit;
+  pointer-events: none;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.markdown .vivi-rendered-comment-block:not(tr):hover::before,
+.markdown tr.vivi-rendered-comment-block:hover {
+  background: var(--soft-line);
+}
+.markdown .vivi-rendered-comment-block.has-rendered-comment,
+.markdown .vivi-rendered-comment-block.drafting-rendered-comment {
+  border-radius: 8px;
+}
+.markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr),
+.markdown .vivi-rendered-comment-block.drafting-rendered-comment:not(tr) {
+  background: transparent;
+  box-shadow: none;
+}
+.markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,
+.markdown
+  .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,
+.markdown tr.vivi-rendered-comment-block.has-rendered-comment,
+.markdown tr.vivi-rendered-comment-block.drafting-rendered-comment {
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment,
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment,
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment {
+  border-radius: 0;
+}
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment,
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.markdown
+  .vivi-rendered-comment-block.rendered-comment-range-join-after:not(
+    tr
+  )::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: var(--rendered-comment-block-left);
+  right: var(--rendered-comment-block-right);
+  top: 100%;
+  height: var(--rendered-comment-join-after, 0);
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--comment-tint-active),
+    color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
+}
+.markdown .vivi-rendered-comment-block.active-rendered-comment {
+  background: transparent;
+  box-shadow: none;
+}
+.markdown .vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,
+.markdown tr.vivi-rendered-comment-block.active-rendered-comment {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint-active) 86%, white),
+    var(--comment-tint) 72%,
+    transparent
+  );
+  box-shadow:
+    inset 3px 0 0 var(--comment-text),
+    0 0 0 1px color-mix(in srgb, var(--comment-line) 46%, transparent);
+}
+.markdown
+  .vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(
+    tr
+  )::after {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint-active) 86%, white),
+    var(--comment-tint) 72%,
+    transparent
+  );
+  box-shadow: inset 3px 0 0 var(--comment-text);
+}
+.rendered-comment-marker {
+  position: absolute;
+  z-index: 3;
+  top: calc(50% + 1px);
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--comment-line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--comment-text);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--shadow) 42%, transparent);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    transform 140ms ease;
+  transform: translateY(-50%);
+}
+.rendered-comment-marker::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  width: 7px;
+  height: 6px;
+  border: 1.25px solid currentColor;
+  border-radius: 3px;
+}
+.rendered-comment-marker::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 10px;
+  width: 3px;
+  height: 3px;
+  border-left: 1.25px solid currentColor;
+  transform: skew(-22deg);
+}
+.rendered-comment-marker:hover,
+.rendered-comment-marker:focus-visible {
+  outline: none;
+  border-color: var(--comment-text);
+  background: var(--comment-tint-active);
+  transform: translateY(calc(-50% - 1px));
+}
+.rendered-comment-marker-count {
+  position: absolute;
+  right: -5px;
+  top: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 13px;
+  height: 13px;
+  border: 1px solid var(--comment-line);
+  border-radius: 999px;
+  background: var(--palette);
+  color: var(--comment-text);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 2px;
+}
+.vivi-rendered-comment-action-host {
+  position: relative;
+}
+.markdown tr.vivi-rendered-comment-block .rendered-comment-marker {
+  right: 8px;
+}
+.markdown tr.vivi-rendered-comment-block .rendered-comment-marker:hover,
+.markdown
+  tr.vivi-rendered-comment-block
+  .rendered-comment-marker:focus-visible {
+  transform: translateY(calc(-50% - 1px));
+}
+.rendered-comment-thread-host {
+  width: min(680px, 100%);
+  margin: 8px 0 20px;
+  line-height: normal;
+}
+.rendered-comment-thread-host > .rendered-comment-thread {
+  width: 100%;
+}
+.markdown li > .rendered-comment-thread-host {
+  margin-bottom: 10px;
+}
+.markdown .rendered-comment-thread-table-row > td {
+  padding: 8px 14px 14px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
 .markdown img {
   display: block;
   max-width: 100%;
@@ -1864,6 +2077,12 @@ body.resizing-workbench-pane {
   border-right: 1px solid var(--comment-line);
   border-bottom: 1px solid var(--comment-line);
 }
+.selection-comment-composer.side::before {
+  left: -7px;
+  top: var(--comment-arrow-top, 24px);
+  border-left: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
+}
 .selection-comment-meta {
   display: flex;
   align-items: center;
@@ -1954,6 +2173,7 @@ body.resizing-workbench-pane {
   border-radius: 12px;
   background: var(--palette);
   box-shadow: 0 24px 68px var(--shadow);
+  overflow: auto;
   padding: 12px;
 }
 .inline-comment-card::before {
@@ -1966,15 +2186,27 @@ body.resizing-workbench-pane {
 }
 .inline-comment-card.points-left::before {
   left: -7px;
-  top: 22px;
+  top: var(--comment-card-arrow-y, 22px);
   border-left: 1px solid var(--comment-line);
   border-bottom: 1px solid var(--comment-line);
 }
+.inline-comment-card.points-right::before {
+  right: -7px;
+  top: var(--comment-card-arrow-y, 22px);
+  border-right: 1px solid var(--comment-line);
+  border-top: 1px solid var(--comment-line);
+}
 .inline-comment-card.points-top::before {
-  left: 24px;
+  left: var(--comment-card-arrow-x, 24px);
   top: -7px;
   border-left: 1px solid var(--comment-line);
   border-top: 1px solid var(--comment-line);
+}
+.inline-comment-card.points-bottom::before {
+  left: var(--comment-card-arrow-x, 24px);
+  bottom: -7px;
+  border-right: 1px solid var(--comment-line);
+  border-bottom: 1px solid var(--comment-line);
 }
 .inline-comment-top {
   display: flex;

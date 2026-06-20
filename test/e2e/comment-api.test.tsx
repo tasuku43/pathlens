@@ -73,6 +73,7 @@ it("creates, lists, updates, persists, and exports comments", async () => {
       canonical: { path: "README.md", quote: "Rendered markdown text" },
       rendered: {
         kind: "markdown",
+        blockId: "vivi-block-2",
         selector: "p:nth-of-type(1)",
         textQuote: "Rendered markdown text",
         sourceLineStart: 3,
@@ -89,6 +90,7 @@ it("creates, lists, updates, persists, and exports comments", async () => {
       canonical: { path: "index.html", quote: "Rendered HTML text" },
       rendered: {
         kind: "html",
+        blockId: "vivi-block-2",
         selector: "p:nth-of-type(1)",
         textQuote: "Rendered HTML text",
         sourceLineStart: 2,
@@ -131,7 +133,9 @@ it("creates, lists, updates, persists, and exports comments", async () => {
 
   expect(source.anchor.canonical.fileHash).toMatch(/^sha256:/);
   expect(renderedMarkdown.anchor.canonical.lineStart).toBe(3);
+  expect(renderedMarkdown.anchor.rendered?.blockId).toBe("vivi-block-2");
   expect(renderedHtml.anchor.canonical.lineStart).toBe(2);
+  expect(renderedHtml.anchor.rendered?.blockId).toBe("vivi-block-2");
   expect(diffContext.anchor.diff?.changeKind).toBe("context");
   expect(diffAdded.anchor.diff?.changeKind).toBe("added");
 
@@ -205,8 +209,10 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   const file = await fetchJson<FilePayload>("/api/file?path=README.md");
   const draft = renderedCommentDraft(file, "markdown", {
     text: "Rendered markdown text",
+    blockId: "vivi-block-2",
     sourceLineStart: 3,
     sourceLineEnd: 3,
+    sourceQuote: "Rendered markdown text",
   });
 
   const created = await postComment({
@@ -215,6 +221,7 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
   });
   expect(created.anchor.surface).toBe("rendered");
   expect(created.anchor.canonical.lineStart).toBe(3);
+  expect(created.anchor.rendered?.blockId).toBe("vivi-block-2");
 
   const retrieved = await fetchJson<ViviComment[]>(
     "/api/v1/comments?path=README.md",

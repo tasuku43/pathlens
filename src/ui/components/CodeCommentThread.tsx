@@ -11,12 +11,14 @@ import { statusLabel } from "../state/comments.js";
 export function CodeCommentThread({
   thread,
   draft,
+  className,
   onCreateComment,
   onStatusChange,
   onClose,
 }: {
   thread: CodeCommentThreadModel;
   draft: CommentDraft;
+  className?: string;
   onCreateComment?: CommentCreateHandler;
   onStatusChange?: CommentStatusChangeHandler;
   onClose: () => void;
@@ -46,8 +48,16 @@ export function CodeCommentThread({
       if (target && threadRef.current?.contains(target)) return;
       onClose();
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      onClose();
+    };
     window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+    };
   }, [onClose]);
 
   async function submit() {
@@ -74,8 +84,9 @@ export function CodeCommentThread({
   return (
     <article
       ref={threadRef}
-      className="code-comment-thread"
+      className={`code-comment-thread${className ? ` ${className}` : ""}`}
       aria-label={`Comment thread for ${lineLabel.toLowerCase()}`}
+      onClick={(event) => event.stopPropagation()}
       onMouseUp={(event) => event.stopPropagation()}
       onKeyUp={(event) => event.stopPropagation()}
     >
