@@ -19,6 +19,11 @@ type Query {
   ): FileContext!
   comments(path: String, status: CommentStatus): [Comment!]!
   commentThreads(path: String, status: CommentStatus): [CommentThread!]!
+  commentThreadActivities(
+    threadId: ID!
+    after: ID
+    first: Int = 100
+  ): [CommentThreadActivityEvent!]!
   commentExport(
     path: String
     status: CommentStatus
@@ -39,14 +44,19 @@ type Mutation {
   addComment(threadId: ID!, input: AddCommentInput!): Comment!
   createComment(input: CommentInput!): Comment!
   updateComment(id: ID!, input: CommentUpdateInput!): Comment!
-  resolveThread(id: ID!): CommentThread!
-  archiveThread(id: ID!): CommentThread!
-  reopenThread(id: ID!): CommentThread!
+  resolveThread(id: ID!, actor: CommentActorInput): CommentThread!
+  archiveThread(id: ID!, actor: CommentActorInput): CommentThread!
+  reopenThread(id: ID!, actor: CommentActorInput): CommentThread!
+  recordThreadRead(
+    threadId: ID!
+    input: RecordThreadReadInput!
+  ): CommentThreadActivityEvent!
   updateCommentThread(id: ID!, input: CommentThreadUpdateInput!): CommentThread!
 }
 
 type Subscription {
   workspaceEvents: WorkspaceEvent!
+  commentThreadActivity(threadId: ID): CommentThreadActivityEvent!
 }
 
 type Workspace {
@@ -132,8 +142,9 @@ type Comment {
   anchor: JSON!
   diffAnchor: DiffCommentAnchor
   body: String!
-  author: String
-  source: CommentSource!
+  createdBy: CommentActor!
+  author: String @deprecated(reason: "Use createdBy.displayName")
+  source: CommentSource! @deprecated(reason: "Use createdBy.kind")
   status: CommentStatus!
   createdAt: String!
   updatedAt: String!
@@ -173,6 +184,7 @@ input CommentInput {
   viewerKind: String
   anchor: JSON!
   body: String!
+  actor: CommentActorInput
   author: String
   source: CommentSource
   status: CommentStatus
@@ -180,6 +192,7 @@ input CommentInput {
 
 input AddCommentInput {
   body: String!
+  actor: CommentActorInput
   author: String
   source: CommentSource
 }
@@ -187,10 +200,41 @@ input AddCommentInput {
 input CommentUpdateInput {
   body: String
   status: CommentStatus
+  actor: CommentActorInput
 }
 
 input CommentThreadUpdateInput {
   status: CommentStatus!
+  actor: CommentActorInput
+}
+
+type CommentActor {
+  id: ID!
+  kind: CommentActorKind!
+  displayName: String
+}
+
+input CommentActorInput {
+  id: ID!
+  kind: CommentActorKind!
+  displayName: String
+}
+
+type CommentThreadActivityEvent {
+  id: ID!
+  threadId: ID!
+  type: CommentThreadActivityType!
+  actor: CommentActor!
+  commentId: ID
+  previousStatus: CommentStatus
+  status: CommentStatus
+  clientEventId: String
+  createdAt: String!
+}
+
+input RecordThreadReadInput {
+  actor: CommentActorInput!
+  clientEventId: String
 }
 
 type ChangeReviewSummary {
@@ -278,6 +322,8 @@ type CommentMeta {
   statuses: [CommentStatus!]!
   surfaces: [String!]!
   exportFormats: [String!]!
+  actorKinds: [CommentActorKind!]!
+  activityTypes: [CommentThreadActivityType!]!
 }
 
 type PreviewResource {
@@ -310,6 +356,21 @@ enum CommentSource {
   claude_code
   codex
   unknown
+}
+
+enum CommentActorKind {
+  human
+  claude_code
+  codex
+  unknown
+}
+
+enum CommentThreadActivityType {
+  thread_created
+  thread_read
+  comment_added
+  comment_updated
+  thread_status_changed
 }
 
 enum CommentExportFormat {

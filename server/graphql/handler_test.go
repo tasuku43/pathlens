@@ -191,6 +191,38 @@ func TestHandlerSupportsExplicitThreadLifecycleMutations(t *testing.T) {
 	}
 }
 
+func TestHandlerRecordsActorAwareReadActivityWithoutChangingStatus(t *testing.T) {
+	root := t.TempDir()
+	dataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Vivi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fsys, _ := workspace.New(workspace.Options{Root: root})
+	reviewer, _ := gitreview.New(root, time.Second)
+	store, _ := comments.NewStore(dataDir)
+	handler := NewHandler(application.NewService(application.Options{Workspace: fsys, Git: reviewer, Comments: store}), func(*http.Request) bool { return true })
+	created := graphql(t, handler, map[string]any{"operationName": "CreateThread", "query": `mutation CreateThread($input: CommentInput!) { createThread(input: $input) { id status comments { createdBy { id kind displayName } } } }`, "variables": map[string]any{"input": map[string]any{"path": "README.md", "body": "please review", "actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"}, "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md"}}}}})["createThread"].(map[string]any)
+	threadID := created["id"].(string)
+	commentsValue := created["comments"].([]any)
+	createdBy := commentsValue[0].(map[string]any)["createdBy"].(map[string]any)
+	if createdBy["id"] != "human:tasuku" {
+		t.Fatalf("createdBy = %#v", createdBy)
+	}
+	read := graphql(t, handler, map[string]any{"operationName": "RecordThreadRead", "query": `mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) { recordThreadRead(threadId: $threadId, input: $input) { id threadId type actor { id kind displayName } clientEventId } }`, "variables": map[string]any{"threadId": threadID, "input": map[string]any{"actor": map[string]any{"id": "claude-code:run-1", "kind": "claude_code", "displayName": "Claude Code"}, "clientEventId": "fetch-open-1"}}})["recordThreadRead"].(map[string]any)
+	if read["type"] != "thread_read" || read["clientEventId"] != "fetch-open-1" {
+		t.Fatalf("read event = %#v", read)
+	}
+	result := graphql(t, handler, map[string]any{"operationName": "ActivityAndThread", "query": `query ActivityAndThread($threadId: ID!) { commentThreadActivities(threadId: $threadId) { id type actor { id kind } } commentThreads(status: open) { id status } }`, "variables": map[string]any{"threadId": threadID}})
+	activities := result["commentThreadActivities"].([]any)
+	if len(activities) != 2 {
+		t.Fatalf("activities = %#v", activities)
+	}
+	threads := result["commentThreads"].([]any)
+	if len(threads) != 1 || threads[0].(map[string]any)["status"] != "open" {
+		t.Fatalf("read changed thread: %#v", threads)
+	}
+}
+
 func graphql(t *testing.T, handler http.Handler, request map[string]any) map[string]any {
 	t.Helper()
 	body, err := json.Marshal(request)

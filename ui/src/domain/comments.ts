@@ -2,6 +2,18 @@ import type { ViewerKind } from "./viewer-kind.js";
 
 export type CommentStatus = "open" | "resolved" | "archived";
 export type CommentSource = "human" | "claude-code" | "codex" | "unknown";
+export type CommentActorKind = "human" | "claude-code" | "codex" | "unknown";
+export interface CommentActor {
+  id: string;
+  kind: CommentActorKind;
+  displayName?: string;
+}
+export type CommentThreadActivityType =
+  | "thread_created"
+  | "thread_read"
+  | "comment_added"
+  | "comment_updated"
+  | "thread_status_changed";
 export type CommentSurface = "source" | "rendered" | "diff";
 export type CommentViewerKind =
   | "text"
@@ -62,6 +74,7 @@ export interface ViviComment {
   viewerKind: CommentViewerKind;
   anchor: CommentAnchor;
   body: string;
+  createdBy?: CommentActor;
   author?: string;
   source?: CommentSource;
   status: CommentStatus;
@@ -77,6 +90,7 @@ export interface CreateCommentInput {
   viewerKind?: CommentViewerKind;
   anchor: CommentAnchor;
   body: string;
+  actor?: CommentActor;
   author?: string;
   source?: CommentSource;
   status?: CommentStatus;
@@ -108,6 +122,18 @@ export interface CommentExportFilters {
   path?: string;
   status?: CommentStatus;
   format?: "jsonl";
+}
+
+export interface CommentThreadActivityEvent {
+  id: string;
+  threadId: string;
+  type: CommentThreadActivityType;
+  actor: CommentActor;
+  commentId?: string;
+  previousStatus?: CommentStatus;
+  status?: CommentStatus;
+  clientEventId?: string;
+  createdAt: string;
 }
 
 const commentStatuses: CommentStatus[] = ["open", "resolved", "archived"];
@@ -156,9 +182,21 @@ export function normalizeCommentCreateInput(
       commentViewerKindFor(options.viewerKind, path),
     anchor,
     body,
+    actor: normalizeCommentActor(input.actor),
     author: optionalString(input.author),
     source: normalizeCommentSource(input.source),
     status,
+  };
+}
+
+function normalizeCommentActor(value: unknown): CommentActor | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) throw new Error("invalid comment actor");
+  const kind = normalizeCommentSource(value.kind);
+  return {
+    id: stringField(value.id, "actor.id"),
+    kind,
+    displayName: optionalString(value.displayName),
   };
 }
 

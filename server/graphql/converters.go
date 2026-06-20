@@ -1,6 +1,8 @@
 package graphql
 
 import (
+	"strings"
+
 	"github.com/tasuku43/vivi/server/application"
 	"github.com/tasuku43/vivi/server/gitreview"
 	"github.com/tasuku43/vivi/server/graphql/model"
@@ -32,6 +34,7 @@ func commentFromMap(item map[string]any) *model.Comment {
 		Anchor:     mapValue(item["anchor"]),
 		DiffAnchor: diffAnchorValue(item["anchor"]),
 		Body:       stringValue(item["body"]),
+		CreatedBy:  commentActorValue(item),
 		Author:     optionalStringValue(item["author"]),
 		Source:     commentSourceValue(item["source"]),
 		Status:     commentStatusValue(item["status"]),
@@ -180,6 +183,11 @@ func commentInputMap(input model.CommentInput) map[string]any {
 	if input.Source != nil {
 		result["source"] = commentSourceStorageValue(*input.Source)
 	}
+	if input.Actor != nil {
+		result["actor"] = commentActorInputMap(input.Actor)
+		result["author"] = optionalStringDereference(input.Actor.DisplayName)
+		result["source"] = actorKindStorageValue(input.Actor.Kind)
+	}
 	return result
 }
 
@@ -190,6 +198,11 @@ func addCommentInputMap(input model.AddCommentInput) map[string]any {
 	}
 	if input.Source != nil {
 		result["source"] = commentSourceStorageValue(*input.Source)
+	}
+	if input.Actor != nil {
+		result["actor"] = commentActorInputMap(input.Actor)
+		result["author"] = optionalStringDereference(input.Actor.DisplayName)
+		result["source"] = actorKindStorageValue(input.Actor.Kind)
 	}
 	return result
 }
@@ -202,7 +215,78 @@ func commentUpdateInputMap(input model.CommentUpdateInput) map[string]any {
 	if input.Status != nil {
 		result["status"] = input.Status.String()
 	}
+	if input.Actor != nil {
+		result["actor"] = commentActorInputMap(input.Actor)
+	}
 	return result
+}
+
+func commentActorInputMap(input *model.CommentActorInput) map[string]any {
+	if input == nil {
+		return map[string]any{"id": "unknown", "kind": "unknown"}
+	}
+	result := map[string]any{"id": input.ID, "kind": input.Kind.String()}
+	if input.DisplayName != nil {
+		result["displayName"] = *input.DisplayName
+	}
+	return result
+}
+
+func commentActorValue(item map[string]any) *model.CommentActor {
+	actor, _ := item["actor"].(map[string]any)
+	if len(actor) == 0 {
+		actor = map[string]any{"kind": item["source"], "displayName": item["author"]}
+	}
+	kindText := strings.ReplaceAll(stringValue(actor["kind"]), "-", "_")
+	kind := model.CommentActorKind(kindText)
+	if !kind.IsValid() {
+		kind = model.CommentActorKindUnknown
+	}
+	id := stringValue(actor["id"])
+	displayName := optionalStringValue(actor["displayName"])
+	if id == "" {
+		id = kind.String()
+		if displayName != nil {
+			id += ":" + *displayName
+		}
+	}
+	return &model.CommentActor{ID: id, Kind: kind, DisplayName: displayName}
+}
+
+func activityFromMap(item map[string]any) *model.CommentThreadActivityEvent {
+	return &model.CommentThreadActivityEvent{ID: stringValue(item["id"]), ThreadID: stringValue(item["threadId"]), Type: model.CommentThreadActivityType(stringValue(item["type"])), Actor: commentActorValue(map[string]any{"actor": item["actor"]}), CommentID: optionalStringValue(item["commentId"]), PreviousStatus: optionalCommentStatus(item["previousStatus"]), Status: optionalCommentStatus(item["status"]), ClientEventID: optionalStringValue(item["clientEventId"]), CreatedAt: stringValue(item["createdAt"])}
+}
+func activitiesFromMaps(items []map[string]any) []*model.CommentThreadActivityEvent {
+	result := make([]*model.CommentThreadActivityEvent, 0, len(items))
+	for _, item := range items {
+		result = append(result, activityFromMap(item))
+	}
+	return result
+}
+func optionalCommentStatus(value any) *model.CommentStatus {
+	status := model.CommentStatus(stringValue(value))
+	if !status.IsValid() {
+		return nil
+	}
+	return &status
+}
+func actorKindStorageValue(kind model.CommentActorKind) string {
+	if kind == model.CommentActorKindClaudeCode {
+		return "claude-code"
+	}
+	return kind.String()
+}
+func optionalStringDereference(value *string) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+func stringPointerValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func commentFilters(path *string, status *model.CommentStatus) (string, string) {

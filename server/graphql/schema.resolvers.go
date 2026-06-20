@@ -53,8 +53,8 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, input m
 }
 
 // ResolveThread is the resolver for the resolveThread field.
-func (r *mutationResolver) ResolveThread(ctx context.Context, id string) (*model.CommentThread, error) {
-	thread, err := r.service.ResolveCommentThread(id)
+func (r *mutationResolver) ResolveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
+	thread, err := r.service.ResolveCommentThread(id, commentActorInputMap(actor))
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +62,8 @@ func (r *mutationResolver) ResolveThread(ctx context.Context, id string) (*model
 }
 
 // ArchiveThread is the resolver for the archiveThread field.
-func (r *mutationResolver) ArchiveThread(ctx context.Context, id string) (*model.CommentThread, error) {
-	thread, err := r.service.ArchiveCommentThread(id)
+func (r *mutationResolver) ArchiveThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
+	thread, err := r.service.ArchiveCommentThread(id, commentActorInputMap(actor))
 	if err != nil {
 		return nil, err
 	}
@@ -71,17 +71,26 @@ func (r *mutationResolver) ArchiveThread(ctx context.Context, id string) (*model
 }
 
 // ReopenThread is the resolver for the reopenThread field.
-func (r *mutationResolver) ReopenThread(ctx context.Context, id string) (*model.CommentThread, error) {
-	thread, err := r.service.ReopenCommentThread(id)
+func (r *mutationResolver) ReopenThread(ctx context.Context, id string, actor *model.CommentActorInput) (*model.CommentThread, error) {
+	thread, err := r.service.ReopenCommentThread(id, commentActorInputMap(actor))
 	if err != nil {
 		return nil, err
 	}
 	return commentThreadsFromDomain([]application.CommentThread{thread})[0], nil
 }
 
+// RecordThreadRead is the resolver for the recordThreadRead field.
+func (r *mutationResolver) RecordThreadRead(ctx context.Context, threadID string, input model.RecordThreadReadInput) (*model.CommentThreadActivityEvent, error) {
+	event, err := r.service.RecordCommentThreadRead(threadID, commentActorInputMap(input.Actor), stringPointerValue(input.ClientEventID))
+	if err != nil {
+		return nil, err
+	}
+	return activityFromMap(event), nil
+}
+
 // UpdateCommentThread is the resolver for the updateCommentThread field.
 func (r *mutationResolver) UpdateCommentThread(ctx context.Context, id string, input model.CommentThreadUpdateInput) (*model.CommentThread, error) {
-	thread, err := r.service.UpdateCommentThread(id, map[string]any{"status": input.Status.String()})
+	thread, err := r.service.UpdateCommentThread(id, map[string]any{"status": input.Status.String(), "actor": commentActorInputMap(input.Actor)})
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +194,19 @@ func (r *queryResolver) CommentThreads(ctx context.Context, path *string, status
 	return commentThreadsFromDomain(items), nil
 }
 
+// CommentThreadActivities is the resolver for the commentThreadActivities field.
+func (r *queryResolver) CommentThreadActivities(ctx context.Context, threadID string, after *string, first *int) ([]*model.CommentThreadActivityEvent, error) {
+	firstValue := 100
+	if first != nil {
+		firstValue = *first
+	}
+	items, err := r.service.ListCommentThreadActivities(threadID, stringPointerValue(after), firstValue)
+	if err != nil {
+		return nil, err
+	}
+	return activitiesFromMaps(items), nil
+}
+
 // CommentExport is the resolver for the commentExport field.
 func (r *queryResolver) CommentExport(ctx context.Context, path *string, status *model.CommentStatus, format *model.CommentExportFormat) (*model.CommentExport, error) {
 	_ = format
@@ -255,6 +277,8 @@ func (r *queryResolver) Meta(ctx context.Context) (*model.Meta, error) {
 			Statuses:      []model.CommentStatus{model.CommentStatusOpen, model.CommentStatusResolved, model.CommentStatusArchived},
 			Surfaces:      []string{"source", "rendered", "diff"},
 			ExportFormats: []string{"jsonl"},
+			ActorKinds:    model.AllCommentActorKind,
+			ActivityTypes: model.AllCommentThreadActivityType,
 		},
 	}, nil
 }
@@ -294,6 +318,35 @@ func (r *subscriptionResolver) WorkspaceEvents(ctx context.Context) (<-chan *mod
 				}
 				select {
 				case events <- workspaceEventFromDomain(event):
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return events, nil
+}
+
+// CommentThreadActivity is the resolver for the commentThreadActivity field.
+func (r *subscriptionResolver) CommentThreadActivity(ctx context.Context, threadID *string) (<-chan *model.CommentThreadActivityEvent, error) {
+	source, unsubscribe := r.service.SubscribeCommentThreadActivities()
+	events := make(chan *model.CommentThreadActivityEvent, 32)
+	go func() {
+		defer close(events)
+		defer unsubscribe()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event, ok := <-source:
+				if !ok {
+					return
+				}
+				if threadID != nil && *threadID != stringValue(event["threadId"]) {
+					continue
+				}
+				select {
+				case events <- activityFromMap(event):
 				case <-ctx.Done():
 					return
 				}

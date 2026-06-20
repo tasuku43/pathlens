@@ -10,6 +10,8 @@ import {
   normalizeCommentCreateInput,
   normalizeCommentUpdateInput,
   type CommentThread,
+  type CommentActor,
+  type CommentThreadActivityEvent,
   type CommentListFilters,
   type CreateCommentInput,
   type ViviComment,
@@ -35,6 +37,9 @@ export class ViewerService {
   private readonly changeReview?: ViewerServiceOptions["changeReview"];
   private readonly commentStore?: ViewerServiceOptions["commentStore"];
   private subscribers = new Set<(event: FsEvent) => void>();
+  private activitySubscribers = new Set<
+    (event: CommentThreadActivityEvent) => void
+  >();
 
   constructor(options: ViewerServiceOptions) {
     this.fileSystem = options.fileSystem;
@@ -219,6 +224,7 @@ export class ViewerService {
       path: thread.path,
       anchor: thread.anchor,
       body: value.body,
+      actor: value.actor,
       author: value.author,
       source: value.source,
       status: "open",
@@ -243,12 +249,18 @@ export class ViewerService {
         : await store.updateComment(
             applyCommentUpdate(current, { body: update.body }, isoNow()),
           );
-    return {
+    const result = {
       ...updated,
       status: update.status ?? updated.status,
       resolvedAt: transitionedThread?.resolvedAt,
       archivedAt: transitionedThread?.archivedAt,
     };
+    if (update.body !== undefined)
+      await this.publishLatestActivity(
+        result.threadId ?? result.id,
+        "comment_updated",
+      );
+    return result;
   }
 
   async updateCommentThreadStatus(input: {
@@ -264,7 +276,13 @@ export class ViewerService {
     assertThreadTransition(existing.status, input.status);
     const now = isoNow();
     if (store.updateCommentThreadStatus) {
-      return store.updateCommentThreadStatus(input.id, input.status, now);
+      const thread = await store.updateCommentThreadStatus(
+        input.id,
+        input.status,
+        now,
+      );
+      await this.publishLatestActivity(input.id, "thread_status_changed");
+      return thread;
     }
     const comments = await store.listComments();
     const members = comments.filter(
@@ -289,6 +307,36 @@ export class ViewerService {
     return threads.map(exportThreadAsJsonLine).join("\n");
   }
 
+  async listCommentThreadActivities(
+    threadId: string,
+    after?: string,
+    first = 100,
+  ): Promise<CommentThreadActivityEvent[]> {
+    const store = this.requireCommentStore();
+    if (!store.listCommentThreadActivities) return [];
+    return store.listCommentThreadActivities(threadId, after, first);
+  }
+
+  async recordThreadRead(
+    threadId: string,
+    actor: CommentActor,
+    clientEventId?: string,
+  ): Promise<CommentThreadActivityEvent> {
+    const store = this.requireCommentStore();
+    if (!store.recordThreadRead)
+      throw new Error("comment activity is not configured");
+    const event = await store.recordThreadRead(threadId, actor, clientEventId);
+    for (const subscriber of this.activitySubscribers) subscriber(event);
+    return event;
+  }
+
+  subscribeCommentThreadActivities(
+    listener: (event: CommentThreadActivityEvent) => void,
+  ): () => void {
+    this.activitySubscribers.add(listener);
+    return () => this.activitySubscribers.delete(listener);
+  }
+
   subscribe(listener: (event: FsEvent) => void): () => void {
     this.subscribers.add(listener);
     return () => this.subscribers.delete(listener);
@@ -304,6 +352,7 @@ export class ViewerService {
     await this.watcher?.stop();
     await this.changeReview?.stop?.();
     this.subscribers.clear();
+    this.activitySubscribers.clear();
   }
 
   private async createNormalizedComment(
@@ -318,6 +367,7 @@ export class ViewerService {
       viewerKind: input.viewerKind ?? "unknown",
       anchor: input.anchor,
       body: input.body,
+      createdBy: input.actor ?? legacyActor(input.source, input.author),
       author: input.author,
       source: input.source ?? "unknown",
       status: input.status ?? "open",
@@ -331,7 +381,31 @@ export class ViewerService {
     if (!input.threadId && store.createCommentThread) {
       await store.createCommentThread(buildCommentThreads([created])[0]!);
     }
+    await this.publishLatestActivity(
+      created.threadId ?? created.id,
+      input.threadId ? "comment_added" : "thread_created",
+    );
     return created;
+  }
+
+  private async publishLatestActivity(
+    threadId: string,
+    type: CommentThreadActivityEvent["type"],
+  ): Promise<void> {
+    const events = await this.commentStore?.listCommentThreadActivities?.(
+      threadId,
+      undefined,
+      500,
+    );
+    let event: CommentThreadActivityEvent | undefined;
+    for (let index = (events?.length ?? 0) - 1; index >= 0; index--) {
+      if (events?.[index]?.type === type) {
+        event = events[index];
+        break;
+      }
+    }
+    if (event)
+      for (const subscriber of this.activitySubscribers) subscriber(event);
   }
 
   private requireCommentStore() {
@@ -340,6 +414,14 @@ export class ViewerService {
     }
     return this.commentStore;
   }
+}
+
+function legacyActor(
+  source: ViviComment["source"],
+  author?: string,
+): CommentActor {
+  const kind = source ?? "unknown";
+  return { id: author ? `${kind}:${author}` : kind, kind, displayName: author };
 }
 
 function assertThreadTransition(

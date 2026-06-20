@@ -2,7 +2,11 @@ import type {
   ChangeReviewSummary,
   TextDiff,
 } from "../../../domain/change-review.js";
-import type { CommentThread, ViviComment } from "../../../domain/comments.js";
+import type {
+  CommentThread,
+  CommentThreadActivityEvent,
+  ViviComment,
+} from "../../../domain/comments.js";
 import type {
   FilePayload,
   FsEvent,
@@ -24,6 +28,9 @@ import type {
   ViviReviewQueueQuery,
   ViviTextSearchQuery,
   WorkspaceEventsSubscription,
+  CommentThreadActivitySubscription,
+  ViviCommentThreadActivitiesQuery,
+  RecordThreadReadMutation,
 } from "../graphql/generated/graphql.js";
 
 export const adaptGraphqlTree = (dto: TreeFieldsFragment): TreeSnapshot =>
@@ -34,10 +41,45 @@ export const adaptGraphqlFile = (dto: FileFieldsFragment): FilePayload =>
   dto as unknown as FilePayload;
 export const adaptGraphqlComment = (
   dto: CommentFieldsFragment,
-): ViviComment => ({
-  ...(dto as unknown as ViviComment),
-  source: dto.source === "claude_code" ? "claude-code" : dto.source,
+): ViviComment => {
+  const result = { ...(dto as unknown as ViviComment) };
+  if (dto.source) {
+    result.source = dto.source === "claude_code" ? "claude-code" : dto.source;
+  }
+  if (dto.createdBy) {
+    result.createdBy = adaptGraphqlActor(dto.createdBy, dto.source, dto.author);
+  }
+  return result;
+};
+export const adaptGraphqlCommentActivity = (
+  dto:
+    | CommentThreadActivitySubscription["commentThreadActivity"]
+    | ViviCommentThreadActivitiesQuery["commentThreadActivities"][number]
+    | RecordThreadReadMutation["recordThreadRead"],
+): CommentThreadActivityEvent => ({
+  ...(dto as unknown as CommentThreadActivityEvent),
+  actor: adaptGraphqlActor(dto.actor),
 });
+
+function adaptGraphqlActor(
+  actor:
+    | {
+        id: string;
+        kind: "human" | "claude_code" | "codex" | "unknown";
+        displayName?: string | null;
+      }
+    | undefined,
+  legacyKind: "human" | "claude_code" | "codex" | "unknown" = "unknown",
+  legacyName?: string | null,
+) {
+  const kind = actor?.kind ?? legacyKind;
+  const domainKind = kind === "claude_code" ? "claude-code" : kind;
+  return {
+    id: actor?.id ?? (legacyName ? `${domainKind}:${legacyName}` : domainKind),
+    kind: domainKind,
+    displayName: actor?.displayName ?? legacyName ?? undefined,
+  } as const;
+}
 export const adaptGraphqlCommentThread = (
   dto: ThreadFieldsFragment,
 ): CommentThread => ({

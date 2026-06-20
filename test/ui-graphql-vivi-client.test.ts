@@ -117,9 +117,7 @@ it("uses GraphQL mutations for comment creation and status updates", async () =>
           updateCommentThread: {
             ...commentThread,
             status: body.variables.status,
-            comments: [
-              { ...comment, status: body.variables.status },
-            ],
+            comments: [{ ...comment, status: body.variables.status }],
           },
         },
       });
@@ -220,7 +218,9 @@ it("uses GraphQL queries for workspace, review, diff, and search reads", async (
   await expect(
     client.getDiff({ path: "README.md", base: "HEAD" }),
   ).resolves.toEqual(diff);
-  await expect(client.searchFiles({ query: "read", limit: 5 })).resolves.toEqual([
+  await expect(
+    client.searchFiles({ query: "read", limit: 5 }),
+  ).resolves.toEqual([
     {
       path: "README.md",
       name: "README.md",
@@ -228,19 +228,21 @@ it("uses GraphQL queries for workspace, review, diff, and search reads", async (
       score: 100,
     },
   ]);
-  await expect(client.searchText({ query: "Vivi", limit: 5 })).resolves.toEqual([
-    {
-      path: "README.md",
-      viewerKind: "markdown",
-      lineNumber: 1,
-      lineText: "# Vivi",
-      matchStart: 2,
-      matchLength: 4,
-    },
-  ]);
-  await expect(client.getCommentThreads({ path: "README.md" })).resolves.toEqual(
-    [commentThread],
+  await expect(client.searchText({ query: "Vivi", limit: 5 })).resolves.toEqual(
+    [
+      {
+        path: "README.md",
+        viewerKind: "markdown",
+        lineNumber: 1,
+        lineText: "# Vivi",
+        matchStart: 2,
+        matchLength: 4,
+      },
+    ],
   );
+  await expect(
+    client.getCommentThreads({ path: "README.md" }),
+  ).resolves.toEqual([commentThread]);
   await expect(
     client.exportComments({ path: "README.md", status: "open" }),
   ).resolves.toBe(`${JSON.stringify(comment)}\n`);
@@ -258,6 +260,79 @@ it("uses GraphQL queries for workspace, review, diff, and search reads", async (
     "ViviCommentThreads",
     "ViviCommentExport",
   ]);
+});
+
+it("reads, records, and subscribes to actor-aware comment activity", async () => {
+  const event = {
+    id: "activity-1",
+    threadId: "t1",
+    type: "thread_read" as const,
+    actor: {
+      id: "claude-code:run-1",
+      kind: "claude_code" as const,
+      displayName: "Claude Code",
+    },
+    commentId: null,
+    previousStatus: null,
+    status: null,
+    clientEventId: "fetch-open-1",
+    createdAt: "2026-06-20T00:00:01.000Z",
+  };
+  const request = vi.fn<typeof fetch>(async (_input, init) => {
+    const body = JSON.parse(String(init?.body));
+    if (body.operationName === "ViviCommentThreadActivities") {
+      return Response.json({ data: { commentThreadActivities: [event] } });
+    }
+    expect(body.operationName).toBe("RecordThreadRead");
+    expect(body.variables.input.actor.kind).toBe("claude_code");
+    return Response.json({ data: { recordThreadRead: event } });
+  });
+  const sources: FakeEventSource[] = [];
+  const client = new GraphqlViviClient({
+    fetch: request,
+    createEventSource(url) {
+      const source = new FakeEventSource(url);
+      sources.push(source);
+      return source as unknown as EventSource;
+    },
+  });
+  await expect(
+    client.getCommentThreadActivities({ threadId: "t1" }),
+  ).resolves.toMatchObject([
+    {
+      type: "thread_read",
+      actor: { id: "claude-code:run-1", kind: "claude-code" },
+    },
+  ]);
+  await expect(
+    client.recordThreadRead({
+      threadId: "t1",
+      actor: { id: "claude-code:run-1", kind: "claude-code" },
+      clientEventId: "fetch-open-1",
+    }),
+  ).resolves.toMatchObject({
+    id: "activity-1",
+    actor: { kind: "claude-code" },
+  });
+
+  const onEvent = vi.fn();
+  const unsubscribe = client.subscribeCommentThreadActivities("t1", onEvent);
+  const url = new URL(sources[0]!.url, "http://vivi.local");
+  expect(url.searchParams.get("operationName")).toBe("CommentThreadActivity");
+  expect(JSON.parse(url.searchParams.get("variables")!)).toEqual({
+    threadId: "t1",
+  });
+  sources[0]!.emit("next", {
+    data: JSON.stringify({ data: { commentThreadActivity: event } }),
+  });
+  expect(onEvent).toHaveBeenCalledWith(
+    expect.objectContaining({
+      id: "activity-1",
+      actor: expect.objectContaining({ kind: "claude-code" }),
+    }),
+  );
+  unsubscribe();
+  expect(sources[0]!.closed).toBe(true);
 });
 
 it("subscribes to workspace events through GraphQL SSE", () => {

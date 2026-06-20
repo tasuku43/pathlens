@@ -16,6 +16,7 @@ import {
   normalizeCommentFilters,
   type CommentListFilters,
   type CommentStatus,
+  type CommentThreadActivityEvent,
 } from "../domain/comments.js";
 import {
   viviMermaidThemeVariables,
@@ -324,6 +325,19 @@ async function handleGraphqlRequest(
   if (req.method === "GET") {
     const host = req.headers.host ?? `${options.host}:${options.port}`;
     const url = new URL(req.url ?? "/", `http://${host}`);
+    const subscriptionInput = {
+      operationName: url.searchParams.get("operationName") ?? undefined,
+      query: url.searchParams.get("query") ?? undefined,
+    };
+    if (isGraphqlCommentActivityRequest(subscriptionInput)) {
+      streamGraphqlCommentActivities(
+        req,
+        res,
+        options,
+        optionalGraphqlThreadId(url),
+      );
+      return;
+    }
     if (
       isGraphqlWorkspaceEventsRequest({
         operationName: url.searchParams.get("operationName") ?? undefined,
@@ -364,6 +378,30 @@ async function handleGraphqlRequest(
       ],
     });
   }
+}
+
+function streamGraphqlCommentActivities(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: ServerOptions,
+  threadId?: string,
+): void {
+  res.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache, no-transform",
+    connection: "keep-alive",
+  });
+  res.write(": connected\n\n");
+  const unsubscribe = options.service.subscribeCommentThreadActivities(
+    (event) => {
+      if (threadId && event.threadId !== threadId) return;
+      res.write("event: next\n");
+      res.write(
+        `data: ${JSON.stringify({ data: { commentThreadActivity: activityGraphqlValue(event) } })}\n\n`,
+      );
+    },
+  );
+  req.on("close", unsubscribe);
 }
 
 function streamGraphqlWorkspaceEvents(
@@ -445,6 +483,16 @@ async function executeGraphqlOperation(
           graphqlCommentFilters(variables),
         ),
       };
+    case "ViviCommentThreadActivities":
+      return {
+        commentThreadActivities: (
+          await options.service.listCommentThreadActivities(
+            requiredString(variables, "threadId"),
+            optionalString(variables, "after"),
+            positiveVariable(variables, "first") ?? 100,
+          )
+        ).map(activityGraphqlValue),
+      };
     case "ViviCommentExport":
       return {
         commentExport: {
@@ -488,6 +536,14 @@ async function executeGraphqlOperation(
             statuses: ["open", "resolved", "archived"],
             surfaces: ["source", "rendered", "diff"],
             exportFormats: ["jsonl"],
+            actorKinds: ["human", "claude_code", "codex", "unknown"],
+            activityTypes: [
+              "thread_created",
+              "thread_read",
+              "comment_added",
+              "comment_updated",
+              "thread_status_changed",
+            ],
           },
         },
       };
@@ -525,6 +581,18 @@ async function executeGraphqlOperation(
           variables.input ?? {},
         ),
       };
+    case "RecordThreadRead": {
+      const input = recordThreadReadInput(variables.input);
+      return {
+        recordThreadRead: activityGraphqlValue(
+          await options.service.recordThreadRead(
+            requiredString(variables, "threadId"),
+            input.actor,
+            input.clientEventId,
+          ),
+        ),
+      };
+    }
     case "ResolveThread":
       return {
         resolveThread: await options.service.updateCommentThreadStatus({
@@ -591,6 +659,7 @@ function graphqlOperation(payload: {
     "ViviFile",
     "ViviComments",
     "ViviCommentThreads",
+    "ViviCommentThreadActivities",
     "ViviCommentExport",
     "ViviReviewQueue",
     "ViviDiffBases",
@@ -600,6 +669,9 @@ function graphqlOperation(payload: {
     "ViviMeta",
     "ViviPreview",
     "CreateComment",
+    "CreateThread",
+    "AddComment",
+    "RecordThreadRead",
     "UpdateCommentThreadStatus",
     "UpdateCommentThread",
     "UpdateCommentStatus",
@@ -627,9 +699,79 @@ function isGraphqlWorkspaceEventsRequest(input: {
 }): boolean {
   return (
     input.operationName === "WorkspaceEvents" ||
-    input.query?.includes("workspaceEvents") === true ||
-    input.query?.includes("subscription") === true
+    input.query?.includes("workspaceEvents") === true
   );
+}
+
+function isGraphqlCommentActivityRequest(input: {
+  operationName?: string;
+  query?: string;
+}): boolean {
+  return (
+    input.operationName === "CommentThreadActivity" ||
+    input.query?.includes("commentThreadActivity") === true
+  );
+}
+
+function optionalGraphqlThreadId(url: URL): string | undefined {
+  const raw = url.searchParams.get("variables");
+  if (!raw) return undefined;
+  try {
+    const variables = JSON.parse(raw) as Record<string, unknown>;
+    return optionalString(variables, "threadId");
+  } catch {
+    return undefined;
+  }
+}
+
+function recordThreadReadInput(value: unknown): {
+  actor: {
+    id: string;
+    kind: "human" | "claude-code" | "codex" | "unknown";
+    displayName?: string;
+  };
+  clientEventId?: string;
+} {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new Error("invalid thread read input");
+  const input = value as Record<string, unknown>;
+  const actorValue = input.actor;
+  if (
+    typeof actorValue !== "object" ||
+    actorValue === null ||
+    Array.isArray(actorValue)
+  )
+    throw new Error("activity actor is required");
+  const actor = actorValue as Record<string, unknown>;
+  const id = typeof actor.id === "string" ? actor.id.trim() : "";
+  const rawKind = typeof actor.kind === "string" ? actor.kind : "unknown";
+  if (!id) throw new Error("activity actor id is required");
+  const kind = (rawKind === "claude_code" ? "claude-code" : rawKind) as
+    | "human"
+    | "claude-code"
+    | "codex"
+    | "unknown";
+  return {
+    actor: {
+      id,
+      kind,
+      displayName:
+        typeof actor.displayName === "string" ? actor.displayName : undefined,
+    },
+    clientEventId:
+      typeof input.clientEventId === "string" ? input.clientEventId : undefined,
+  };
+}
+
+function activityGraphqlValue(event: CommentThreadActivityEvent) {
+  return {
+    ...event,
+    actor: {
+      ...event.actor,
+      kind:
+        event.actor.kind === "claude-code" ? "claude_code" : event.actor.kind,
+    },
+  };
 }
 
 function graphqlCommentFilters(

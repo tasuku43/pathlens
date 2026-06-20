@@ -4,6 +4,8 @@ import type {
   CommentExportFilters,
   CommentStatus,
   CreateCommentInput,
+  CommentActor,
+  CommentThreadActivityEvent,
 } from "../../domain/comments.js";
 import {
   adaptGraphqlComment,
@@ -16,10 +18,9 @@ import {
   adaptGraphqlTree,
   adaptGraphqlTextSearch,
   adaptGraphqlWorkspaceEvent,
+  adaptGraphqlCommentActivity,
 } from "./adapters/graphql-adapters.js";
-import type {
-  GraphqlResponse,
-} from "./dto/graphql-dto.js";
+import type { GraphqlResponse } from "./dto/graphql-dto.js";
 import { print } from "graphql";
 import {
   CreateCommentDocument,
@@ -37,6 +38,9 @@ import {
   ViviTreeDocument,
   ViviWorkspaceDocument,
   WorkspaceEventsDocument,
+  CommentThreadActivityDocument,
+  RecordThreadReadDocument,
+  ViviCommentThreadActivitiesDocument,
 } from "./graphql/generated/graphql.js";
 import type {
   CreateCommentMutation,
@@ -54,6 +58,9 @@ import type {
   ViviTreeQuery,
   ViviWorkspaceQuery,
   WorkspaceEventsSubscription,
+  CommentThreadActivitySubscription,
+  RecordThreadReadMutation,
+  ViviCommentThreadActivitiesQuery,
 } from "./graphql/generated/graphql.js";
 
 export interface GraphqlViviClientOptions {
@@ -198,6 +205,65 @@ export class GraphqlViviClient implements ViviClient {
       variables: input,
     });
     return adaptGraphqlCommentThread(data.updateCommentThread);
+  }
+
+  async getCommentThreadActivities(input: {
+    threadId: string;
+    after?: string;
+    first?: number;
+  }) {
+    const data = await this.graphql<ViviCommentThreadActivitiesQuery>({
+      operationName: "ViviCommentThreadActivities",
+      query: print(ViviCommentThreadActivitiesDocument),
+      variables: input,
+    });
+    return data.commentThreadActivities.map(adaptGraphqlCommentActivity);
+  }
+
+  async recordThreadRead(input: {
+    threadId: string;
+    actor: CommentActor;
+    clientEventId?: string;
+  }) {
+    const data = await this.graphql<RecordThreadReadMutation>({
+      operationName: "RecordThreadRead",
+      query: print(RecordThreadReadDocument),
+      variables: {
+        threadId: input.threadId,
+        input: {
+          actor: {
+            ...input.actor,
+            kind:
+              input.actor.kind === "claude-code"
+                ? "claude_code"
+                : input.actor.kind,
+          },
+          clientEventId: input.clientEventId,
+        },
+      },
+    });
+    return adaptGraphqlCommentActivity(data.recordThreadRead);
+  }
+
+  subscribeCommentThreadActivities(
+    threadId: string | undefined,
+    onEvent: (event: CommentThreadActivityEvent) => void,
+  ) {
+    const params = new URLSearchParams({
+      operationName: "CommentThreadActivity",
+      query: print(CommentThreadActivityDocument),
+      variables: JSON.stringify({ threadId }),
+    });
+    const source = this.createEventSource(this.url(`/graphql?${params}`));
+    const listener = (raw: Event) => {
+      const payload = JSON.parse((raw as MessageEvent<string>).data) as {
+        data: CommentThreadActivitySubscription;
+      };
+      onEvent(adaptGraphqlCommentActivity(payload.data.commentThreadActivity));
+    };
+    source.addEventListener("next", listener);
+    source.addEventListener("message", listener);
+    return () => source.close();
   }
 
   async searchFiles(input: {

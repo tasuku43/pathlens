@@ -7,15 +7,34 @@ stable id, file path, anchor, lifecycle status, lifecycle timestamps, and the
 ordered collection of messages. Status changes always target a thread.
 
 `Comment` is one immutable-identity message inside a thread. It owns the body,
-author label, origin (`human`, `claude-code`, `codex`, or `unknown`), and message
-timestamps. `Comment.status`, `resolvedAt`, and `archivedAt` remain readable for
+actor, and message timestamps. `Comment.status`, `resolvedAt`, and `archivedAt`
+remain readable for
 v1 compatibility, but API responses project the owning thread lifecycle onto
 those fields. New clients must not use message status as an independent review
 state.
 
-Missing origin on legacy records is projected as `unknown`. Vivi UI writes
-`human`; coding agents should write their explicit origin. `author` is an
-optional display label and must not be used for authentication.
+`CommentActor` is shared by comments and activity events. It has a stable
+client-supplied `id`, a `kind` (`human`, `claude_code`, `codex`, or `unknown`),
+and an optional display name. Missing actor data on legacy records is projected
+as `unknown`. Actor identity is attribution, not authentication.
+
+## Activity events
+
+Activity is append-only observation history and never changes thread status.
+For example, a coding agent records `thread_read` after fetching an open thread;
+the thread remains `open`. The GUI can query the history and subscribe to live
+events to show which actor has observed or changed the conversation.
+
+The public event kinds are `thread_created`, `thread_read`, `comment_added`,
+`comment_updated`, and `thread_status_changed`. Every event carries the same
+`CommentActor` shape, a server id and timestamp, and relevant optional fields
+such as `commentId`, `previousStatus`, and `status`.
+
+Agents record reads with `recordThreadRead(threadId, input)`. The optional
+`clientEventId` is an idempotency key scoped to the thread, actor, and event
+type, so retrying a CLI request does not create duplicate read receipts.
+`commentThreadActivities(threadId, after, first)` provides bounded history;
+`commentThreadActivity(threadId)` streams new events without replaying history.
 
 ## Status model
 
@@ -46,8 +65,9 @@ Thread metadata is projected from messages and an append-only
 `comment-threads.jsonl` event log:
 
 ```json
-{"schemaVersion":1,"type":"thread.created","at":"...","thread":{"id":"...","path":"README.md","anchor":{},"status":"open","createdAt":"...","updatedAt":"..."}}
-{"schemaVersion":1,"type":"thread.status_changed","threadId":"...","status":"resolved","at":"..."}
+{"schemaVersion":1,"id":"...","type":"thread.created","threadId":"...","actor":{"id":"human:tasuku","kind":"human"},"at":"...","thread":{"id":"...","path":"README.md","anchor":{},"status":"open","createdAt":"...","updatedAt":"..."}}
+{"schemaVersion":1,"id":"...","type":"thread.read","threadId":"...","actor":{"id":"claude-code:run-1","kind":"claude-code"},"clientEventId":"fetch-open-1","at":"..."}
+{"schemaVersion":1,"id":"...","type":"thread.status_changed","threadId":"...","actor":{"id":"codex:run-2","kind":"codex"},"previousStatus":"open","status":"resolved","at":"..."}
 ```
 
 For a legacy row without `threadId`, the projection uses `comment.id` as the

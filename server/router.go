@@ -16,6 +16,10 @@ func (server *Server) route(w http.ResponseWriter, r *http.Request) {
 	}()
 	switch {
 	case r.URL.Path == "/graphql":
+		if r.Method == http.MethodGet && isGraphqlCommentActivityRequest(r) {
+			server.handleGraphqlCommentActivities(w, r)
+			return
+		}
 		if r.Method == http.MethodGet && isGraphqlWorkspaceEventsRequest(r) {
 			server.handleGraphqlEvents(w, r)
 			return

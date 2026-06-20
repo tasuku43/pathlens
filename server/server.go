@@ -229,9 +229,55 @@ func (server *Server) handleGraphqlEvents(w http.ResponseWriter, r *http.Request
 
 func isGraphqlWorkspaceEventsRequest(r *http.Request) bool {
 	return r.URL.Query().Get("operationName") == "WorkspaceEvents" ||
-		strings.Contains(r.URL.Query().Get("query"), "workspaceEvents") ||
-		strings.Contains(r.URL.Query().Get("query"), "subscription")
+		strings.Contains(r.URL.Query().Get("query"), "workspaceEvents")
 }
+
+func isGraphqlCommentActivityRequest(r *http.Request) bool {
+	return r.URL.Query().Get("operationName") == "CommentThreadActivity" || strings.Contains(r.URL.Query().Get("query"), "commentThreadActivity")
+}
+
+func (server *Server) handleGraphqlCommentActivities(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "text/event-stream")
+	w.Header().Set("cache-control", "no-cache, no-transform")
+	w.Header().Set("connection", "keep-alive")
+	_, _ = io.WriteString(w, ": connected\n\n")
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+	threadID := ""
+	if raw := r.URL.Query().Get("variables"); raw != "" {
+		var variables map[string]any
+		if json.Unmarshal([]byte(raw), &variables) == nil {
+			threadID, _ = variables["threadId"].(string)
+		}
+	}
+	events, unsubscribe := server.app.SubscribeCommentThreadActivities()
+	defer unsubscribe()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case event, ok := <-events:
+			if !ok {
+				return
+			}
+			if threadID != "" && threadID != stringValue(event["threadId"]) {
+				continue
+			}
+			payload, err := json.Marshal(map[string]any{"data": map[string]any{"commentThreadActivity": event}})
+			if err != nil {
+				continue
+			}
+			_, _ = io.WriteString(w, "event: next\n")
+			_, _ = io.WriteString(w, "data: "+string(payload)+"\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+		}
+	}
+}
+
+func stringValue(value any) string { text, _ := value.(string); return text }
 
 func (server *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	requested := strings.TrimPrefix(r.URL.Path, "/")

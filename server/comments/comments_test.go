@@ -102,3 +102,51 @@ func TestStoreCreatesThreadMetadataWithoutChangingCommentsJSONLShape(t *testing.
 		t.Fatalf("status = %v", threads[0]["status"])
 	}
 }
+
+func TestStoreRecordsIdempotentReadActivityWithoutChangingThreadStatus(t *testing.T) {
+	store, err := NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := store.Create(map[string]any{"path": "README.md", "body": "review this", "actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"}, "anchor": map[string]any{"surface": "source", "canonical": map[string]any{"path": "README.md"}}}, "sha256:file", "markdown")
+	if err != nil {
+		t.Fatal(err)
+	}
+	threadID := created["threadId"].(string)
+	actor := map[string]any{"id": "claude-code:session-1", "kind": "claude_code", "displayName": "Claude Code"}
+	first, err := store.RecordThreadRead(threadID, actor, "read-request-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	retried, err := store.RecordThreadRead(threadID, actor, "read-request-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first["id"] != retried["id"] {
+		t.Fatalf("idempotent ids differ: %v != %v", first["id"], retried["id"])
+	}
+	activities, err := store.ListActivities(ActivityFilters{ThreadID: threadID, First: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	readCount := 0
+	for _, event := range activities {
+		if event["type"] == "thread_read" {
+			readCount++
+			eventActor := event["actor"].(map[string]any)
+			if eventActor["id"] != actor["id"] {
+				t.Fatalf("actor = %#v", eventActor)
+			}
+		}
+	}
+	if readCount != 1 {
+		t.Fatalf("read activity count = %d, want 1", readCount)
+	}
+	threads, err := store.ListThreads(Filters{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if threads[0]["status"] != "open" {
+		t.Fatalf("read changed status to %v", threads[0]["status"])
+	}
+}

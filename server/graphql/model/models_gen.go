@@ -13,9 +13,10 @@ import (
 )
 
 type AddCommentInput struct {
-	Body   string         `json:"body"`
-	Author *string        `json:"author,omitempty"`
-	Source *CommentSource `json:"source,omitempty"`
+	Body   string             `json:"body"`
+	Actor  *CommentActorInput `json:"actor,omitempty"`
+	Author *string            `json:"author,omitempty"`
+	Source *CommentSource     `json:"source,omitempty"`
 }
 
 type ChangeReviewSummary struct {
@@ -32,6 +33,7 @@ type Comment struct {
 	Anchor     map[string]any     `json:"anchor"`
 	DiffAnchor *DiffCommentAnchor `json:"diffAnchor,omitempty"`
 	Body       string             `json:"body"`
+	CreatedBy  *CommentActor      `json:"createdBy"`
 	Author     *string            `json:"author,omitempty"`
 	Source     CommentSource      `json:"source"`
 	Status     CommentStatus      `json:"status"`
@@ -41,6 +43,18 @@ type Comment struct {
 	ArchivedAt *string            `json:"archivedAt,omitempty"`
 }
 
+type CommentActor struct {
+	ID          string           `json:"id"`
+	Kind        CommentActorKind `json:"kind"`
+	DisplayName *string          `json:"displayName,omitempty"`
+}
+
+type CommentActorInput struct {
+	ID          string           `json:"id"`
+	Kind        CommentActorKind `json:"kind"`
+	DisplayName *string          `json:"displayName,omitempty"`
+}
+
 type CommentExport struct {
 	Format      CommentExportFormat `json:"format"`
 	ContentType string              `json:"contentType"`
@@ -48,20 +62,23 @@ type CommentExport struct {
 }
 
 type CommentInput struct {
-	ThreadID   *string        `json:"threadId,omitempty"`
-	Path       string         `json:"path"`
-	ViewerKind *string        `json:"viewerKind,omitempty"`
-	Anchor     map[string]any `json:"anchor"`
-	Body       string         `json:"body"`
-	Author     *string        `json:"author,omitempty"`
-	Source     *CommentSource `json:"source,omitempty"`
-	Status     *CommentStatus `json:"status,omitempty"`
+	ThreadID   *string            `json:"threadId,omitempty"`
+	Path       string             `json:"path"`
+	ViewerKind *string            `json:"viewerKind,omitempty"`
+	Anchor     map[string]any     `json:"anchor"`
+	Body       string             `json:"body"`
+	Actor      *CommentActorInput `json:"actor,omitempty"`
+	Author     *string            `json:"author,omitempty"`
+	Source     *CommentSource     `json:"source,omitempty"`
+	Status     *CommentStatus     `json:"status,omitempty"`
 }
 
 type CommentMeta struct {
-	Statuses      []CommentStatus `json:"statuses"`
-	Surfaces      []string        `json:"surfaces"`
-	ExportFormats []string        `json:"exportFormats"`
+	Statuses      []CommentStatus             `json:"statuses"`
+	Surfaces      []string                    `json:"surfaces"`
+	ExportFormats []string                    `json:"exportFormats"`
+	ActorKinds    []CommentActorKind          `json:"actorKinds"`
+	ActivityTypes []CommentThreadActivityType `json:"activityTypes"`
 }
 
 type CommentThread struct {
@@ -77,13 +94,27 @@ type CommentThread struct {
 	Comments   []*Comment         `json:"comments"`
 }
 
+type CommentThreadActivityEvent struct {
+	ID             string                    `json:"id"`
+	ThreadID       string                    `json:"threadId"`
+	Type           CommentThreadActivityType `json:"type"`
+	Actor          *CommentActor             `json:"actor"`
+	CommentID      *string                   `json:"commentId,omitempty"`
+	PreviousStatus *CommentStatus            `json:"previousStatus,omitempty"`
+	Status         *CommentStatus            `json:"status,omitempty"`
+	ClientEventID  *string                   `json:"clientEventId,omitempty"`
+	CreatedAt      string                    `json:"createdAt"`
+}
+
 type CommentThreadUpdateInput struct {
-	Status CommentStatus `json:"status"`
+	Status CommentStatus      `json:"status"`
+	Actor  *CommentActorInput `json:"actor,omitempty"`
 }
 
 type CommentUpdateInput struct {
-	Body   *string        `json:"body,omitempty"`
-	Status *CommentStatus `json:"status,omitempty"`
+	Body   *string            `json:"body,omitempty"`
+	Status *CommentStatus     `json:"status,omitempty"`
+	Actor  *CommentActorInput `json:"actor,omitempty"`
 }
 
 // Stable location of a comment in a unified diff. Line numbers are 1-based.
@@ -140,6 +171,11 @@ type PreviewResource struct {
 type Query struct {
 }
 
+type RecordThreadReadInput struct {
+	Actor         *CommentActorInput `json:"actor"`
+	ClientEventID *string            `json:"clientEventId,omitempty"`
+}
+
 type Subscription struct {
 }
 
@@ -159,6 +195,65 @@ type WorkspaceEvent struct {
 	Path    string    `json:"path"`
 	Kind    *NodeKind `json:"kind,omitempty"`
 	Version int       `json:"version"`
+}
+
+type CommentActorKind string
+
+const (
+	CommentActorKindHuman      CommentActorKind = "human"
+	CommentActorKindClaudeCode CommentActorKind = "claude_code"
+	CommentActorKindCodex      CommentActorKind = "codex"
+	CommentActorKindUnknown    CommentActorKind = "unknown"
+)
+
+var AllCommentActorKind = []CommentActorKind{
+	CommentActorKindHuman,
+	CommentActorKindClaudeCode,
+	CommentActorKindCodex,
+	CommentActorKindUnknown,
+}
+
+func (e CommentActorKind) IsValid() bool {
+	switch e {
+	case CommentActorKindHuman, CommentActorKindClaudeCode, CommentActorKindCodex, CommentActorKindUnknown:
+		return true
+	}
+	return false
+}
+
+func (e CommentActorKind) String() string {
+	return string(e)
+}
+
+func (e *CommentActorKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CommentActorKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CommentActorKind", str)
+	}
+	return nil
+}
+
+func (e CommentActorKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CommentActorKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CommentActorKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type CommentExportFormat string
@@ -325,6 +420,67 @@ func (e *CommentStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e CommentStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type CommentThreadActivityType string
+
+const (
+	CommentThreadActivityTypeThreadCreated       CommentThreadActivityType = "thread_created"
+	CommentThreadActivityTypeThreadRead          CommentThreadActivityType = "thread_read"
+	CommentThreadActivityTypeCommentAdded        CommentThreadActivityType = "comment_added"
+	CommentThreadActivityTypeCommentUpdated      CommentThreadActivityType = "comment_updated"
+	CommentThreadActivityTypeThreadStatusChanged CommentThreadActivityType = "thread_status_changed"
+)
+
+var AllCommentThreadActivityType = []CommentThreadActivityType{
+	CommentThreadActivityTypeThreadCreated,
+	CommentThreadActivityTypeThreadRead,
+	CommentThreadActivityTypeCommentAdded,
+	CommentThreadActivityTypeCommentUpdated,
+	CommentThreadActivityTypeThreadStatusChanged,
+}
+
+func (e CommentThreadActivityType) IsValid() bool {
+	switch e {
+	case CommentThreadActivityTypeThreadCreated, CommentThreadActivityTypeThreadRead, CommentThreadActivityTypeCommentAdded, CommentThreadActivityTypeCommentUpdated, CommentThreadActivityTypeThreadStatusChanged:
+		return true
+	}
+	return false
+}
+
+func (e CommentThreadActivityType) String() string {
+	return string(e)
+}
+
+func (e *CommentThreadActivityType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CommentThreadActivityType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CommentThreadActivityType", str)
+	}
+	return nil
+}
+
+func (e CommentThreadActivityType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CommentThreadActivityType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CommentThreadActivityType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

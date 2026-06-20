@@ -18,6 +18,8 @@ import type {
   CommentListFilters,
   CommentStatus,
   CommentThread,
+  CommentActor,
+  CommentThreadActivityEvent,
   ViviComment,
 } from "../domain/comments.js";
 
@@ -76,6 +78,16 @@ export interface CommentStorePort {
     status: CommentStatus,
     at: string,
   ): Promise<CommentThread>;
+  listCommentThreadActivities?(
+    threadId: string,
+    after?: string,
+    first?: number,
+  ): Promise<CommentThreadActivityEvent[]>;
+  recordThreadRead?(
+    threadId: string,
+    actor: CommentActor,
+    clientEventId?: string,
+  ): Promise<CommentThreadActivityEvent>;
 }
 
 export interface ViewerServiceOptions {

@@ -73,6 +73,11 @@ fragment CommentFields on Comment {
     fileHash
   }
   body
+  createdBy {
+    id
+    kind
+    displayName
+  }
   author
   source
   status
@@ -175,6 +180,24 @@ query ViviCommentThreads($path: String, $status: CommentStatus) {
     ...ThreadFields
   }
 }
+
+query ViviCommentThreadActivities($threadId: ID!, $after: ID, $first: Int) {
+  commentThreadActivities(threadId: $threadId, after: $after, first: $first) {
+    id
+    threadId
+    type
+    actor {
+      id
+      kind
+      displayName
+    }
+    commentId
+    previousStatus
+    status
+    clientEventId
+    createdAt
+  }
+}
 query ViviCommentExport(
   $path: String
   $status: CommentStatus
@@ -242,6 +265,21 @@ mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
     ...CommentFields
   }
 }
+
+mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) {
+  recordThreadRead(threadId: $threadId, input: $input) {
+    id
+    threadId
+    type
+    actor {
+      id
+      kind
+      displayName
+    }
+    clientEventId
+    createdAt
+  }
+}
 mutation ResolveThread($id: ID!) {
   resolveThread(id: $id) {
     ...ThreadFields
@@ -273,5 +311,23 @@ subscription WorkspaceEvents {
     path
     kind
     version
+  }
+}
+
+subscription CommentThreadActivity($threadId: ID) {
+  commentThreadActivity(threadId: $threadId) {
+    id
+    threadId
+    type
+    actor {
+      id
+      kind
+      displayName
+    }
+    commentId
+    previousStatus
+    status
+    clientEventId
+    createdAt
   }
 }

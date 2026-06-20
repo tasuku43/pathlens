@@ -88,17 +88,26 @@ func (s *CommentService) Update(id string, input map[string]any) (map[string]any
 	return s.comments.Update(id, input)
 }
 func (s *CommentService) UpdateThread(id, status string) (CommentThread, error) {
+	return s.UpdateThreadAs(id, status, map[string]any{"id": "unknown", "kind": "unknown"})
+}
+func (s *CommentService) UpdateThreadAs(id, status string, actor map[string]any) (CommentThread, error) {
 	if id == "" {
 		return CommentThread{}, fmt.Errorf("comment thread id is required")
 	}
 	if status == "" {
 		return CommentThread{}, fmt.Errorf("comment thread status is required")
 	}
-	item, err := s.comments.UpdateThreadStatus(id, status)
+	item, err := s.comments.UpdateThreadStatusAs(id, status, actor)
 	if err != nil {
 		return CommentThread{}, err
 	}
 	return threadFromMap(item), nil
+}
+func (s *CommentService) Activities(filters comments.ActivityFilters) ([]map[string]any, error) {
+	return s.comments.ListActivities(filters)
+}
+func (s *CommentService) RecordRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+	return s.comments.RecordThreadRead(threadID, actor, clientEventID)
 }
 func (s *CommentService) AddComment(threadID string, input map[string]any) (map[string]any, error) {
 	thread, err := s.Thread(threadID)
@@ -127,6 +136,39 @@ type EventService struct {
 	mu          sync.Mutex
 	subscribers map[chan WorkspaceEvent]struct{}
 	version     int
+}
+
+type ActivityEventService struct {
+	mu          sync.Mutex
+	subscribers map[chan map[string]any]struct{}
+}
+
+func NewActivityEventService() *ActivityEventService {
+	return &ActivityEventService{subscribers: map[chan map[string]any]struct{}{}}
+}
+func (s *ActivityEventService) Subscribe() (<-chan map[string]any, func()) {
+	events := make(chan map[string]any, 32)
+	s.mu.Lock()
+	s.subscribers[events] = struct{}{}
+	s.mu.Unlock()
+	return events, func() {
+		s.mu.Lock()
+		if _, ok := s.subscribers[events]; ok {
+			delete(s.subscribers, events)
+			close(events)
+		}
+		s.mu.Unlock()
+	}
+}
+func (s *ActivityEventService) Publish(event map[string]any) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for subscriber := range s.subscribers {
+		select {
+		case subscriber <- event:
+		default:
+		}
+	}
 }
 
 func NewEventService() *EventService {

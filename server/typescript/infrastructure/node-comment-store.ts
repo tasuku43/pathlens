@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -6,8 +7,10 @@ import type { CommentStorePort } from "../application/contracts.js";
 import {
   buildCommentThreads,
   type CommentListFilters,
+  type CommentActor,
   type CommentStatus,
   type CommentThread,
+  type CommentThreadActivityEvent,
   type ViviComment,
 } from "../domain/comments.js";
 
@@ -106,7 +109,10 @@ export class NodeCommentStore implements CommentStorePort {
   async createCommentThread(thread: CommentThread): Promise<CommentThread> {
     await this.appendThreadEvent({
       schemaVersion: 1,
+      id: randomUUID(),
       type: "thread.created",
+      threadId: thread.id,
+      actor: thread.comments[0]?.createdBy,
       at: thread.createdAt,
       thread: { ...thread, comments: [] },
     });
@@ -124,12 +130,64 @@ export class NodeCommentStore implements CommentStorePort {
     if (!thread) throw new Error("comment thread not found");
     await this.appendThreadEvent({
       schemaVersion: 1,
+      id: randomUUID(),
       type: "thread.status_changed",
       threadId: id,
+      previousStatus: thread.status,
+      actor: { id: "unknown", kind: "unknown" },
       status,
       at,
     });
     return (await this.listCommentThreads()).find((item) => item.id === id)!;
+  }
+
+  async listCommentThreadActivities(
+    threadId: string,
+    after?: string,
+    first = 100,
+  ): Promise<CommentThreadActivityEvent[]> {
+    const events = (await this.readThreadEvents()).map(publicActivityEvent);
+    const start = after
+      ? events.findIndex((event) => event.id === after) + 1
+      : 0;
+    return events
+      .slice(Math.max(0, start))
+      .filter((event) => event.threadId === threadId)
+      .slice(0, Math.min(Math.max(first, 1), 500));
+  }
+
+  async recordThreadRead(
+    threadId: string,
+    actor: CommentActor,
+    clientEventId?: string,
+  ): Promise<CommentThreadActivityEvent> {
+    if (
+      !(await this.listCommentThreads()).some(
+        (thread) => thread.id === threadId,
+      )
+    ) {
+      throw new Error("comment thread not found");
+    }
+    const existing = clientEventId
+      ? (await this.listCommentThreadActivities(threadId, undefined, 500)).find(
+          (event) =>
+            event.type === "thread_read" &&
+            event.actor.id === actor.id &&
+            event.clientEventId === clientEventId,
+        )
+      : undefined;
+    if (existing) return existing;
+    const event: ThreadEvent = {
+      schemaVersion: 1,
+      id: randomUUID(),
+      type: "thread.read",
+      threadId,
+      actor,
+      clientEventId,
+      at: new Date().toISOString(),
+    };
+    await this.appendThreadEvent(event);
+    return publicActivityEvent(event);
   }
 
   async getComment(id: string): Promise<ViviComment | null> {
@@ -143,6 +201,17 @@ export class NodeCommentStore implements CommentStorePort {
       comments.push(comment);
       await this.writeAll(comments);
     });
+    if (comment.threadId && comment.threadId !== comment.id) {
+      await this.appendThreadEvent({
+        schemaVersion: 1,
+        id: randomUUID(),
+        type: "comment.added",
+        threadId: comment.threadId,
+        commentId: comment.id,
+        actor: comment.createdBy,
+        at: comment.createdAt,
+      });
+    }
     return comment;
   }
 
@@ -153,6 +222,15 @@ export class NodeCommentStore implements CommentStorePort {
       if (index < 0) throw new Error("comment not found");
       comments[index] = comment;
       await this.writeAll(comments);
+    });
+    await this.appendThreadEvent({
+      schemaVersion: 1,
+      id: randomUUID(),
+      type: "comment.updated",
+      threadId: comment.threadId ?? comment.id,
+      commentId: comment.id,
+      actor: comment.createdBy,
+      at: comment.updatedAt,
     });
     return comment;
   }
@@ -219,11 +297,38 @@ export class NodeCommentStore implements CommentStorePort {
 
 interface ThreadEvent {
   schemaVersion: 1;
-  type: "thread.created" | "thread.status_changed";
+  type:
+    | "thread.created"
+    | "thread.status_changed"
+    | "thread.read"
+    | "comment.added"
+    | "comment.updated";
   at?: string;
   thread?: CommentThread;
   threadId?: string;
   status?: CommentStatus;
+  previousStatus?: CommentStatus;
+  commentId?: string;
+  clientEventId?: string;
+  actor?: CommentActor;
+  id?: string;
+}
+
+function publicActivityEvent(
+  event: ThreadEvent,
+  index = 0,
+): CommentThreadActivityEvent {
+  return {
+    id: event.id ?? `legacy-activity-${index}`,
+    threadId: event.threadId ?? event.thread?.id ?? "",
+    type: event.type.replaceAll(".", "_") as CommentThreadActivityEvent["type"],
+    actor: event.actor ?? { id: "unknown", kind: "unknown" },
+    commentId: event.commentId,
+    previousStatus: event.previousStatus,
+    status: event.status,
+    clientEventId: event.clientEventId,
+    createdAt: event.at ?? event.thread?.createdAt ?? "",
+  };
 }
 
 export function defaultViviDataDir(): string {

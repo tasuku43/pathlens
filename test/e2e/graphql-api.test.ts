@@ -159,6 +159,43 @@ it("serves the first GraphQL data API slice with REST-equivalent behavior", asyn
     body: "Agent reply",
   });
 
+  const read = await graphql<{
+    recordThreadRead: {
+      id: string;
+      threadId: string;
+      type: string;
+      actor: { id: string; kind: string };
+      clientEventId: string;
+    };
+  }>("RecordThreadRead", {
+    threadId: created.createComment.id,
+    input: {
+      actor: {
+        id: "claude-code:run-1",
+        kind: "claude_code",
+        displayName: "Claude Code",
+      },
+      clientEventId: "fetch-open-1",
+    },
+  });
+  expect(read.recordThreadRead).toMatchObject({
+    threadId: created.createComment.id,
+    type: "thread_read",
+    actor: { id: "claude-code:run-1", kind: "claude_code" },
+    clientEventId: "fetch-open-1",
+  });
+  const activity = await graphql<{
+    commentThreadActivities: Array<{ id: string; type: string }>;
+  }>("ViviCommentThreadActivities", {
+    threadId: created.createComment.id,
+  });
+  expect(activity.commentThreadActivities).toContainEqual(
+    expect.objectContaining({
+      id: read.recordThreadRead.id,
+      type: "thread_read",
+    }),
+  );
+
   const exported = await graphql<{
     commentExport: { format: string; contentType: string; content: string };
   }>("ViviCommentExport", { path: "README.md", status: "open" });
@@ -371,6 +408,12 @@ function graphqlQuery(operationName: string): string {
     }`,
     AddComment: `mutation AddComment($threadId: ID!, $input: AddCommentInput!) {
       addComment(threadId: $threadId, input: $input) { threadId source body }
+    }`,
+    RecordThreadRead: `mutation RecordThreadRead($threadId: ID!, $input: RecordThreadReadInput!) {
+      recordThreadRead(threadId: $threadId, input: $input) { id threadId type actor { id kind } clientEventId }
+    }`,
+    ViviCommentThreadActivities: `query ViviCommentThreadActivities($threadId: ID!) {
+      commentThreadActivities(threadId: $threadId) { id threadId type actor { id kind } clientEventId createdAt }
     }`,
     ViviComments: `query ViviComments($path: String) {
       comments(path: $path) { id threadId path }

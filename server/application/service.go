@@ -17,6 +17,7 @@ type Service struct {
 	Search        *SearchService
 	Preview       *PreviewService
 	Event         *EventService
+	ActivityEvent *ActivityEventService
 }
 
 type Options struct {
@@ -54,6 +55,7 @@ func NewService(options Options) *Service {
 		Search:        &SearchService{workspace: options.Workspace},
 		Preview:       &PreviewService{workspace: options.Workspace},
 		Event:         NewEventService(),
+		ActivityEvent: NewActivityEventService(),
 	}
 }
 
@@ -98,7 +100,15 @@ func (service *Service) ListCommentThreads(filters comments.Filters) ([]CommentT
 }
 
 func (service *Service) CreateComment(input map[string]any) (map[string]any, error) {
-	return service.Comment.Create(input)
+	comment, err := service.Comment.Create(input)
+	if err == nil {
+		eventType := "thread_created"
+		if stringValue(input["threadId"]) != "" {
+			eventType = "comment_added"
+		}
+		service.publishLatestActivity(stringValue(comment["threadId"]), eventType)
+	}
+	return comment, err
 }
 
 func (service *Service) CreateCommentThread(input map[string]any) (CommentThread, error) {
@@ -106,29 +116,78 @@ func (service *Service) CreateCommentThread(input map[string]any) (CommentThread
 	if err != nil {
 		return CommentThread{}, err
 	}
-	return service.Comment.Thread(stringValue(comment["threadId"]))
+	thread, err := service.Comment.Thread(stringValue(comment["threadId"]))
+	if err == nil {
+		service.publishLatestActivity(thread.ID, "thread_created")
+	}
+	return thread, err
 }
 
 func (service *Service) AddComment(threadID string, input map[string]any) (map[string]any, error) {
-	return service.Comment.AddComment(threadID, input)
+	comment, err := service.Comment.AddComment(threadID, input)
+	if err == nil {
+		service.publishLatestActivity(threadID, "comment_added")
+	}
+	return comment, err
 }
 
 func (service *Service) UpdateComment(id string, input map[string]any) (map[string]any, error) {
-	return service.Comment.Update(id, input)
+	comment, err := service.Comment.Update(id, input)
+	if err == nil {
+		service.publishLatestActivity(stringValue(comment["threadId"]), "comment_updated")
+	}
+	return comment, err
 }
 
 func (service *Service) UpdateCommentThread(id string, input map[string]any) (CommentThread, error) {
-	return service.CommentThread.UpdateThread(id, stringValue(input["status"]))
+	return service.updateCommentThread(id, stringValue(input["status"]), mapValue(input["actor"]))
 }
 
-func (service *Service) ResolveCommentThread(id string) (CommentThread, error) {
-	return service.Comment.UpdateThread(id, "resolved")
+func (service *Service) ResolveCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
+	return service.updateCommentThread(id, "resolved", firstActor(actors))
 }
-func (service *Service) ArchiveCommentThread(id string) (CommentThread, error) {
-	return service.Comment.UpdateThread(id, "archived")
+func (service *Service) ArchiveCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
+	return service.updateCommentThread(id, "archived", firstActor(actors))
 }
-func (service *Service) ReopenCommentThread(id string) (CommentThread, error) {
-	return service.Comment.UpdateThread(id, "open")
+func (service *Service) ReopenCommentThread(id string, actors ...map[string]any) (CommentThread, error) {
+	return service.updateCommentThread(id, "open", firstActor(actors))
+}
+
+func (service *Service) updateCommentThread(id, status string, actor map[string]any) (CommentThread, error) {
+	thread, err := service.Comment.UpdateThreadAs(id, status, actor)
+	if err == nil {
+		service.publishLatestActivity(id, "thread_status_changed")
+	}
+	return thread, err
+}
+
+func (service *Service) ListCommentThreadActivities(threadID, after string, first int) ([]map[string]any, error) {
+	return service.Comment.Activities(comments.ActivityFilters{ThreadID: threadID, After: after, First: first})
+}
+
+func (service *Service) RecordCommentThreadRead(threadID string, actor map[string]any, clientEventID string) (map[string]any, error) {
+	event, err := service.Comment.RecordRead(threadID, actor, clientEventID)
+	if err == nil {
+		service.ActivityEvent.Publish(event)
+	}
+	return event, err
+}
+
+func (service *Service) SubscribeCommentThreadActivities() (<-chan map[string]any, func()) {
+	return service.ActivityEvent.Subscribe()
+}
+
+func (service *Service) publishLatestActivity(threadID, eventType string) {
+	items, err := service.ListCommentThreadActivities(threadID, "", 500)
+	if err != nil {
+		return
+	}
+	for index := len(items) - 1; index >= 0; index-- {
+		if stringValue(items[index]["type"]) == eventType {
+			service.ActivityEvent.Publish(items[index])
+			return
+		}
+	}
 }
 
 func (service *Service) ExportCommentsJSONL(filters comments.Filters) (string, error) {
@@ -146,4 +205,11 @@ func (service *Service) PublishWorkspaceEvent(event WorkspaceEvent) {
 func stringValue(value any) string {
 	text, _ := value.(string)
 	return text
+}
+func mapValue(value any) map[string]any { result, _ := value.(map[string]any); return result }
+func firstActor(actors []map[string]any) map[string]any {
+	if len(actors) > 0 {
+		return actors[0]
+	}
+	return map[string]any{"id": "unknown", "kind": "unknown"}
 }
