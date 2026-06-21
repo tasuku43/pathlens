@@ -1,23 +1,228 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { WorkbenchView } from "./WorkbenchView.js";
+import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
+import {
+  commentsForPath,
+  htmlDiff,
+  manyReviewComments,
+  markdownDiff,
+  sampleComments,
+  sampleDiff,
+  sampleDraftComments,
+  sampleFiles,
+  samplePublishedReviewBatch,
+  sampleReviewChanges,
+  sampleReviewDiffStats,
+  sampleReviewQueueItems,
+  sampleThreadActivities,
+  sampleUnreadReviewPaths,
+} from "../../storybook/fixtures/review-lab.js";
+import { buildReviewQueueItems } from "../../state/review-queue.js";
 
 const meta = {
-  title: "Workbench/WorkbenchView",
-  component: WorkbenchView,
-} satisfies Meta<typeof WorkbenchView>;
+  title: "Screens/Workbench",
+  component: ReviewWorkbenchStory,
+  parameters: {
+    layout: "fullscreen",
+    a11y: { test: "error" },
+  },
+} satisfies Meta<typeof ReviewWorkbenchStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ClassicWorkspace: Story = {
+export const EmptyWorkspace: Story = {
   args: {
-    sidebar: <div style={{ padding: 16 }}>docs / README.md</div>,
-    viewer: (
-      <article style={{ padding: 24 }}>
-        <h1>Vivi</h1>
-        <p>Local workspace preview</p>
-      </article>
+    state: "empty",
+    file: null,
+    comments: [],
+    draftComments: [],
+    reviewChanges: [],
+    reviewItems: [],
+    unreadReviewPaths: new Set(),
+  },
+};
+
+export const WorkspaceWithFileTreeAndSelectedFile: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "comment-workbench-open-1",
+  },
+};
+
+export const ReviewQueueFocused: Story = {
+  args: {
+    file: sampleFiles.queue,
+    viewerMode: "rendered",
+    inspectorTitle: "Review Queue is the primary right-inspector work list.",
+  },
+};
+
+export const FileWithOpenComments: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "comment-workbench-open-1",
+    inlineComment: sampleComments[0],
+  },
+};
+
+export const FileWithDraftComments: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "draft:draft-review-1",
+  },
+};
+
+export const DraftCommentsReadyToPublish: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    draftComments: sampleDraftComments,
+    inspectorTitle:
+      "Draft Review tray is open and the Publish all CTA is visible.",
+  },
+};
+
+export const DraftCommentsPublishing: Story = {
+  args: {
+    file: sampleFiles.code,
+    draftComments: sampleDraftComments,
+    draftPublishing: true,
+  },
+};
+
+export const PublishedReviewBatchWithMultipleOpenThreads: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    comments: sampleComments.filter(
+      (comment) =>
+        comment.reviewBatchId === samplePublishedReviewBatch.reviewBatchId ||
+        comment.path === sampleFiles.markdown.path,
     ),
-    inspector: <div style={{ padding: 16 }}>Review Queue · 2</div>,
+    draftComments: [],
+    inspectorTitle: `Published batch ${samplePublishedReviewBatch.reviewBatchId} spans Markdown and HTML threads.`,
+  },
+};
+
+export const AgentActivityVisible: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "comment-workbench-agent-1",
+    commentsPanelOpen: true,
+    commentsPanelQuery: "WorkbenchContainer",
+  },
+};
+
+export const AgentReplyVisible: Story = {
+  args: {
+    file: sampleFiles.code,
+    activeCommentId: "comment-workbench-agent-1",
+    inlineComment: sampleComments[1],
+  },
+};
+
+export const DiffReviewMode: Story = {
+  args: {
+    file: sampleFiles.code,
+    diff: sampleDiff,
+    diffEnabled: true,
+    activeCommentId: "comment-diff-added",
+  },
+};
+
+export const HtmlPreviewReviewMode: Story = {
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "preview",
+    diff: htmlDiff,
+    diffEnabled: true,
+    activeCommentId: "comment-html-rendered",
+    inspectorTitle:
+      "Storybook covers HTML review chrome and rendered HTML diff comments; full /preview/html loading stays in E2E.",
+  },
+};
+
+export const MarkdownRenderedReviewMode: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    diff: markdownDiff,
+    activeCommentId: "comment-md-rendered",
+  },
+};
+
+export const ManyFilesManyComments: Story = {
+  args: {
+    file: sampleFiles.code,
+    comments: manyReviewComments,
+    reviewItems: buildReviewQueueItems(
+      sampleReviewChanges,
+      manyReviewComments,
+      sampleThreadActivities,
+      sampleUnreadReviewPaths,
+    ),
+    commentsPanelOpen: true,
+    commentsPanelStatus: "open",
+  },
+};
+
+export const LoadingState: Story = {
+  args: {
+    state: "loading",
+    file: sampleFiles.code,
+  },
+};
+
+export const ErrorState: Story = {
+  args: {
+    state: "error",
+    file: sampleFiles.code,
+  },
+};
+
+export const DisconnectedState: Story = {
+  args: {
+    state: "disconnected",
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+  },
+};
+
+export const CommentsPanelOpen: Story = {
+  args: {
+    file: sampleFiles.code,
+    commentsPanelOpen: true,
+    commentsPanelStatus: "all",
+  },
+};
+
+export const CommandPaletteOpen: Story = {
+  args: {
+    file: sampleFiles.code,
+    commandPaletteOpen: true,
+  },
+};
+
+export const ShortcutHelpOpen: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "rendered",
+    shortcutHelpOpen: true,
+  },
+};
+
+export const FileWithOnlyMarkdownComments: Story = {
+  args: {
+    file: sampleFiles.markdown,
+    viewerMode: "source",
+    comments: commentsForPath(sampleFiles.markdown.path),
+  },
+};
+
+export const FileWithOnlyHtmlComments: Story = {
+  args: {
+    file: sampleFiles.html,
+    viewerMode: "source",
+    comments: commentsForPath(sampleFiles.html.path),
   },
 };

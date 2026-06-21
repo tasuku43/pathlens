@@ -1,46 +1,51 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { CommentStatus, ViviComment } from "../../domain/comments.js";
+import { draftReviewCommentAsViviComment } from "../../state/comments.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import { CodeCommentThread } from "./components/CodeCommentThread.js";
+import {
+  sampleComments,
+  sampleDraftComments,
+  sampleFiles,
+  sampleThreadActivities,
+} from "../../storybook/fixtures/review-lab.js";
 
 const anchor = {
   surface: "source" as const,
-  canonical: { path: "src/review.ts", lineStart: 12, lineEnd: 14 },
+  canonical: {
+    path: sampleFiles.code.path,
+    lineStart: 9,
+    lineEnd: 12,
+    quote: "function publishDraftReviewComments()",
+    fileHash: sampleFiles.code.etag,
+  },
 };
 
 function comments(status: CommentStatus): ViviComment[] {
   return [
     {
-      id: "comment-1",
-      threadId: "thread-1",
-      path: "src/review.ts",
-      viewerKind: "text",
-      anchor,
-      body: "Please keep the retry boundary explicit.",
-      source: "human",
+      ...sampleComments[0]!,
       status,
-      createdAt: "2026-06-20T09:00:00.000Z",
-      updatedAt: "2026-06-20T09:05:00.000Z",
+      resolvedAt:
+        status === "resolved" ? "2026-06-20T09:20:00.000Z" : undefined,
+      archivedAt:
+        status === "archived" ? "2026-06-20T09:25:00.000Z" : undefined,
     },
     {
-      id: "comment-2",
-      threadId: "thread-1",
-      path: "src/review.ts",
-      viewerKind: "text",
-      anchor,
-      body: "Updated and covered by the timeout test.",
-      source: "codex",
+      ...sampleComments[1]!,
       status,
-      createdAt: "2026-06-20T09:05:00.000Z",
-      updatedAt: "2026-06-20T09:05:00.000Z",
+      resolvedAt:
+        status === "resolved" ? "2026-06-20T09:20:00.000Z" : undefined,
+      archivedAt:
+        status === "archived" ? "2026-06-20T09:25:00.000Z" : undefined,
     },
   ];
 }
 
 const meta = {
-  title: "Comments/Thread lifecycle",
+  title: "Review/Comments/Inline Thread",
   component: CodeCommentThread,
-  parameters: { layout: "centered" },
+  parameters: { layout: "centered", a11y: { test: "error" } },
   args: { onClose: () => undefined },
 } satisfies Meta<typeof CodeCommentThread>;
 
@@ -50,15 +55,15 @@ type Story = StoryObj<typeof meta>;
 function args(status: CommentStatus) {
   return {
     thread: {
-      key: "thread-1",
-      path: "src/review.ts",
-      lineStart: 12,
-      lineEnd: 14,
+      key: "thread-workbench-open",
+      path: sampleFiles.code.path,
+      lineStart: 9,
+      lineEnd: 12,
       comments: comments(status),
     },
     draft: {
-      threadId: "thread-1",
-      path: "src/review.ts",
+      threadId: "thread-workbench-open",
+      path: sampleFiles.code.path,
       viewerKind: "text" as const,
       anchor,
     },
@@ -68,35 +73,62 @@ function args(status: CommentStatus) {
 export const Open: Story = { args: args("open") };
 export const Resolved: Story = { args: args("resolved") };
 export const Archived: Story = { args: args("archived") };
-export const WithAgentActivity: Story = {
+
+export const UserWritesOneDraftComment: Story = {
+  args: {
+    thread: {
+      key: "draft-review-1",
+      path: sampleFiles.code.path,
+      lineStart: 6,
+      lineEnd: 6,
+      comments: [
+        draftReviewCommentAsViviComment(
+          sampleDraftComments[0]!,
+          sampleComments,
+        ),
+      ],
+    },
+    draft: {
+      path: sampleFiles.code.path,
+      viewerKind: "text",
+      anchor: sampleDraftComments[0]!.anchor,
+    },
+  },
+};
+
+export const UserWritesMultipleDraftComments: Story = {
+  args: {
+    thread: {
+      key: "draft-review-multiple",
+      path: sampleFiles.code.path,
+      lineStart: 6,
+      lineEnd: 10,
+      comments: sampleDraftComments
+        .filter((draft) => draft.path === sampleFiles.code.path)
+        .map((draft) => draftReviewCommentAsViviComment(draft, sampleComments)),
+    },
+    draft: {
+      path: sampleFiles.code.path,
+      viewerKind: "text",
+      anchor: sampleDraftComments[0]!.anchor,
+    },
+  },
+};
+
+export const AgentHasReadThread: Story = {
   args: {
     ...args("open"),
     activity: summarizeThreadActivity(
-      [
-        {
-          id: "activity-1",
-          threadId: "thread-1",
-          type: "thread_read",
-          actor: {
-            id: "claude-code:run-1",
-            kind: "claude-code",
-            displayName: "Claude Code",
-          },
-          createdAt: "2026-06-20T09:06:48.000Z",
-        },
-        {
-          id: "activity-2",
-          threadId: "thread-1",
-          type: "comment_added",
-          actor: {
-            id: "codex:run-1",
-            kind: "codex",
-            displayName: "Codex",
-          },
-          createdAt: "2026-06-20T09:06:00.000Z",
-        },
-      ],
-      new Date("2026-06-20T09:07:00.000Z").getTime(),
+      sampleThreadActivities["thread-workbench-open"]?.timeline.filter(
+        (event) => event.type === "thread_read",
+      ),
     ),
+  },
+};
+
+export const AgentHasReplied: Story = {
+  args: {
+    ...args("open"),
+    activity: sampleThreadActivities["thread-workbench-open"],
   },
 };

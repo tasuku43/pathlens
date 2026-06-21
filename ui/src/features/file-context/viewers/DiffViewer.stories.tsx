@@ -1,69 +1,101 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import {
+  commentsForPath,
+  htmlDiff,
+  markdownDiff,
+  sampleComments,
+  sampleDiff,
+  sampleFiles,
+  sampleThreadActivities,
+} from "../../../storybook/fixtures/review-lab.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 const meta = {
-  title: "File Context/Diff comments",
+  title: "Review/Diff/Diff Viewer",
   component: DiffViewer,
+  parameters: {
+    layout: "fullscreen",
+    a11y: { test: "error" },
+  },
+  args: {
+    path: sampleFiles.code.path,
+    renderKind: "source",
+    file: sampleFiles.code,
+    diff: sampleDiff,
+    comments: commentsForPath(sampleFiles.code.path),
+    threadActivities: sampleThreadActivities,
+  },
 } satisfies Meta<typeof DiffViewer>;
+
 export default meta;
 type Story = StoryObj<typeof meta>;
-const file = {
-  path: "src/example.ts",
-  viewerKind: "code" as const,
-  encoding: "utf8" as const,
-  content: "const answer = 42;\n",
-  etag: "file-42",
-  size: 19,
-  mtimeMs: 1,
-};
-const diff = {
-  path: file.path,
-  status: "available" as const,
-  baseLabel: "HEAD",
-  compareLabel: "working tree",
-  content: "@@ -1,1 +1,1 @@\n-const answer = 41;\n+const answer = 42;",
-};
-const comment = {
-  id: "comment-1",
-  threadId: "thread-1",
-  path: file.path,
-  viewerKind: "text" as const,
-  body: "Is this the final value?",
-  status: "open" as const,
-  createdAt: "2026-06-20T00:00:00Z",
-  updatedAt: "2026-06-20T00:00:00Z",
-  anchor: {
-    surface: "diff" as const,
-    canonical: {
-      path: file.path,
-      lineStart: 1,
-      lineEnd: 1,
-      fileHash: file.etag,
-    },
-    diff: {
-      path: file.path,
-      base: "HEAD",
-      ref: "working-tree",
-      hunkId: "@@ -1,1 +1,1 @@",
-      side: "new" as const,
-      newLineStart: 1,
-      newLineEnd: 1,
-      fileHash: file.etag,
-    },
-  },
-};
-export const OpenThread: Story = {
+
+export const DiffCommentOnAddedLine: Story = {
   args: {
-    path: file.path,
-    renderKind: "source",
-    file,
-    diff,
-    comments: [comment],
+    activeCommentId: "comment-diff-added",
   },
 };
-export const ResolvedThread: Story = {
-  args: { ...OpenThread.args!, comments: [{ ...comment, status: "resolved" }] },
+
+export const DiffCommentOnRemovedLine: Story = {
+  args: {
+    activeCommentId: "comment-diff-removed",
+  },
 };
-export const ArchivedThread: Story = {
-  args: { ...OpenThread.args!, comments: [{ ...comment, status: "archived" }] },
+
+export const RenderedMarkdownComment: Story = {
+  args: {
+    path: sampleFiles.markdown.path,
+    renderKind: "markdown",
+    file: sampleFiles.markdown,
+    diff: markdownDiff,
+    comments: commentsForPath(sampleFiles.markdown.path),
+    activeCommentId: "comment-md-rendered",
+  },
+};
+
+export const RenderedHtmlComment: Story = {
+  args: {
+    path: sampleFiles.html.path,
+    renderKind: "html",
+    file: sampleFiles.html,
+    diff: htmlDiff,
+    comments: commentsForPath(sampleFiles.html.path),
+    activeCommentId: "comment-html-rendered",
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    diff: null,
+    loading: true,
+    comments: [],
+  },
+};
+
+export const Unavailable: Story = {
+  args: {
+    diff: {
+      path: sampleFiles.code.path,
+      status: "unavailable",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "",
+      reason: "No base ref is available in this fixture.",
+    },
+    comments: [],
+  },
+};
+
+export const BinaryDiff: Story = {
+  args: {
+    diff: {
+      path: "screenshots/workbench.png",
+      status: "binary",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: "",
+      reason: "Binary file diffs are reviewed as metadata only.",
+    },
+    comments: [],
+  },
 };

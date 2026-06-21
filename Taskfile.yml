@@ -75,7 +75,7 @@ tasks:
       - npm --prefix ui run build
 
   ui:storybook:
-    desc: Start Storybook for presentational UI components
+    desc: Start Storybook for the review UI regression lab
     cmds:
       - npm run storybook
 
@@ -85,7 +85,7 @@ tasks:
       - npm run build:storybook
 
   storybook:
-    desc: Start Storybook for presentational UI components
+    desc: Start Storybook for the review UI regression lab
     cmds:
       - task: ui:storybook
 
