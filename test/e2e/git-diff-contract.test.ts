@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -29,6 +29,7 @@ beforeEach(async () => {
   await git("init");
   await git("config", "user.email", "vivi@example.test");
   await git("config", "user.name", "vivi");
+  await git("config", "core.filemode", "true");
   await git("add", ".");
   await git("commit", "-m", "initial");
   await writeFile(
@@ -101,6 +102,49 @@ it("serves binary diff status for changed image files", async () => {
 
   expect(diff.status).toBe("binary");
   expect(diff.reason).toBe("Binary diff is not shown in Vivi.");
+}, 10000);
+
+it("serves metadata-only Markdown diffs without line changes", async () => {
+  await writeFile(path.join(dir, "notes.md"), "# Notes\n");
+  await git("add", "notes.md");
+  await git("commit", "-m", "add notes");
+  await chmod(path.join(dir, "notes.md"), 0o755);
+
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new GitChangeReview({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const changes = await fetch(`${server.url}/api/changes`).then(
+    (res) =>
+      res.json() as Promise<{
+        available: boolean;
+        changes: Array<{ path: string; status: string; kind?: string }>;
+      }>,
+  );
+  expect(changes.available).toBe(true);
+  expect(changes.changes).toContainEqual({
+    path: "notes.md",
+    status: "modified",
+    kind: "file",
+  });
+
+  const diff = await fetch(
+    `${server.url}/api/diff?path=${encodeURIComponent("notes.md")}&base=HEAD`,
+  ).then(
+    (res) =>
+      res.json() as Promise<{
+        status: string;
+        content: string;
+      }>,
+  );
+
+  expect(diff.status).toBe("available");
+  expect(diff.content).toContain("old mode 100644");
+  expect(diff.content).toContain("new mode 100755");
+  expect(diff.content).not.toContain("\n+# Notes");
+  expect(diff.content).not.toContain("\n-# Notes");
 }, 10000);
 
 it("serves untracked directory contents as file-level changes without directory 500s", async () => {

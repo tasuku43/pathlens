@@ -1122,7 +1122,20 @@ it("summarizes unified diff additions and deletions for review rows", () => {
         "+extra",
       ].join("\n"),
     }),
-  ).toEqual({ additions: 2, deletions: 1 });
+  ).toEqual({ additions: 2, deletions: 1, metadataOnly: false });
+  expect(
+    buildDiffStat({
+      path: "notes/mode-only.md",
+      status: "available",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: [
+        "diff --git a/notes/mode-only.md b/notes/mode-only.md",
+        "old mode 100644",
+        "new mode 100755",
+      ].join("\n"),
+    }),
+  ).toEqual({ additions: 0, deletions: 0, metadataOnly: true });
   expect(
     buildDiffStat({
       path: "image.png",
