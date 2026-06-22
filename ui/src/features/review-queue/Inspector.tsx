@@ -10,7 +10,6 @@ import {
   type ReviewChangeItem,
 } from "../../state/git-review.js";
 import { iconForPath } from "../../state/file-icons.js";
-import type { OutlineHeading } from "../../state/outline.js";
 import {
   isReviewQueueItemOpenable,
   summarizeReviewQueue,
@@ -20,7 +19,6 @@ import {
 interface Props {
   file: FilePayload | null;
   fileRemoved?: boolean;
-  outline: OutlineHeading[];
   reviewChanges: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
   reviewUnavailableReason?: string | null;
@@ -34,14 +32,11 @@ interface Props {
   selectedCodeRange: LineRange | null;
   refreshedAt?: number;
   activePaneId: string;
-  onOutlineSelect: (id: string) => void;
   onOpenEventPath: (path: string) => void;
   onConfirmEventPath: (path: string) => void;
   onOpenNextChanged: () => void;
   onOpenPreviousChanged: () => void;
   onOpenAllChanged: () => void;
-  onTargetHoverChange: (hovering: boolean) => void;
-  onRevealTarget: () => void;
   onRevealInTree: () => void;
   onOpenComments?: () => void;
 }
@@ -49,7 +44,6 @@ interface Props {
 export function Inspector({
   file,
   fileRemoved = false,
-  outline,
   reviewChanges,
   reviewItems,
   reviewUnavailableReason = null,
@@ -63,14 +57,11 @@ export function Inspector({
   selectedCodeRange,
   refreshedAt,
   activePaneId,
-  onOutlineSelect,
   onOpenEventPath,
   onConfirmEventPath,
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
-  onTargetHoverChange,
-  onRevealTarget,
   onRevealInTree,
   onOpenComments,
 }: Props) {
@@ -322,67 +313,8 @@ export function Inspector({
           </details>
         ) : null}
 
-        <h3 className="section-title">In this file</h3>
-        {codeMetadata ? (
-          codeMetadata.symbols.length ? (
-            <nav className="symbol-list">
-              {codeMetadata.symbols.slice(0, 14).map((symbol) => (
-                <a
-                  href={`#L${symbol.line}`}
-                  key={`${symbol.kind}-${symbol.name}-${symbol.line}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    document
-                      .querySelector<HTMLElement>(
-                        `.code-line[data-line="${symbol.line}"]`,
-                      )
-                      ?.scrollIntoView({
-                        block: "center",
-                        behavior: "smooth",
-                      });
-                  }}
-                >
-                  <span>{symbol.kind}</span>
-                  <strong>{symbol.name}</strong>
-                  <small>{symbol.line}</small>
-                </a>
-              ))}
-            </nav>
-          ) : (
-            <p className="muted compact-empty">No symbols for this file.</p>
-          )
-        ) : outline.length ? (
-          <nav className="outline">
-            {outline.map((heading, index) => (
-              <a
-                key={heading.id}
-                className={`${heading.level === 2 ? "h2 " : ""}${index === 0 ? "active" : ""}`}
-                href={`#${heading.id}`}
-                onClick={(event) => {
-                  event.preventDefault();
-                  onOutlineSelect(heading.id);
-                }}
-              >
-                {heading.text}
-              </a>
-            ))}
-          </nav>
-        ) : (
-          <p className="muted compact-empty">No outline for this file.</p>
-        )}
-
         <details className="file-details">
           <summary>Details</summary>
-          <button
-            className="focus-target"
-            onClick={onRevealTarget}
-            onMouseEnter={() => onTargetHoverChange(true)}
-            onMouseLeave={() => onTargetHoverChange(false)}
-            type="button"
-          >
-            <span>Inspector target</span>
-            <strong>{inspectorTargetLabel(file, activePaneId)}</strong>
-          </button>
           <div className="kv">
             <span>Type</span>
             <strong>{file?.viewerKind ?? "none"}</strong>
@@ -501,14 +433,6 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-export function inspectorTargetLabel(
-  file: FilePayload | null,
-  paneId: string,
-): string {
-  const name = file?.path.split("/").filter(Boolean).at(-1) ?? "No file";
-  return `${name} · ${paneId}`;
 }
 
 function viewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {

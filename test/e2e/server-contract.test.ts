@@ -117,6 +117,9 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(preview.headers.get("content-security-policy")).toContain(
     "script-src 'nonce-",
   );
+  expect(preview.headers.get("content-security-policy")).toContain(
+    "sandbox allow-same-origin",
+  );
   expect(preview.headers.get("content-security-policy")).not.toContain(
     "script-src 'self' 'unsafe-inline'",
   );
@@ -127,14 +130,18 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(previewHtml).toContain('data-vivi-source-line-start="1"');
   expect(previewHtml).toContain('data-vivi-source-line-end="1"');
   expect(previewHtml).toContain("vivi-html-block-target");
-  expect(previewHtml).toContain("if (event.source !== parent) return;");
+  expect(previewHtml).toContain("vivi-html-comment-open");
+  expect(previewHtml).toContain("vivi-html-thread-layout");
   expect(previewHtml).toContain(
-    'action.setAttribute("aria-label", actionLabel(0))',
+    "if (event.source && event.source !== parent) return;",
   );
-  expect(previewHtml).toContain("drafting-vivi-comment");
+  expect(previewHtml).toContain("Open comment thread with ");
+  expect(previewHtml).toContain("drafting-rendered-comment");
+  expect(previewHtml).toContain("rendered-comment-marker");
   expect(previewHtml).toContain(
-    'replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character)',
+    'document.querySelector(`[data-vivi-comment-block-id="${escapeSelectorValue(comment.blockId)}"]`)',
   );
+  expect(previewHtml).toContain("spansMultipleLines");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
   expect(previewHtml).toContain("background:#0e1316");
 
@@ -142,6 +149,89 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(css.status).toBe(200);
   expect(css.headers.get("content-type")).toContain("text/css");
   expect(await css.text()).toContain("rgb(255, 0, 0)");
+}, 10000);
+
+it("serves HTML preview with sanitized generated ids and escaped Mermaid source", async () => {
+  await writeFile(
+    path.join(dir, "danger.html"),
+    '<h1><script>alert(1)</script>Title</h1><pre class="mermaid">graph TD\nA["\\\\quoted"] --> B["<script>x</script>"]</pre>',
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/preview/html?path=danger.html`);
+  expect(response.status).toBe(200);
+  const html = await response.text();
+  expect(html).toContain('<h1 id="title"');
+  expect(html).toContain('data-mermaid-source="graph TD');
+  expect(html).toContain("&quot;\\\\quoted&quot;");
+  expect(html).toContain("--&gt;");
+  expect(html).not.toContain('data-mermaid-source="graph TD\nA["\\\\quoted"]');
+  expect(html).not.toContain("<script>x</script>");
+}, 10000);
+
+it("serves adversarial HTML preview input without regex backtracking stalls", async () => {
+  await writeFile(
+    path.join(dir, "stress.html"),
+    `<body ${"<body ".repeat(2_000)}><pre class="mermaid">${"<div>a".repeat(4_000)}</body>`,
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const startedAt = Date.now();
+  const response = await fetch(`${server.url}/preview/html?path=stress.html`);
+
+  expect(response.status).toBe(200);
+  expect(Date.now() - startedAt).toBeLessThan(1_000);
+  await expect(response.text()).resolves.toContain(
+    "data-vivi-mermaid-preview",
+  );
+}, 10000);
+
+it("does not expose internal error details in API error responses", async () => {
+  const service = new ViewerService({
+    fileSystem: {
+      async readTree() {
+        throw new Error("not used");
+      },
+      async readFile() {
+        throw new Error("stack secret: /private/root/file.txt");
+      },
+      async readHtmlPreview() {
+        throw new Error("not used");
+      },
+    },
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/api/file?path=README.md`);
+  expect(response.status).toBe(500);
+  const text = await response.text();
+  expect(text).not.toContain("stack secret");
+  expect(text).not.toContain("/private/root/file.txt");
+  expect(text).not.toContain(" at ");
+  expect(JSON.parse(text)).toEqual({
+    error: "internal server error",
+    reason: "An internal error occurred.",
+    status: "internal_error",
+  });
+}, 10000);
+
+it("rejects encoded static paths that escape the bundled app root", async () => {
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const response = await fetch(`${server.url}/%2e%2e%2fpackage.json`);
+  expect(response.status).toBe(400);
+  await expect(response.json()).resolves.toEqual({
+    error: "static path escapes root",
+  });
 }, 10000);
 
 it("normalizes filesystem errors from API routes", async () => {

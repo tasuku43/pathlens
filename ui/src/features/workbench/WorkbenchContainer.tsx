@@ -270,7 +270,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     path: string;
     revision: number;
   } | null>(null);
-  const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [pendingRestoreSession, setPendingRestoreSession] =
     useState<WorkspaceSessionState | null>(null);
@@ -1190,13 +1189,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       openMovedTarget(currentFileOpenThreadTargets, "next");
       return;
     }
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(activeCommentId)
-        : activeCommentId.replace(/"/g, '\\"');
-    const target = document.querySelector<HTMLElement>(
-      `[data-comment-id="${escapedId}"], .inline-comment-card`,
-    );
+    const target =
+      Array.from(
+        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find((element) => element.dataset.commentId === activeCommentId) ??
+      document.querySelector<HTMLElement>(".inline-comment-card");
     target?.focus();
   }
 
@@ -1317,25 +1314,23 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
   }
 
-  const outline = useMemo(() => {
-    if (!file) return [];
-    if (file.viewerKind === "html") return extractHtmlOutline(file.content);
-    if (file.viewerKind !== "markdown") return [];
-    return extractMarkdownOutline(file.content);
-  }, [file]);
+  function outlineForFile(target: FilePayload | null) {
+    if (!target) return [];
+    if (target.viewerKind === "html") return extractHtmlOutline(target.content);
+    if (target.viewerKind !== "markdown") return [];
+    return extractMarkdownOutline(target.content);
+  }
 
-  function jumpToOutline(id: string) {
+  function jumpToOutline(id: string, paneId = layout.activePaneId) {
     const pane = document.querySelector<HTMLElement>(
-      `[data-pane-id="${layout.activePaneId}"]`,
+      `[data-pane-id="${paneId}"]`,
     );
     const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
     if (!viewer) return;
 
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(id)
-        : id.replace(/"/g, '\\"');
-    const markdownTarget = viewer.querySelector<HTMLElement>(`#${escapedId}`);
+    const markdownTarget = Array.from(
+      viewer.querySelectorAll<HTMLElement>("[id]"),
+    ).find((element) => element.id === id);
     if (markdownTarget) {
       markdownTarget.scrollIntoView({ block: "start", behavior: "smooth" });
       return;
@@ -1353,19 +1348,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       next.hash = id;
       iframe.src = next.toString();
     }
-  }
-
-  function revealInspectorTarget() {
-    const pane = document.querySelector<HTMLElement>(
-      `[data-pane-id="${layout.activePaneId}"]`,
-    );
-    pane?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-      behavior: "smooth",
-    });
-    setInspectorTargetVisible(true);
-    window.setTimeout(() => setInspectorTargetVisible(false), 900);
   }
 
   function revealActiveFileInTree(path = selectedPath) {
@@ -1923,7 +1905,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             <Inspector
               file={file}
               fileRemoved={activeFileRemoved}
-              outline={outline}
               reviewChanges={reviewChanges}
               reviewItems={reviewItems}
               reviewUnavailableReason={gitReview?.reason ?? null}
@@ -1946,14 +1927,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               }
               refreshedAt={file?.path ? refreshedFiles[file.path] : undefined}
               activePaneId={layout.activePaneId}
-              onOutlineSelect={jumpToOutline}
               onOpenEventPath={(path) => openReviewQueueItem(path, "preview")}
               onConfirmEventPath={(path) => openReviewQueueItem(path, "normal")}
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
-              onTargetHoverChange={setInspectorTargetVisible}
-              onRevealTarget={revealInspectorTarget}
               onRevealInTree={revealActiveFileInTree}
             />
           </>
@@ -2139,7 +2117,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
     return (
       <section
-        className={`${pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"} ${inspectorTargetVisible && pane.id === layout.activePaneId ? "inspector-target-visible" : ""}`}
+        className={
+          pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"
+        }
         data-pane-id={pane.id}
         key={pane.id}
         onFocus={() =>
@@ -2190,9 +2170,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setDraggingTab(true);
           }}
         />
-        {pane.id === layout.activePaneId ? (
-          <div className="pane-focus-badge">Inspector target</div>
-        ) : null}
         <div className="viewer-pane">
           {error && pane.id === layout.activePaneId ? (
             <div className="error">{error}</div>
@@ -2221,9 +2198,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               diffFocusChanges={
                 paneFile?.path ? Boolean(diffFocusByPath[paneFile.path]) : false
               }
+              outline={outlineForFile(paneFile)}
               refreshedAt={
                 paneFile?.path ? refreshedFiles[paneFile.path] : undefined
               }
+              onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
               onCreateComment={(draft, body, rect) =>
                 createComment(draft, body, rect).catch((err) =>
                   setError(String(err)),

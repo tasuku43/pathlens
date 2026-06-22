@@ -203,7 +203,6 @@ export function ReviewWorkbenchStory({
               onDragStateChange={noop}
               onManualDragStart={noop}
             />
-            <div className="pane-focus-badge">Inspector target</div>
             <div className="viewer-pane">
               {state === "error" ? (
                 <div className="error">
@@ -227,6 +226,7 @@ export function ReviewWorkbenchStory({
                   diffLoading={false}
                   diffEnabled={diffEnabled}
                   diffFocusChanges
+                  outline={outline}
                   comments={viewerComments}
                   activeCommentId={activeCommentId}
                   threadActivities={threadActivities}
@@ -245,7 +245,6 @@ export function ReviewWorkbenchStory({
         </main>
         <Inspector
           file={state === "empty" ? null : file}
-          outline={outline}
           reviewChanges={reviewChanges}
           reviewItems={reviewItems}
           reviewUnavailableReason={
@@ -269,14 +268,11 @@ export function ReviewWorkbenchStory({
             state === "disconnected" ? Date.now() - 90_000 : undefined
           }
           activePaneId="main"
-          onOutlineSelect={noop}
           onOpenEventPath={noop}
           onConfirmEventPath={noop}
           onOpenNextChanged={noop}
           onOpenPreviousChanged={noop}
           onOpenAllChanged={noop}
-          onTargetHoverChange={noop}
-          onRevealTarget={noop}
           onRevealInTree={noop}
           onOpenComments={noop}
         />

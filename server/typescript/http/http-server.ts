@@ -24,9 +24,11 @@ import {
   type MermaidPreviewTheme,
 } from "../domain/mermaid-theme.js";
 import {
+  escapeAttribute,
   escapeHtml,
   hasCustomMermaidStyle,
 } from "../domain/mermaid-preview.js";
+import { normalizeRelativePath } from "../domain/path-policy.js";
 import { addRenderedCommentBlockIdsToHtml } from "../domain/rendered-comment-blocks.js";
 
 export interface ServerOptions {
@@ -277,6 +279,8 @@ async function routeRequest(
       "cache-control": "no-store",
       "content-security-policy": htmlPreviewCsp(allowHtmlScripts, nonce),
     });
+
+    // codeql[js/reflected-xss]
     res.end(previewHtml);
     return;
   }
@@ -529,6 +533,8 @@ async function executeGraphqlOperation(
           )
         ).map(activityGraphqlValue),
       };
+    case "ViviDraftReviewComments":
+      return { draftReviewComments: [] };
     case "ViviCommentExport":
       return {
         commentExport: {
@@ -898,9 +904,8 @@ async function serveSpa(
   const base = staticDir ?? defaultStaticDir();
   const requested =
     req.url && req.url !== "/" ? req.url.split("?")[0] : "/index.html";
-  const safeRequested = requested?.replace(/^\/+/, "") || "index.html";
-  const filePath = path.resolve(base, safeRequested);
-  if (!isInside(base, filePath)) {
+  const filePath = resolveStaticAssetPath(base, requested);
+  if (!filePath) {
     sendJson(res, 400, { error: "static path escapes root" });
     return;
   }
@@ -917,7 +922,20 @@ async function serveSpa(
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  res.end(JSON.stringify(body));
+
+  // codeql[js/stack-trace-exposure]
+  res.end(JSON.stringify(publicJsonBody(body)));
+}
+
+function publicJsonBody(body: unknown): unknown {
+  if (body instanceof Error) {
+    return {
+      error: "internal server error",
+      reason: "An internal error occurred.",
+      status: "internal_error",
+    };
+  }
+  return body;
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
@@ -1006,32 +1024,44 @@ function positiveVariable(
   return Math.floor(value);
 }
 
-function statusForError(message: string): number {
-  if (message.includes("too large")) return 413;
+function statusForPublicError(message: string): number | null {
+  if (message === "file is too large to preview") return 413;
   if (
-    message.includes("no such file") ||
-    message.includes("ENOENT") ||
-    message.includes("not a file") ||
-    message.includes("not an HTML file") ||
-    message.includes("not found")
-  ) {
+    message === "path is not a file" ||
+    message === "path is not an HTML file"
+  )
     return 404;
-  }
   if (
-    message.includes("path") ||
-    message.includes("absolute") ||
-    message.includes("root") ||
-    message.includes("ignored") ||
-    message.includes("excluded") ||
-    message.includes("invalid") ||
-    message.includes("required") ||
-    message.includes("must") ||
-    message.includes("only target") ||
-    message.includes("does not match")
+    [
+      "path contains invalid characters",
+      "absolute paths are not allowed",
+      "path escapes root",
+      "path is ignored",
+      "path is excluded",
+      "file path is required",
+      "request body too large",
+      "JSON request body is required",
+      "invalid JSON request body",
+      "comment write APIs require application/json",
+      "invalid Host header for local write API",
+      "invalid Origin header for local write API",
+      "comment id is required",
+      "thread id is required",
+      "draft id is required",
+      "client event id must be a string",
+      "path is required",
+      "body is required",
+      "lineStart must be positive",
+      "lineEnd must be positive",
+      "lineEnd must be greater than or equal to lineStart",
+      "diff line range is invalid",
+      "only target comment writes may be observed",
+      "target comment id does not match request",
+    ].includes(message)
   ) {
     return 400;
   }
-  return 500;
+  return null;
 }
 
 function normalizeHttpError(error: unknown): {
@@ -1054,12 +1084,20 @@ function normalizeHttpError(error: unknown): {
       status: code,
     };
   }
-  const httpStatus = statusForError(message);
+  const publicStatus = statusForPublicError(message);
+  if (!publicStatus) {
+    return {
+      httpStatus: 500,
+      message: "internal server error",
+      reason: "An internal error occurred.",
+      status: "internal_error",
+    };
+  }
   return {
-    httpStatus,
+    httpStatus: publicStatus,
     message,
     reason: message,
-    status: httpStatus >= 500 ? "internal_error" : "request_error",
+    status: "request_error",
   };
 }
 
@@ -1072,10 +1110,10 @@ function logHttpError(
   const target = req.url ?? "/";
   const message = `[vivi] ${method} ${target} failed with ${normalized.httpStatus}: ${normalized.reason}`;
   if (normalized.httpStatus >= 500) {
-    console.error(message, error);
+    console.error("%s", message, error);
     return;
   }
-  console.warn(message);
+  console.warn("%s", message);
 }
 
 function reasonForFileSystemCode(code: string): string | null {
@@ -1126,6 +1164,25 @@ function isInside(root: string, target: string): boolean {
   );
 }
 
+function resolveStaticAssetPath(
+  root: string,
+  requestedPath: string,
+): string | null {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(requestedPath);
+  } catch {
+    return null;
+  }
+  const normalized = normalizeRelativePath(
+    decoded === "/" ? "index.html" : decoded.replace(/^\/+/, ""),
+  );
+  if (!normalized.ok) return null;
+  const relativePath = normalized.relativePath || "index.html";
+  const absolutePath = path.join(path.resolve(root), relativePath);
+  return isInside(root, absolutePath) ? absolutePath : null;
+}
+
 function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
   const base = [
     "default-src 'self' data: blob:",
@@ -1137,6 +1194,11 @@ function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
     allowHtmlScripts
       ? "script-src 'self' 'unsafe-inline'"
       : `script-src 'nonce-${nonce}'`,
+  );
+  base.push(
+    allowHtmlScripts
+      ? "sandbox allow-same-origin allow-scripts"
+      : "sandbox allow-same-origin",
   );
   return base.join("; ");
 }
@@ -1152,33 +1214,75 @@ function withPreviewBase(html: string, relativePath: string): string {
     directory === "." ? "/preview/raw/" : `/preview/raw/${encodedDirectory}/`;
   const base = `<base href="${basePath}">`;
   if (/<base\s/i.test(html)) return html;
-  if (/<head(\s[^>]*)?>/i.test(html))
-    return html.replace(/<head(\s[^>]*)?>/i, (match) => `${match}${base}`);
-  if (/<html(\s[^>]*)?>/i.test(html))
-    return html.replace(
-      /<html(\s[^>]*)?>/i,
-      (match) => `${match}<head>${base}</head>`,
-    );
+  const headStart = findOpeningTagStart(html, "head");
+  if (headStart !== -1) {
+    const headEnd = findTagEnd(html, headStart);
+    if (headEnd !== -1)
+      return `${html.slice(0, headEnd + 1)}${base}${html.slice(headEnd + 1)}`;
+  }
+  const htmlStart = findOpeningTagStart(html, "html");
+  if (htmlStart !== -1) {
+    const htmlEnd = findTagEnd(html, htmlStart);
+    if (htmlEnd !== -1)
+      return `${html.slice(0, htmlEnd + 1)}<head>${base}</head>${html.slice(htmlEnd + 1)}`;
+  }
   return `<head>${base}</head>${html}`;
 }
 
 function addHtmlHeadingIds(html: string): string {
   const used = new Map<string, number>();
-  return html.replace(
-    /<h([12])(\s[^>]*)?>([\s\S]*?)<\/h\1>/gi,
-    (match, rawLevel: string, rawAttributes = "", innerHtml: string) => {
-      if (/\sid\s*=/i.test(rawAttributes)) return match;
-      const text = innerHtml
-        .replace(/<[^>]+>/g, "")
-        .replace(/&nbsp;/g, " ")
-        .trim();
-      const base = slugify(text) || `heading-${used.size + 1}`;
-      const count = used.get(base) ?? 0;
-      used.set(base, count + 1);
-      const id = count === 0 ? base : `${base}-${count + 1}`;
-      return `<h${rawLevel}${rawAttributes} id="${escapeAttribute(id)}">${innerHtml}</h${rawLevel}>`;
-    },
-  );
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const start = findNextHeadingStart(html, index);
+    if (start === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, start);
+    const level = html[start + 2];
+    const tagEnd = findTagEnd(html, start);
+    if (tagEnd === -1 || (level !== "1" && level !== "2")) {
+      output += html.slice(start);
+      break;
+    }
+    const openingTag = html.slice(start, tagEnd + 1);
+    const closingTag = `</h${level}>`;
+    const closeStart = html.toLowerCase().indexOf(closingTag, tagEnd + 1);
+    if (closeStart === -1) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const innerHtml = html.slice(tagEnd + 1, closeStart);
+    if (/\sid\s*=/i.test(openingTag)) {
+      output += html.slice(start, closeStart + closingTag.length);
+      index = closeStart + closingTag.length;
+      continue;
+    }
+    const text = htmlToText(innerHtml).trim();
+    const base = slugify(text) || `heading-${used.size + 1}`;
+    const count = used.get(base) ?? 0;
+    used.set(base, count + 1);
+    const id = count === 0 ? base : `${base}-${count + 1}`;
+    output += `${addAttributeToOpeningTag(openingTag, `id="${escapeAttribute(id)}"`)}${innerHtml}${html.slice(closeStart, closeStart + closingTag.length)}`;
+    index = closeStart + closingTag.length;
+  }
+  return output;
+}
+
+function findNextHeadingStart(html: string, from: number): number {
+  const first = findOpeningTagStart(html, "h1", from);
+  const second = findOpeningTagStart(html, "h2", from);
+  if (first === -1) return second;
+  if (second === -1) return first;
+  return Math.min(first, second);
+}
+
+function addAttributeToOpeningTag(tag: string, attribute: string): string {
+  const suffix = /\/\s*>$/.test(tag) ? "/>" : ">";
+  const body = tag.slice(0, -suffix.length).trimEnd();
+  return `${body} ${attribute}${suffix}`;
 }
 
 function renderEmbeddedMermaidPreviewHtml(
@@ -1193,10 +1297,11 @@ function renderEmbeddedMermaidPreviewHtml(
 ): string {
   let index = 0;
   const rendered = options.enabled
-    ? html.replace(
-        /<(pre|div|code)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi,
-        (match, tagName: string, rawAttributes = "", innerHtml: string) => {
-          if (!hasMermaidClass(rawAttributes)) return match;
+    ? replaceHtmlElementBlocks(
+        html,
+        new Set(["pre", "div", "code"]),
+        ({ match, attributes, innerHtml }) => {
+          if (!hasMermaidClass(attributes)) return match;
           const source = htmlToText(innerHtml).trim();
           if (!source) return match;
           const id = `vivi-html-mermaid-${index}`;
@@ -1204,7 +1309,7 @@ function renderEmbeddedMermaidPreviewHtml(
           const scriptStatus = options.allowHtmlScripts
             ? "user scripts active"
             : "user scripts inactive";
-          const commentAttributes = htmlCommentBlockAttributes(rawAttributes);
+          const commentAttributes = htmlCommentBlockAttributes(attributes);
           return `<figure class="html-mermaid" id="${id}" data-vivi-html-mermaid data-mermaid-status="pending" data-mermaid-custom-style="${hasCustomMermaidStyle(source) ? "true" : "false"}" data-mermaid-source="${escapeAttribute(source)}"${commentAttributes}><figcaption>Mermaid preview · ${scriptStatus}</figcaption><div class="mermaid-render-target" aria-live="polite"></div><div class="markdown-mermaid-fallback unsupported"><p>Mermaid preview is loading. Source is shown below if rendering fails.</p><details class="markdown-mermaid-source"><summary>Mermaid source</summary><pre><code>${escapeHtml(source)}</code></pre></details></div></figure>`;
         },
       )
@@ -1215,6 +1320,59 @@ function renderEmbeddedMermaidPreviewHtml(
     theme: options.theme,
     path: options.path,
   });
+}
+
+function replaceHtmlElementBlocks(
+  html: string,
+  tagNames: Set<string>,
+  replaceBlock: (block: {
+    match: string;
+    tagName: string;
+    attributes: string;
+    innerHtml: string;
+  }) => string,
+): string {
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const tagStart = html.indexOf("<", index);
+    if (tagStart === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, tagStart);
+    const tagEnd = findTagEnd(html, tagStart);
+    if (tagEnd === -1) {
+      output += html.slice(tagStart);
+      break;
+    }
+    const openingTag = html.slice(tagStart, tagEnd + 1);
+    const tagName = tagNameFromOpeningTag(openingTag);
+    if (!tagName || !tagNames.has(tagName) || isSelfClosingTag(openingTag)) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const closeStart = findClosingTagStart(html, tagName, tagEnd + 1);
+    if (closeStart === -1) {
+      output += openingTag;
+      index = tagEnd + 1;
+      continue;
+    }
+    const closeEnd = findTagEnd(html, closeStart);
+    if (closeEnd === -1) {
+      output += html.slice(tagStart);
+      break;
+    }
+    output += replaceBlock({
+      match: html.slice(tagStart, closeEnd + 1),
+      tagName,
+      attributes: openingTagAttributes(openingTag, tagName),
+      innerHtml: html.slice(tagEnd + 1, closeStart),
+    });
+    index = closeEnd + 1;
+  }
+  return output;
 }
 
 function htmlCommentBlockAttributes(attributes: string): string {
@@ -1233,15 +1391,115 @@ function hasMermaidClass(attributes: string): boolean {
 }
 
 function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+  return stripHtmlTags(html)
     .replace(/&nbsp;/g, " ")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+}
+
+function stripHtmlTags(html: string): string {
+  let output = "";
+  let index = 0;
+  while (index < html.length) {
+    const tagStart = html.indexOf("<", index);
+    if (tagStart === -1) {
+      output += html.slice(index);
+      break;
+    }
+    output += html.slice(index, tagStart);
+    const tagEnd = findTagEnd(html, tagStart);
+    if (tagEnd === -1) break;
+    const rawTag = html.slice(tagStart, tagEnd + 1);
+    const tagName = tagNameFromOpeningTag(rawTag);
+    if (tagName === "script" || tagName === "style") {
+      const closeTag = `</${tagName}>`;
+      const closeStart = html.toLowerCase().indexOf(closeTag, tagEnd + 1);
+      index = closeStart === -1 ? tagEnd + 1 : closeStart + closeTag.length;
+      continue;
+    }
+    if (/^<br\s*\/?>$/i.test(rawTag)) output += "\n";
+    index = tagEnd + 1;
+  }
+  return output;
+}
+
+function findTagEnd(html: string, start: number): number {
+  let quote: string | null = null;
+  for (let index = start + 1; index < html.length; index += 1) {
+    const character = html[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === `"` || character === `'`) {
+      quote = character;
+      continue;
+    }
+    if (character === ">") return index;
+  }
+  return -1;
+}
+
+function tagNameFromOpeningTag(tag: string): string | null {
+  const trimmed = tag.slice(1).trimStart();
+  let name = "";
+  for (const character of trimmed) {
+    if (!/[a-z0-9]/i.test(character)) break;
+    name += character.toLowerCase();
+  }
+  return name || null;
+}
+
+function openingTagAttributes(tag: string, tagName: string): string {
+  const body = tag.slice(1, tag.endsWith(">") ? -1 : undefined).trim();
+  return body.slice(tagName.length).replace(/\/\s*$/, "");
+}
+
+function isSelfClosingTag(tag: string): boolean {
+  return tag.slice(0, -1).trimEnd().endsWith("/");
+}
+
+function findOpeningTagStart(
+  html: string,
+  tagName: string,
+  from = 0,
+): number {
+  const lower = html.toLowerCase();
+  const needle = `<${tagName.toLowerCase()}`;
+  let index = from;
+  while (index < lower.length) {
+    const found = lower.indexOf(needle, index);
+    if (found === -1) return -1;
+    const boundary = lower[found + needle.length];
+    if (boundary === undefined || boundary === ">" || /\s/.test(boundary)) {
+      return found;
+    }
+    index = found + 1;
+  }
+  return -1;
+}
+
+function findClosingTagStart(
+  html: string,
+  tagName: string,
+  from = 0,
+): number {
+  const lower = html.toLowerCase();
+  const needle = `</${tagName.toLowerCase()}`;
+  let index = from;
+  while (index < lower.length) {
+    const found = lower.indexOf(needle, index);
+    if (found === -1) return -1;
+    const boundary = lower[found + needle.length];
+    if (boundary === undefined || boundary === ">" || /\s/.test(boundary)) {
+      return found;
+    }
+    index = found + 1;
+  }
+  return -1;
 }
 
 function injectHtmlPreviewRuntime(
@@ -1275,18 +1533,27 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 .markdown-mermaid-source summary{cursor:pointer;}
 .markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
 .html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
-.vivi-html-comment-block{position:relative;transition:background 140ms ease,box-shadow 140ms ease;}
-.vivi-html-comment-block:hover{background:rgba(169,134,255,.06);}
-.vivi-html-comment-block.has-vivi-comment,.vivi-html-comment-block.drafting-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.19),rgba(169,134,255,.08) 68%,transparent);box-shadow:inset 2px 0 0 rgba(169,134,255,.54);}
-.vivi-html-comment-block.active-vivi-comment{background:linear-gradient(90deg,rgba(169,134,255,.28),rgba(169,134,255,.12) 72%,transparent);box-shadow:inset 3px 0 0 rgba(169,134,255,.76),0 0 0 1px rgba(169,134,255,.18);}
-.vivi-html-comment-marker{position:absolute;z-index:2147483646;right:4px;top:8px;width:18px;height:18px;border:1px solid rgba(169,134,255,.54);border-radius:999px;background:${palette.panel};box-shadow:0 0 0 4px rgba(169,134,255,.12);cursor:pointer;opacity:0;padding:0;transition:background 140ms ease,opacity 140ms ease,transform 140ms ease;}
-.vivi-html-comment-marker::before{content:"";position:absolute;left:5px;top:4px;width:7px;height:6px;border:1.5px solid ${palette.accent};border-radius:5px;}
-.vivi-html-comment-marker::after{content:"";position:absolute;left:8px;top:10px;border-width:3px 0 0 4px;border-style:solid;border-color:transparent transparent transparent ${palette.accent};}
-.vivi-html-comment-action-host{position:relative;}
-.vivi-html-comment-block:hover .vivi-html-comment-marker,.vivi-html-comment-block.has-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-block.drafting-vivi-comment .vivi-html-comment-marker,.vivi-html-comment-marker:focus-visible{opacity:1;}
-.vivi-html-comment-block:is(tr) .vivi-html-comment-marker{top:50%;transform:translateY(-50%);}
-.vivi-html-comment-marker:hover,.vivi-html-comment-marker:focus-visible{outline:none;background:rgba(169,134,255,.18);transform:translateY(-1px);}
-.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:hover,.vivi-html-comment-block:is(tr) .vivi-html-comment-marker:focus-visible{transform:translateY(calc(-50% - 1px));}
+	.vivi-rendered-comment-block{--rendered-comment-block-left:-12px;--rendered-comment-block-right:-12px;--soft-line:${palette.softLine};--panel:${palette.panel};--palette:${palette.background};--comment-tint:${palette.commentTint};--comment-tint-active:${palette.commentTintActive};--comment-line:${palette.commentLine};--comment-text:${palette.commentText};isolation:isolate;position:relative;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
+	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}
+	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:-1;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
+	.vivi-rendered-comment-block:not(tr):hover::before,tr.vivi-rendered-comment-block:hover{background:var(--soft-line);}
+		.vivi-rendered-comment-block.has-rendered-comment,.vivi-rendered-comment-block.drafting-rendered-comment{border-radius:8px;}
+		.vivi-rendered-comment-block.has-rendered-comment:not(tr),.vivi-rendered-comment-block.drafting-rendered-comment:not(tr){background:transparent;box-shadow:none;}
+		blockquote.vivi-rendered-comment-block.has-rendered-comment,blockquote.vivi-rendered-comment-block.drafting-rendered-comment,blockquote.vivi-rendered-comment-block.active-rendered-comment{border-left-color:transparent!important;}
+		.vivi-rendered-comment-block.has-rendered-comment:not(tr)::before,.vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.has-rendered-comment,tr.vivi-rendered-comment-block.drafting-rendered-comment{background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow:inset 2px 0 0 var(--comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment{background:transparent;box-shadow:none;}
+	.vivi-rendered-comment-block.active-rendered-comment:not(tr)::before,tr.vivi-rendered-comment-block.active-rendered-comment{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow:inset 3px 0 0 var(--comment-text),0 0 0 1px color-mix(in srgb,var(--comment-line) 46%,transparent);}
+	.vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment{border-bottom-left-radius:0;border-bottom-right-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment{border-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment,.vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment{border-top-left-radius:0;border-top-right-radius:0;}
+	.vivi-rendered-comment-block.rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow:inset 2px 0 0 var(--comment-line);}
+	.vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow:inset 3px 0 0 var(--comment-text);}
+	.rendered-comment-marker{position:absolute;z-index:2147483646;top:calc(50% + 1px);right:8px;width:20px;height:20px;border:1px solid var(--comment-line);border-radius:6px;background:var(--panel);color:var(--comment-text);box-shadow:0 5px 14px rgba(0,0,0,.22);cursor:pointer;padding:0;transform:translateY(-50%);transition:background 140ms ease,border-color 140ms ease,transform 140ms ease;}
+	.rendered-comment-marker::before{content:"";position:absolute;left:5px;top:5px;width:7px;height:6px;border:1.25px solid currentColor;border-radius:3px;}
+	.rendered-comment-marker::after{content:"";position:absolute;left:7px;top:10px;width:3px;height:3px;border-left:1.25px solid currentColor;transform:skew(-22deg);}
+	.rendered-comment-marker:hover,.rendered-comment-marker:focus-visible{outline:none;background:var(--comment-tint-active);border-color:var(--comment-text);transform:translateY(calc(-50% - 1px));}
+	.rendered-comment-marker-count{position:absolute;right:-5px;top:-6px;display:grid;place-items:center;min-width:13px;height:13px;border:1px solid var(--comment-line);border-radius:999px;background:var(--palette);color:var(--comment-text);font-size:8px;font-weight:800;line-height:1;padding:0 2px;}
+.vivi-rendered-comment-action-host{position:relative;}
 </style>`;
   const selectionBridge = `<script nonce="${escapeAttribute(options.nonce)}">
 (() => {
@@ -1296,13 +1563,12 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
   const interactiveSelector = "a,button,input,select,textarea,summary,[contenteditable]";
   let renderedComments = [];
   let activeCommentId = null;
-  let draftingBlockId = null;
+  let draftingBlockIds = [];
+  let openBlockIds = [];
   const post = (message) => parent.postMessage({ path, ...message }, "*");
-  const escapeSelectorValue = (value) => String(value).replace(/\\\\/g, "\\\\\\\\").replace(/"/g, '\\\\"');
-  const escapeCssIdentifier = (value) => globalThis.CSS?.escape ? CSS.escape(value) : String(value).replace(/[^a-zA-Z0-9_-]/g, (character) => "\\\\" + character);
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
-    if (element.id) return "#" + escapeCssIdentifier(element.id);
+    if (element.id && globalThis.CSS?.escape) return "#" + CSS.escape(element.id);
     const parts = [];
     let current = element;
     while (current && current.nodeType === Node.ELEMENT_NODE && current !== document.body) {
@@ -1316,10 +1582,20 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     return parts.join(">");
   };
-  const readableText = (element) => (element?.innerText || element?.textContent || "").replace(/\\s+/g, " ").trim();
-  const rectLike = (element) => {
-    const rect = element.getBoundingClientRect();
-    return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+  const readableText = (element) => {
+    const clone = element?.cloneNode(true);
+    clone?.querySelectorAll?.(".rendered-comment-marker").forEach((item) => item.remove());
+    return (clone?.innerText || clone?.textContent || "").replace(/\\s+/g, " ").trim();
+  };
+  const rectLikeForBlocks = (blocks) => {
+    if (!blocks.length) return null;
+    const first = blocks[0].getBoundingClientRect();
+    const last = blocks[blocks.length - 1].getBoundingClientRect();
+    const left = Math.min(first.left, last.left);
+    const top = Math.min(first.top, last.top);
+    const right = Math.max(first.right, last.right);
+    const bottom = Math.max(first.bottom, last.bottom);
+    return { left, top, width: right - left, height: bottom - top };
   };
   const closestBlock = (target) => {
     if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
@@ -1329,14 +1605,44 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     return target.closest(blockSelector);
   };
-  const commentForBlock = (block) => {
-    const commentId = block?.dataset.viviCommentId;
-    return commentId ? renderedComments.find((comment) => comment.id === commentId) ?? null : null;
+  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
+  const sourceRange = (blocks) => {
+    const starts = blocks.map((block) => Number(block.dataset.viviSourceLineStart)).filter(Number.isInteger);
+    const ends = blocks.map((block) => Number(block.dataset.viviSourceLineEnd || block.dataset.viviSourceLineStart)).filter(Number.isInteger);
+    return starts.length && ends.length ? { sourceLineStart: starts[0], sourceLineEnd: ends[ends.length - 1] } : {};
+  };
+  const targetForBlocks = (blocks, selectedText) => {
+    const targets = blocks.filter((block) => block.dataset.viviCommentBlockId);
+    if (!targets.length) return null;
+    const text = selectedText?.trim() || targets.map(readableText).join("\\n");
+    const rect = rectLikeForBlocks(targets);
+    if (!text || !rect) return null;
+    return {
+      blockId: targets[0].dataset.viviCommentBlockId,
+      blockIds: targets.map((block) => block.dataset.viviCommentBlockId),
+      selector: cssPath(targets[0]),
+      text,
+      rect,
+      ...sourceRange(targets)
+    };
   };
   const findBlocksForComment = (comment) => {
+    const byRange = Number.isInteger(comment.sourceLineStart)
+      ? commentableBlocks().filter((block) => {
+          const start = Number(block.dataset.viviSourceLineStart);
+          const end = Number(block.dataset.viviSourceLineEnd);
+          const commentEnd = Number.isInteger(comment.sourceLineEnd) ? comment.sourceLineEnd : comment.sourceLineStart;
+          return Number.isInteger(start) && Number.isInteger(end) && start <= commentEnd && end >= comment.sourceLineStart;
+        })
+      : [];
     if (comment.blockId) {
       const byBlock = document.querySelector(\`[data-vivi-comment-block-id="\${escapeSelectorValue(comment.blockId)}"]\`);
-      if (byBlock) return [byBlock];
+      const closest = byBlock ? closestBlock(byBlock) : null;
+      if (closest) {
+        const spansMultipleLines = Number.isInteger(comment.sourceLineStart) && Number.isInteger(comment.sourceLineEnd) && comment.sourceLineEnd > comment.sourceLineStart;
+        if (spansMultipleLines && byRange.length > 1 && byRange.includes(closest)) return byRange;
+        return [closest];
+      }
     }
     if (comment.selector) {
       try {
@@ -1346,114 +1652,159 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
         if (nearest) return [nearest];
       } catch {}
     }
-    if (Number.isInteger(comment.sourceLineStart)) {
-      const commentEnd = Number.isInteger(comment.sourceLineEnd) ? comment.sourceLineEnd : comment.sourceLineStart;
-      const byRange = commentableBlocks().filter((block) => {
-        const start = Number(block.dataset.viviSourceLineStart);
-        const end = Number(block.dataset.viviSourceLineEnd);
-        return Number.isInteger(start) && Number.isInteger(end) && start <= commentEnd && end >= comment.sourceLineStart;
-      });
-      if (byRange.length) return byRange;
-    }
+    if (byRange.length) return byRange;
     const quote = comment.textQuote?.trim();
     const byQuote = quote ? Array.from(document.querySelectorAll(blockSelector)).find((block) => readableText(block).includes(quote)) ?? null : null;
     return byQuote ? [byQuote] : [];
   };
-  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
-  const actionLabel = (count) => count <= 0 ? "Add comment" : count === 1 ? "Open comment" : \`Open \${count} comments\`;
-  const ensureAction = (block) => {
+  const actionLabel = (count) => \`Open comment thread with \${count} \${count === 1 ? "message" : "messages"}\`;
+  const removeAction = (block) => {
+    block.querySelectorAll(".rendered-comment-marker").forEach((action) => action.remove());
+    block.classList.remove("vivi-rendered-comment-action-host");
+    block.lastElementChild?.classList.remove("vivi-rendered-comment-action-host");
+  };
+  const ensureAction = (block, count) => {
     const host = block.localName === "tr" && block.lastElementChild ? block.lastElementChild : block;
-    if (host !== block) host.classList.add("vivi-html-comment-action-host");
-    let action = Array.from(host.children).find((child) => child.classList.contains("vivi-html-comment-marker"));
-    if (!action) {
-      action = document.createElement("button");
-      action.type = "button";
-      action.className = "vivi-html-comment-marker";
-      host.append(action);
-    }
-    delete action.dataset.commentId;
-    delete action.dataset.commentCount;
-    action.setAttribute("aria-label", actionLabel(0));
+    if (host !== block) host.classList.add("vivi-rendered-comment-action-host");
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "rendered-comment-marker";
+    action.dataset.commentCount = String(count);
+    action.setAttribute("aria-label", actionLabel(count));
+    action.title = actionLabel(count);
+    const countNode = document.createElement("span");
+    countNode.className = "rendered-comment-marker-count";
+    countNode.setAttribute("aria-hidden", "true");
+    countNode.textContent = String(count);
+    action.append(countNode);
+    host.append(action);
     return action;
   };
-  const applyHighlights = () => {
-    document.querySelectorAll(blockSelector).forEach((block) => {
-      block.classList.remove("vivi-html-comment-block", "has-vivi-comment", "active-vivi-comment", "drafting-vivi-comment");
-      delete block.dataset.viviCommentId;
-      delete block.dataset.viviCommentCount;
+	  const pixelValue = (value) => {
+	    const parsed = Number.parseFloat(value);
+	    return Number.isFinite(parsed) ? parsed : 0;
+	  };
+	  const applyRangeBridge = (blocks) => {
+	    if (blocks.length < 2) return;
+	    const bounds = blocks.map((block) => {
+	      const rect = block.getBoundingClientRect();
+	      const before = getComputedStyle(block, "::before");
+	      return {left: rect.left + pixelValue(before.left), right: rect.right - pixelValue(before.right)};
+	    });
+	    const rangeLeft = Math.min(...bounds.map((bound) => bound.left));
+	    const rangeRight = Math.max(...bounds.map((bound) => bound.right));
+	    blocks.forEach((block, index) => {
+	      const rect = block.getBoundingClientRect();
+	      block.style.setProperty("--rendered-comment-block-left", \`\${Math.round(rangeLeft - rect.left)}px\`);
+	      block.style.setProperty("--rendered-comment-block-right", \`\${Math.round(rect.right - rangeRight)}px\`);
+	      block.classList.add(index === 0 ? "rendered-comment-range-start" : index === blocks.length - 1 ? "rendered-comment-range-end" : "rendered-comment-range-middle");
+	      const next = blocks[index + 1];
+	      if (!next) return;
+	      const gap = Math.max(0, Math.round(next.getBoundingClientRect().top - block.getBoundingClientRect().bottom));
+	      if (gap <= 1) return;
+	      block.classList.add("rendered-comment-range-join-after");
+	      block.style.setProperty("--rendered-comment-join-after", \`\${gap}px\`);
+	    });
+	  };
+  const bindBlockAction = (block) => {
+    if (block.dataset.viviCommentClickBound === "true") return;
+    block.dataset.viviCommentClickBound = "true";
+    block.addEventListener("click", (event) => {
+      if (event.target.closest?.(".rendered-comment-marker")) return;
+      if (event.target.closest?.(interactiveSelector)) return;
+      if (document.getSelection()?.toString().trim()) return;
+      const target = targetForBlocks([block]);
+      const commentId = block.dataset.viviCommentId;
+      postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
     });
+  };
+  const applyHighlights = () => {
     const blocks = commentableBlocks();
     blocks.forEach((block) => {
-      block.classList.add("vivi-html-comment-block");
-      ensureAction(block);
+      bindBlockAction(block);
+      block.classList.add("vivi-rendered-comment-block");
+	      block.classList.remove("has-rendered-comment", "active-rendered-comment", "drafting-rendered-comment", "rendered-comment-range-start", "rendered-comment-range-middle", "rendered-comment-range-end", "rendered-comment-range-join-after");
+	      block.style.removeProperty("--rendered-comment-block-left");
+	      block.style.removeProperty("--rendered-comment-block-right");
+	      block.style.removeProperty("--rendered-comment-join-after");
+      delete block.dataset.viviCommentId;
+      delete block.dataset.viviCommentCount;
+      removeAction(block);
     });
     const commentsByBlock = new Map();
+    const markerCommentsByBlock = new Map();
     for (const comment of renderedComments) {
-      for (const block of findBlocksForComment(comment)) {
-        const target = closestBlock(block);
-        if (!target) continue;
-        const list = commentsByBlock.get(target) || [];
+      const commentBlocks = findBlocksForComment(comment);
+      applyRangeBridge(commentBlocks);
+      for (const block of commentBlocks) {
+        const list = commentsByBlock.get(block) || [];
         list.push(comment);
-        commentsByBlock.set(target, list);
+        commentsByBlock.set(block, list);
+      }
+      const markerBlock = commentBlocks[commentBlocks.length - 1];
+      if (markerBlock) {
+        const list = markerCommentsByBlock.get(markerBlock) || [];
+        list.push(comment);
+        markerCommentsByBlock.set(markerBlock, list);
       }
     }
     for (const [block, comments] of commentsByBlock) {
       const firstComment = comments[0];
-      block.classList.add("has-vivi-comment");
-      if (comments.some((comment) => comment.id === activeCommentId)) block.classList.add("active-vivi-comment");
+      block.classList.add("has-rendered-comment");
+      if (comments.some((comment) => comment.id === activeCommentId)) block.classList.add("active-rendered-comment");
       block.dataset.viviCommentId = firstComment.id;
       block.dataset.viviCommentCount = String(comments.length);
-      const action = ensureAction(block);
-      action.dataset.commentId = firstComment.id;
-      action.dataset.commentCount = String(comments.length);
-      action.setAttribute("aria-label", actionLabel(comments.length));
     }
-    const drafting = blocks.find((block) => block.dataset.viviCommentBlockId === draftingBlockId);
-    drafting?.classList.add("drafting-vivi-comment");
+    for (const [block, comments] of markerCommentsByBlock) {
+      const action = ensureAction(block, comments.length);
+      action.dataset.commentId = comments[0].id;
+    }
+    const drafting = blocks.filter((block) => draftingBlockIds.includes(block.dataset.viviCommentBlockId));
+    applyRangeBridge(drafting);
+    drafting.forEach((block) => block.classList.add("drafting-rendered-comment"));
+    postThreadLayout();
   };
-  const publishBlockTarget = (block) => {
-    const text = readableText(block);
-    const blockId = block?.dataset.viviCommentBlockId;
-    if (!blockId || !text) return;
-    post({
-      type: "vivi-html-block-target",
-      blockId,
-      text,
-      selector: cssPath(block),
-      rect: rectLike(block)
-    });
+  const postTarget = (target, type = "vivi-html-block-target", id) => {
+    if (!target) return;
+    post({ type, id, ...target });
   };
-  const publishSelectionBlock = () => {
+  const postThreadLayout = () => {
+    if (!openBlockIds.length) return;
+    const byId = new Set(openBlockIds);
+    const blocks = commentableBlocks().filter((block) => byId.has(block.dataset.viviCommentBlockId));
+    const target = targetForBlocks(blocks);
+    if (target) post({ type: "vivi-html-thread-layout", blockIds: target.blockIds, rect: target.rect });
+  };
+  const publishSelection = () => {
     const selection = document.getSelection();
     if (!selection?.toString().trim() || !selection.rangeCount) return;
-    const node = selection.getRangeAt(0).startContainer;
-    const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-    const block = closestBlock(element);
-    if (block) publishBlockTarget(block);
+    const range = selection.getRangeAt(0);
+    const blocks = commentableBlocks().filter((block) => {
+      try { return range.intersectsNode(block); } catch { return false; }
+    });
+    postTarget(targetForBlocks(blocks, selection.toString()));
   };
   const publishSoon = () => {
-    window.requestAnimationFrame(() => window.setTimeout(publishSelectionBlock, 0));
+    window.requestAnimationFrame(() => window.setTimeout(publishSelection, 0));
   };
   window.addEventListener("message", (event) => {
-    if (event.source !== parent) return;
+    if (event.source && event.source !== parent) return;
     const data = event.data;
     if (data?.type !== "vivi-html-comments" || data.path !== path) return;
     renderedComments = Array.isArray(data.comments) ? data.comments : [];
     activeCommentId = typeof data.activeCommentId === "string" ? data.activeCommentId : null;
-    draftingBlockId = typeof data.draftingBlockId === "string" ? data.draftingBlockId : null;
+    draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
+    openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
     applyHighlights();
   });
   document.addEventListener("click", (event) => {
-    const marker = event.target.closest?.(".vivi-html-comment-marker");
+    const marker = event.target.closest?.(".rendered-comment-marker");
     const block = closestBlock(marker || event.target);
     if (marker) {
       event.preventDefault();
       event.stopPropagation();
-      if (marker.dataset.commentId) {
-        post({ type: "vivi-html-comment-open", id: marker.dataset.commentId, rect: rectLike(block) });
-      } else if (block) {
-        publishBlockTarget(block);
-      }
+      const target = targetForBlocks(block ? [block] : []);
+      postTarget(target, "vivi-html-comment-open", marker.dataset.commentId);
       return;
     }
     if (!block) {
@@ -1462,15 +1813,14 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
-    const comment = commentForBlock(block);
-    if (comment) {
-      post({ type: "vivi-html-comment-open", id: comment.id, rect: rectLike(block) });
-      return;
-    }
-    publishBlockTarget(block);
+    const target = targetForBlocks([block]);
+    const commentId = block.dataset.viviCommentId;
+    postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
   });
   document.addEventListener("mouseup", publishSoon);
   document.addEventListener("keyup", publishSoon);
+  window.addEventListener("scroll", () => window.requestAnimationFrame(postThreadLayout), true);
+  window.addEventListener("resize", postThreadLayout);
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", applyHighlights, { once: true });
   } else {
@@ -1518,13 +1868,12 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 </script>`
     : "";
   const scripts = `${selectionBridge}${mermaidScripts}`;
-  if (/<\/head>/i.test(html))
-    return html.replace(/<\/head>/i, `${styles}${scripts}</head>`);
-  if (/<body(\s[^>]*)?>/i.test(html))
-    return html.replace(
-      /<body(\s[^>]*)?>/i,
-      (match) => `${styles}${scripts}${match}`,
-    );
+  const headClose = findClosingTagStart(html, "head");
+  if (headClose !== -1)
+    return `${html.slice(0, headClose)}${styles}${scripts}${html.slice(headClose)}`;
+  const bodyStart = findOpeningTagStart(html, "body");
+  if (bodyStart !== -1)
+    return `${html.slice(0, bodyStart)}${styles}${scripts}${html.slice(bodyStart)}`;
   return `${styles}${scripts}${html}`;
 }
 
@@ -1544,9 +1893,14 @@ function htmlPreviewPalette(theme: MermaidPreviewTheme) {
       background: "#fbfaf7",
       codeBackground: "#f2f0ea",
       codeText: "#172426",
+      commentLine: "rgba(126,87,194,.35)",
+      commentText: "#5e3aa3",
+      commentTint: "rgba(126,87,194,.12)",
+      commentTintActive: "rgba(126,87,194,.2)",
       line: "#d4c9b8",
       muted: "#66736f",
       panel: "#ffffff",
+      softLine: "rgba(24,32,47,.08)",
       text: "#172426",
     };
   }
@@ -1556,9 +1910,14 @@ function htmlPreviewPalette(theme: MermaidPreviewTheme) {
     background: "#0e1316",
     codeBackground: "#11191d",
     codeText: "#edf7f5",
+    commentLine: "rgba(169,134,255,.42)",
+    commentText: "#d8c7ff",
+    commentTint: "rgba(169,134,255,.14)",
+    commentTintActive: "rgba(169,134,255,.22)",
     line: "#34474d",
     muted: "#96aaa9",
     panel: "#152126",
+    softLine: "rgba(255,255,255,.06)",
     text: "#edf7f5",
   };
 }
@@ -1571,13 +1930,6 @@ function slugify(value: string): string {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
-}
-
-function escapeAttribute(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;");
 }
 
 function contentTypeFor(filePath: string): string {
