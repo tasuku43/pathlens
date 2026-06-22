@@ -24,6 +24,7 @@ export interface ReviewChangeItem extends GitChange {
 export interface DiffStat {
   additions: number;
   deletions: number;
+  metadataOnly?: boolean;
 }
 
 export type DiffLineKind = "meta" | "hunk" | "add" | "remove" | "context";
@@ -154,7 +155,11 @@ export function buildDiffStat(diff: TextDiff | null): DiffStat | null {
     if (line.startsWith("-")) deletions += 1;
   }
 
-  return { additions, deletions };
+  return {
+    additions,
+    deletions,
+    metadataOnly: additions === 0 && deletions === 0,
+  };
 }
 
 export function diffStatusLabel(diff: TextDiff | null): string {

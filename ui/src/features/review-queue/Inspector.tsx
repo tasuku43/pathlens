@@ -471,6 +471,13 @@ function DiffStatBadge({
 }) {
   if (loading && !stat) return <span className="diff-stat muted">...</span>;
   if (!stat) return <span className="diff-stat muted">-</span>;
+  if (stat.metadataOnly) {
+    return (
+      <span className="diff-stat muted" aria-label="Metadata-only change">
+        metadata
+      </span>
+    );
+  }
   return (
     <span className="diff-stat" aria-label="Diff line changes">
       <span className="diff-add">+{stat.additions}</span>

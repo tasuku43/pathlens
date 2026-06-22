@@ -759,6 +759,7 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       outline={[]}
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
+        { path: "docs/mode-only.md", status: "modified", source: "git" },
         {
           path: "docs/new.md",
           originalPath: "docs/old.md",
@@ -768,6 +769,11 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
       ]}
       reviewDiffStats={{
         "src/app.ts": { additions: 100, deletions: 32 },
+        "docs/mode-only.md": {
+          additions: 0,
+          deletions: 0,
+          metadataOnly: true,
+        },
         "docs/new.md": { additions: 4, deletions: 2 },
       }}
       loadingReviewDiffs={{}}
@@ -792,14 +798,18 @@ it("renders the Review Queue before secondary file helpers in the inspector", ()
   );
   expect(html).toContain("Next");
   expect(html).toContain("Previous");
-  expect(html).toContain("<strong>2</strong> files");
+  expect(html).toContain("<strong>3</strong> files");
   expect(html).toContain("1 unseen");
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("export");
   expect(html).toContain("start");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
+  expect(html).toContain("metadata");
+  expect(html).not.toContain("+0");
+  expect(html).not.toContain("-0");
   expect(html).toContain("app.ts");
+  expect(html).toContain("mode-only.md");
   expect(html).toContain("docs/old.md -&gt; docs/new.md");
   expect(html).toContain("HEAD diff");
   expect(html).toContain("local change");
