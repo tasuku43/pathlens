@@ -39,7 +39,7 @@
     "build:storybook": "npm --prefix ui run build-storybook",
     "validate:scaffold": "node scripts/validate-scaffold.mjs",
     "security:policy": "node scripts/check-supply-chain.mjs",
-    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run e2e && npm run build && npm run build:storybook && npm run test:go && npm run build:go"
+    "check": "npm run generate:ui-graphql && npm run validate:scaffold && npm run security:policy && npm run lint && npm run test:architecture && npm run typecheck && npm run test && npm run eval && npm run build && npm run build:go && npm run e2e && npm run build:storybook && npm run test:go"
   },
   "dependencies": {
     "graphql": "^16.14.2",
@@ -57,7 +57,7 @@
     "@storybook/addon-a11y": "^10.4.6",
     "@storybook/addon-docs": "^10.4.6",
     "@storybook/react-vite": "^10.4.6",
-    "@types/node": "25.9.3",
+    "@types/node": "26.0.0",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",

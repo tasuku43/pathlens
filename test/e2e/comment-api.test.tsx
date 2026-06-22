@@ -248,8 +248,6 @@ it("creates a comment from the UI anchor model and renders it after retrieval", 
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );

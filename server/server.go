@@ -179,12 +179,12 @@ func (server *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
-	defer unsubscribe()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -207,12 +207,12 @@ func (server *Server) handleGraphqlEvents(w http.ResponseWriter, r *http.Request
 	w.Header().Set("content-type", "text/event-stream")
 	w.Header().Set("cache-control", "no-cache, no-transform")
 	w.Header().Set("connection", "keep-alive")
+	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
+	defer unsubscribe()
 	_, _ = io.WriteString(w, ": connected\n\n")
 	if flusher, ok := w.(http.Flusher); ok {
 		flusher.Flush()
 	}
-	events, unsubscribe := server.app.SubscribeWorkspaceEvents()
-	defer unsubscribe()
 	for {
 		select {
 		case <-r.Context().Done():
@@ -395,6 +395,9 @@ func (server *Server) watch(ctx context.Context) {
 				EmittedEvents:      emittedEvents,
 				ResultCount:        len(current),
 			})
+			if emittedEvents > 0 {
+				server.options.Workspace.InvalidateSearchIndex()
+			}
 			previous = current
 			if emittedEvents == 0 {
 				idleScans++
@@ -537,8 +540,10 @@ func randomNonce() string {
 
 func htmlPreviewCSP(allowScripts bool, nonce string) string {
 	script := "script-src 'nonce-" + nonce + "'"
+	sandbox := "sandbox allow-same-origin"
 	if allowScripts {
 		script = "script-src 'self' 'unsafe-inline'"
+		sandbox = "sandbox allow-same-origin allow-scripts"
 	}
 	return strings.Join([]string{
 		"default-src 'self' data: blob:",
@@ -546,6 +551,7 @@ func htmlPreviewCSP(allowScripts bool, nonce string) string {
 		"base-uri 'self'",
 		"style-src 'self' 'unsafe-inline'",
 		script,
+		sandbox,
 	}, "; ")
 }
 

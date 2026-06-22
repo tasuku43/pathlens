@@ -37,8 +37,6 @@ interface Props {
   onOpenNextChanged: () => void;
   onOpenPreviousChanged: () => void;
   onOpenAllChanged: () => void;
-  onTargetHoverChange: (hovering: boolean) => void;
-  onRevealTarget: () => void;
   onRevealInTree: () => void;
   onOpenComments?: () => void;
 }
@@ -64,8 +62,6 @@ export function Inspector({
   onOpenNextChanged,
   onOpenPreviousChanged,
   onOpenAllChanged,
-  onTargetHoverChange,
-  onRevealTarget,
   onRevealInTree,
   onOpenComments,
 }: Props) {
@@ -319,16 +315,6 @@ export function Inspector({
 
         <details className="file-details">
           <summary>Details</summary>
-          <button
-            className="focus-target"
-            onClick={onRevealTarget}
-            onMouseEnter={() => onTargetHoverChange(true)}
-            onMouseLeave={() => onTargetHoverChange(false)}
-            type="button"
-          >
-            <span>Inspector target</span>
-            <strong>{inspectorTargetLabel(file, activePaneId)}</strong>
-          </button>
           <div className="kv">
             <span>Type</span>
             <strong>{file?.viewerKind ?? "none"}</strong>
@@ -417,6 +403,13 @@ function DiffStatBadge({
 }) {
   if (loading && !stat) return <span className="diff-stat muted">...</span>;
   if (!stat) return <span className="diff-stat muted">-</span>;
+  if (stat.metadataOnly) {
+    return (
+      <span className="diff-stat muted" aria-label="Metadata-only change">
+        metadata
+      </span>
+    );
+  }
   return (
     <span className="diff-stat" aria-label="Diff line changes">
       <span className="diff-add">+{stat.additions}</span>
@@ -440,14 +433,6 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-}
-
-export function inspectorTargetLabel(
-  file: FilePayload | null,
-  paneId: string,
-): string {
-  const name = file?.path.split("/").filter(Boolean).at(-1) ?? "No file";
-  return `${name} · ${paneId}`;
 }
 
 function viewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {

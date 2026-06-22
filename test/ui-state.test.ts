@@ -122,7 +122,6 @@ import {
   initialExpandedPaths,
   visibleTreeRows,
 } from "../ui/src/state/tree-expansion.js";
-import { inspectorTargetLabel } from "../ui/src/features/review-queue/Inspector.js";
 
 it("opens, updates, and marks tabs by path", () => {
   const tabs = upsertOpenTab([], {
@@ -487,21 +486,6 @@ it("compacts workbench panes for narrow viewports", () => {
   expect(compactSidebarWidth(320, 390)).toBe(179);
   expect(compactSidebarWidth(320, 900)).toBe(320);
   expect(compactSidebarWidth(Number.NaN, 390)).toBe(179);
-});
-
-it("labels the inspector target with file and pane identity", () => {
-  const file: FilePayload = {
-    path: "docs/README.md",
-    viewerKind: "markdown",
-    encoding: "utf8",
-    content: "# Hello",
-    etag: "sha256:test",
-    size: 7,
-    mtimeMs: 1,
-  };
-
-  expect(inspectorTargetLabel(file, "pane-3")).toBe("README.md · pane-3");
-  expect(inspectorTargetLabel(null, "main")).toBe("No file · main");
 });
 
 it("selects a neighboring tab when the active tab closes", () => {
@@ -1122,7 +1106,20 @@ it("summarizes unified diff additions and deletions for review rows", () => {
         "+extra",
       ].join("\n"),
     }),
-  ).toEqual({ additions: 2, deletions: 1 });
+  ).toEqual({ additions: 2, deletions: 1, metadataOnly: false });
+  expect(
+    buildDiffStat({
+      path: "notes/mode-only.md",
+      status: "available",
+      baseLabel: "HEAD",
+      compareLabel: "working tree",
+      content: [
+        "diff --git a/notes/mode-only.md b/notes/mode-only.md",
+        "old mode 100644",
+        "new mode 100755",
+      ].join("\n"),
+    }),
+  ).toEqual({ additions: 0, deletions: 0, metadataOnly: true });
   expect(
     buildDiffStat({
       path: "image.png",
@@ -1517,6 +1514,7 @@ it("restores workspace tabs and layout only for the current root and tree", () =
         { path: "missing.md", viewerKind: "markdown", lastOpenedAt: now },
       ],
       inspectorVisible: false,
+      sidebarVisible: false,
       sidebarWidth: 640,
       inspectorWidth: 120,
       diffEnabled: true,
@@ -1541,8 +1539,10 @@ it("restores workspace tabs and layout only for the current root and tree", () =
     { id: "main", activePath: "README.md" },
     { id: "pane-1", activePath: "docs/guide.md" },
   ]);
+  expect(stored.sidebarVisible).toBe(false);
   expect(restored?.layout.activePaneId).toBe("pane-1");
   expect(restored?.inspectorVisible).toBe(false);
+  expect(restored?.sidebarVisible).toBe(false);
   expect(restored?.sidebarWidth).toBe(maxSidebarWidth);
   expect(restored?.inspectorWidth).toBe(minInspectorWidth);
   expect(restored?.diffEnabled).toBe(true);
@@ -1796,6 +1796,7 @@ it("restores older workspace sessions with inspector visible by default", () => 
   });
 
   expect(parseWorkspaceSession(raw)?.inspectorVisible).toBe(true);
+  expect(parseWorkspaceSession(raw)?.sidebarVisible).toBe(true);
   expect(parseWorkspaceSession(raw)?.diffEnabled).toBe(false);
   expect(parseWorkspaceSession(raw)?.diffFocusByPath).toEqual({});
 });

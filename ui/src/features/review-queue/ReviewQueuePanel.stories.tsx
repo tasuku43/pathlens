@@ -32,8 +32,6 @@ const baseArgs = {
   onOpenNextChanged: noop,
   onOpenPreviousChanged: noop,
   onOpenAllChanged: noop,
-  onTargetHoverChange: noop,
-  onRevealTarget: noop,
   onRevealInTree: noop,
   onOpenComments: noop,
 };

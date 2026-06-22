@@ -258,6 +258,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [systemTheme, setSystemTheme] =
     useState<ResolvedTheme>(readSystemTheme);
   const [viewportWidth, setViewportWidth] = useState(readViewportWidth);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [inspectorVisible, setInspectorVisible] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
@@ -269,7 +270,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     path: string;
     revision: number;
   } | null>(null);
-  const [inspectorTargetVisible, setInspectorTargetVisible] = useState(false);
   const [workspaceSessionReady, setWorkspaceSessionReady] = useState(false);
   const [pendingRestoreSession, setPendingRestoreSession] =
     useState<WorkspaceSessionState | null>(null);
@@ -552,8 +552,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     sidebarWidth,
     viewportWidth,
   );
+  const effectiveSidebarVisible = sidebarVisible;
   const effectiveInspectorVisible =
     inspectorVisible && !shouldCollapseInspector(viewportWidth);
+  const workbenchClassName = [
+    "workbench",
+    effectiveSidebarVisible ? "" : "sidebar-hidden",
+    effectiveInspectorVisible ? "" : "inspector-hidden",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const resolvedTheme = resolveThemePreference(themePreference, systemTheme);
   const recentActivityEvents = useMemo(
     () =>
@@ -887,6 +895,16 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const commandActions = useMemo<CommandActionItem[]>(
     () => [
       {
+        id: "toggle-sidebar",
+        label: sidebarVisible ? "Collapse sidebar" : "Expand sidebar",
+        detail: "Show or hide the file tree sidebar",
+      },
+      {
+        id: "toggle-inspector",
+        label: inspectorVisible ? "Collapse inspector" : "Expand inspector",
+        detail: "Show or hide the review inspector",
+      },
+      {
         id: "next-open-thread",
         label: "Next open thread",
         detail:
@@ -1011,9 +1029,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       currentFileOpenThreadTargets.length,
       draftTargets.length,
       file,
+      inspectorVisible,
       latestUnreadTarget,
       openThreadTargets.length,
       reviewItems.length,
+      sidebarVisible,
     ],
   );
 
@@ -1169,13 +1189,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       openMovedTarget(currentFileOpenThreadTargets, "next");
       return;
     }
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(activeCommentId)
-        : activeCommentId.replace(/"/g, '\\"');
-    const target = document.querySelector<HTMLElement>(
-      `[data-comment-id="${escapedId}"], .inline-comment-card`,
-    );
+    const target =
+      Array.from(
+        document.querySelectorAll<HTMLElement>("[data-comment-id]"),
+      ).find((element) => element.dataset.commentId === activeCommentId) ??
+      document.querySelector<HTMLElement>(".inline-comment-card");
     target?.focus();
   }
 
@@ -1194,6 +1212,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (id === "previous-draft-comment")
       openMovedTarget(draftTargets, "previous");
     if (id === "next-agent-reply") openMovedTarget(agentReplyTargets, "next");
+    if (id === "toggle-sidebar") setSidebarVisible((visible) => !visible);
+    if (id === "toggle-inspector") setInspectorVisible((visible) => !visible);
     if (id === "latest-unread-activity" && latestUnreadTarget)
       void openReviewTarget(latestUnreadTarget).catch((err) =>
         setError(String(err)),
@@ -1308,11 +1328,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     const viewer = pane?.querySelector<HTMLElement>(".viewer-pane");
     if (!viewer) return;
 
-    const escapedId =
-      typeof CSS !== "undefined" && CSS.escape
-        ? CSS.escape(id)
-        : id.replace(/"/g, '\\"');
-    const markdownTarget = viewer.querySelector<HTMLElement>(`#${escapedId}`);
+    const markdownTarget = Array.from(
+      viewer.querySelectorAll<HTMLElement>("[id]"),
+    ).find((element) => element.id === id);
     if (markdownTarget) {
       markdownTarget.scrollIntoView({ block: "start", behavior: "smooth" });
       return;
@@ -1330,19 +1348,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       next.hash = id;
       iframe.src = next.toString();
     }
-  }
-
-  function revealInspectorTarget() {
-    const pane = document.querySelector<HTMLElement>(
-      `[data-pane-id="${layout.activePaneId}"]`,
-    );
-    pane?.scrollIntoView({
-      block: "nearest",
-      inline: "nearest",
-      behavior: "smooth",
-    });
-    setInspectorTargetVisible(true);
-    window.setTimeout(() => setInspectorTargetVisible(false), 900);
   }
 
   function revealActiveFileInTree(path = selectedPath) {
@@ -1438,6 +1443,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         openTabs,
         layout,
         recentFiles,
+        sidebarVisible,
         inspectorVisible,
         sidebarWidth,
         inspectorWidth,
@@ -1451,6 +1457,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     openTabs,
     layout,
     recentFiles,
+    sidebarVisible,
     inspectorVisible,
     sidebarWidth,
     inspectorWidth,
@@ -1773,9 +1780,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       />
 
       <div
-        className={
-          effectiveInspectorVisible ? "workbench" : "workbench inspector-hidden"
-        }
+        className={workbenchClassName}
         style={
           {
             "--sidebar-width": `${effectiveSidebarWidth}px`,
@@ -1783,59 +1788,106 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           } as CSSProperties
         }
       >
-        <button
-          className="workbench-resizer sidebar-resizer"
-          type="button"
-          aria-label="Resize sidebar"
-          title="Resize sidebar"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            setResizingWorkbenchPane("sidebar");
-          }}
-          onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
-        />
-        <aside className="sidebar">
-          <div className="panel-title">
-            <span>Explorer</span>
+        {effectiveSidebarVisible ? (
+          <>
             <button
-              className={treeChangedOnly ? "pill active" : "pill"}
+              className="workbench-resizer sidebar-resizer"
               type="button"
-              onClick={() => setTreeChangedOnly((value) => !value)}
-            >
-              {treeChangedOnly ? "changed" : "live"}
-            </button>
-          </div>
-          {tree ? (
-            <TreeSidebar
-              nodes={sidebarNodes}
-              selectedPath={selectedPath}
-              revealPath={treeReveal?.path ?? null}
-              revealRevision={treeReveal?.revision ?? 0}
-              changedPaths={changedPathSet}
-              removedPaths={reviewState.removedPaths}
-              loadingDirectoryPaths={loadingDirectoryPaths}
-              onLoadDirectory={(path) => loadDirectory(path)}
-              onSelect={(path) =>
-                void loadFile(path, layout.activePaneId, "preview").catch(
-                  (err) => setError(String(err)),
-                )
-              }
-              onOpen={(path) =>
-                void loadFile(path, layout.activePaneId, "normal").catch(
-                  (err) => setError(String(err)),
-                )
-              }
+              aria-label="Resize sidebar"
+              title="Resize sidebar"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                setResizingWorkbenchPane("sidebar");
+              }}
+              onDoubleClick={() => setSidebarWidth(defaultSidebarWidth)}
             />
-          ) : (
-            <p className="muted">Loading tree...</p>
-          )}
-        </aside>
+            <aside className="sidebar">
+              <div className="panel-title">
+                <span>Explorer</span>
+                <button
+                  className={treeChangedOnly ? "pill active" : "pill"}
+                  type="button"
+                  onClick={() => setTreeChangedOnly((value) => !value)}
+                >
+                  {treeChangedOnly ? "changed" : "live"}
+                </button>
+              </div>
+              {tree ? (
+                <TreeSidebar
+                  nodes={sidebarNodes}
+                  selectedPath={selectedPath}
+                  revealPath={treeReveal?.path ?? null}
+                  revealRevision={treeReveal?.revision ?? 0}
+                  changedPaths={changedPathSet}
+                  removedPaths={reviewState.removedPaths}
+                  loadingDirectoryPaths={loadingDirectoryPaths}
+                  onLoadDirectory={(path) => loadDirectory(path)}
+                  onSelect={(path) =>
+                    void loadFile(path, layout.activePaneId, "preview").catch(
+                      (err) => setError(String(err)),
+                    )
+                  }
+                  onOpen={(path) =>
+                    void loadFile(path, layout.activePaneId, "normal").catch(
+                      (err) => setError(String(err)),
+                    )
+                  }
+                />
+              ) : (
+                <p className="muted">Loading tree...</p>
+              )}
+            </aside>
+          </>
+        ) : null}
+        <button
+          className="rail-toggle sidebar-rail-toggle"
+          type="button"
+          aria-label={
+            effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
+          }
+          title={
+            effectiveSidebarVisible ? "Collapse sidebar" : "Expand sidebar"
+          }
+          onClick={() => setSidebarVisible((visible) => !visible)}
+        >
+          <span
+            className={
+              effectiveSidebarVisible
+                ? "collapse-icon collapse-left"
+                : "collapse-icon collapse-right"
+            }
+          />
+        </button>
 
         <main className="main">
           <div className={`editor-grid ${draggingTab ? "dragging-tab" : ""}`}>
             {renderLayoutNode(layout.root)}
           </div>
         </main>
+
+        <button
+          className="rail-toggle inspector-rail-toggle"
+          type="button"
+          aria-label={
+            effectiveInspectorVisible
+              ? "Collapse inspector"
+              : "Expand inspector"
+          }
+          title={
+            effectiveInspectorVisible
+              ? "Collapse inspector"
+              : "Expand inspector"
+          }
+          onClick={() => setInspectorVisible((visible) => !visible)}
+        >
+          <span
+            className={
+              effectiveInspectorVisible
+                ? "collapse-icon collapse-right"
+                : "collapse-icon collapse-left"
+            }
+          />
+        </button>
 
         {effectiveInspectorVisible ? (
           <>
@@ -1880,8 +1932,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               onOpenNextChanged={() => openReviewQueueFile("next")}
               onOpenPreviousChanged={() => openReviewQueueFile("previous")}
               onOpenAllChanged={openAllChangedFiles}
-              onTargetHoverChange={setInspectorTargetVisible}
-              onRevealTarget={revealInspectorTarget}
               onRevealInTree={revealActiveFileInTree}
             />
           </>
@@ -2021,6 +2071,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setOpenTabs(restored.openTabs);
     setLayout(restored.layout);
     setRecentFiles(restored.recentFiles);
+    setSidebarVisible(restored.sidebarVisible ?? true);
     setInspectorVisible(restored.inspectorVisible);
     setSidebarWidth(clampSidebarWidth(restored.sidebarWidth ?? sidebarWidth));
     setInspectorWidth(
@@ -2066,7 +2117,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
     return (
       <section
-        className={`${pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"} ${inspectorTargetVisible && pane.id === layout.activePaneId ? "inspector-target-visible" : ""}`}
+        className={
+          pane.id === layout.activePaneId ? "editor-pane active" : "editor-pane"
+        }
         data-pane-id={pane.id}
         key={pane.id}
         onFocus={() =>
@@ -2117,9 +2170,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
             setDraggingTab(true);
           }}
         />
-        {pane.id === layout.activePaneId ? (
-          <div className="pane-focus-badge">Inspector target</div>
-        ) : null}
         <div className="viewer-pane">
           {error && pane.id === layout.activePaneId ? (
             <div className="error">{error}</div>

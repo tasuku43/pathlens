@@ -761,6 +761,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
       file={codeFile}
       reviewChanges={[
         { path: "src/app.ts", status: "modified", source: "git" },
+        { path: "docs/mode-only.md", status: "modified", source: "git" },
         {
           path: "docs/new.md",
           originalPath: "docs/old.md",
@@ -770,6 +771,11 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
       ]}
       reviewDiffStats={{
         "src/app.ts": { additions: 100, deletions: 32 },
+        "docs/mode-only.md": {
+          additions: 0,
+          deletions: 0,
+          metadataOnly: true,
+        },
         "docs/new.md": { additions: 4, deletions: 2 },
       }}
       loadingReviewDiffs={{}}
@@ -781,8 +787,6 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -791,12 +795,16 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Comments"));
   expect(html).toContain("Next");
   expect(html).toContain("Previous");
-  expect(html).toContain("<strong>2</strong> files");
+  expect(html).toContain("<strong>3</strong> files");
   expect(html).toContain("1 unseen");
   expect(html).toContain("src/app.ts:2");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
+  expect(html).toContain("metadata");
+  expect(html).not.toContain("+0");
+  expect(html).not.toContain("-0");
   expect(html).toContain("app.ts");
+  expect(html).toContain("mode-only.md");
   expect(html).toContain("docs/old.md -&gt; docs/new.md");
   expect(html).toContain("HEAD diff");
   expect(html).toContain("local change");
@@ -1045,8 +1053,6 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1077,8 +1083,6 @@ it("opens Review Queue rows as preview on click and stable tabs on double click"
     onOpenNextChanged: () => undefined,
     onOpenPreviousChanged: () => undefined,
     onOpenAllChanged: () => undefined,
-    onTargetHoverChange: () => undefined,
-    onRevealTarget: () => undefined,
     onRevealInTree: () => undefined,
   });
 
@@ -1117,8 +1121,6 @@ it("reveals the active file in the tree through an explicit inspector action", (
     onOpenNextChanged: () => undefined,
     onOpenPreviousChanged: () => undefined,
     onOpenAllChanged: () => undefined,
-    onTargetHoverChange: () => undefined,
-    onRevealTarget: () => undefined,
     onRevealInTree: () => calls.push("reveal"),
   });
 
@@ -1170,8 +1172,6 @@ it("shows why the Review Queue is unavailable instead of looking empty", () => {
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );
@@ -1197,8 +1197,6 @@ it("shows partial Review Queue results as a warning", () => {
       onOpenNextChanged={() => undefined}
       onOpenPreviousChanged={() => undefined}
       onOpenAllChanged={() => undefined}
-      onTargetHoverChange={() => undefined}
-      onRevealTarget={() => undefined}
       onRevealInTree={() => undefined}
     />,
   );

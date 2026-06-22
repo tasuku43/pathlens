@@ -203,7 +203,6 @@ export function ReviewWorkbenchStory({
               onDragStateChange={noop}
               onManualDragStart={noop}
             />
-            <div className="pane-focus-badge">Inspector target</div>
             <div className="viewer-pane">
               {state === "error" ? (
                 <div className="error">
@@ -274,8 +273,6 @@ export function ReviewWorkbenchStory({
           onOpenNextChanged={noop}
           onOpenPreviousChanged={noop}
           onOpenAllChanged={noop}
-          onTargetHoverChange={noop}
-          onRevealTarget={noop}
           onRevealInTree={noop}
           onOpenComments={noop}
         />

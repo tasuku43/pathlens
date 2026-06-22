@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -123,6 +124,10 @@ type WatchStats struct {
 	ReturnedEntries    int
 }
 
+type fileSearchIndex struct {
+	files []FileSearchResult
+}
+
 type FS struct {
 	root             string
 	rootReal         string
@@ -131,6 +136,8 @@ type FS struct {
 	maxFileSizeBytes int64
 	allowHTMLScripts bool
 	version          int
+	searchIndexMu    sync.RWMutex
+	searchIndex      *fileSearchIndex
 }
 
 type Options struct {
@@ -332,15 +339,15 @@ func (fsys *FS) SearchFiles(query string, limit int) (FileSearchResponse, error)
 		limit = 40
 	}
 	started := time.Now()
-	stats := SearchStats{}
+	files, stats, err := fsys.cachedFileSearchFiles()
 	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
 	results := []FileSearchResult{}
-	err := fsys.walkFiles("", &stats, func(file FileSearchResult) bool {
+	for _, file := range files {
 		score := 1
 		if len(terms) > 0 {
 			score = fileSearchScore(strings.ToLower(file.Path), terms)
 			if score <= 0 {
-				return true
+				continue
 			}
 		}
 		file.Score = score
@@ -354,17 +361,23 @@ func (fsys *FS) SearchFiles(query string, limit int) (FileSearchResponse, error)
 		if len(results) > limit {
 			results = results[:limit]
 		}
-		return true
-	})
+	}
 	stats.DurationMs = time.Since(started).Milliseconds()
 	telemetry.RecordOperation(context.Background(), "workspace.file_search", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
 		ScannedDirectories: stats.ScannedDirectories,
 		ScannedFiles:       stats.ScannedFiles,
 		ResultCount:        len(results),
+		Cached:             stats.Cached,
 		Error:              err != nil,
 	})
 	return FileSearchResponse{Query: strings.TrimSpace(query), Results: results, Stats: stats}, err
+}
+
+func (fsys *FS) InvalidateSearchIndex() {
+	fsys.searchIndexMu.Lock()
+	defer fsys.searchIndexMu.Unlock()
+	fsys.searchIndex = nil
 }
 
 func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) {
@@ -507,7 +520,10 @@ func (fsys *FS) resolvePath(input string, requireNonEmpty bool) (resolvedPath, e
 }
 
 func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeStats) ([]Node, error) {
-	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil, requestError("path escapes root")
+	}
 	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil, err
@@ -523,7 +539,10 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -584,7 +603,11 @@ func (fsys *FS) scan(relativeDir string, parent *string, depth int, stats *TreeS
 }
 
 func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(FileSearchResult) bool) error {
-	entries, err := os.ReadDir(filepath.Join(fsys.root, filepath.FromSlash(relativeDir)))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil
+	}
+	entries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
 	}
@@ -598,7 +621,10 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -637,8 +663,42 @@ func (fsys *FS) walkFiles(relativeDir string, stats *SearchStats, onFile func(Fi
 	return nil
 }
 
+func (fsys *FS) cachedFileSearchFiles() ([]FileSearchResult, SearchStats, error) {
+	fsys.searchIndexMu.RLock()
+	if fsys.searchIndex != nil {
+		files := cloneFileSearchResults(fsys.searchIndex.files)
+		fsys.searchIndexMu.RUnlock()
+		return files, SearchStats{Cached: true}, nil
+	}
+	fsys.searchIndexMu.RUnlock()
+
+	fsys.searchIndexMu.Lock()
+	defer fsys.searchIndexMu.Unlock()
+	if fsys.searchIndex != nil {
+		return cloneFileSearchResults(fsys.searchIndex.files), SearchStats{Cached: true}, nil
+	}
+
+	stats := SearchStats{}
+	files := []FileSearchResult{}
+	err := fsys.walkFiles("", &stats, func(file FileSearchResult) bool {
+		files = append(files, file)
+		return true
+	})
+	fsys.searchIndex = &fileSearchIndex{files: cloneFileSearchResults(files)}
+	return files, stats, err
+}
+
+func cloneFileSearchResults(files []FileSearchResult) []FileSearchResult {
+	clone := make([]FileSearchResult, len(files))
+	copy(clone, files)
+	return clone
+}
+
 func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEntry, stats *WatchStats) error {
-	absoluteDir := filepath.Join(fsys.root, filepath.FromSlash(relativeDir))
+	absoluteDir, ok := fsys.internalAbsolutePath(relativeDir)
+	if !ok {
+		return nil
+	}
 	dirEntries, err := os.ReadDir(absoluteDir)
 	if err != nil {
 		return nil
@@ -652,7 +712,10 @@ func (fsys *FS) walkWatchEntries(relativeDir string, entries map[string]WatchEnt
 		if fsys.isIgnored(relative) {
 			continue
 		}
-		absolute := filepath.Join(fsys.root, filepath.FromSlash(relative))
+		absolute, ok := fsys.internalAbsolutePath(relative)
+		if !ok {
+			continue
+		}
 		inside, err := fsys.realPathInsideRoot(absolute)
 		if err != nil || !inside {
 			continue
@@ -698,6 +761,18 @@ func (fsys *FS) realPathInsideRoot(absolute string) (bool, error) {
 		return false, err
 	}
 	return insidePath(fsys.rootReal, target), nil
+}
+
+func (fsys *FS) internalAbsolutePath(relative string) (string, bool) {
+	normalized, err := normalizeRelativePath(relative)
+	if err != nil {
+		return "", false
+	}
+	absolute := filepath.Join(fsys.root, filepath.FromSlash(normalized))
+	if !insidePath(fsys.root, absolute) {
+		return "", false
+	}
+	return absolute, true
 }
 
 func (fsys *FS) isIgnored(relative string) bool {

@@ -178,6 +178,7 @@ export function FileViewer({
           <MarkdownViewer
             file={file}
             mode={viewerMode}
+            toolbarAction={localOutline}
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
@@ -205,6 +206,7 @@ export function FileViewer({
             file={file}
             allowHtmlScripts={allowHtmlScripts}
             mode={viewerMode}
+            toolbarAction={localOutline}
             diff={diff}
             diffLoading={diffLoading}
             diffEnabled={diffEnabled}
@@ -272,6 +274,7 @@ export function FileViewer({
             file={file}
             theme={theme}
             selectedRange={selectedCodeRange}
+            toolbarAction={localOutline}
             refreshedAt={refreshedAt}
             diff={diff}
             diffLoading={diffLoading}
@@ -407,19 +410,8 @@ export function FileViewer({
   );
 }
 
-function FileViewerFrame({
-  children,
-  outlineControl,
-}: {
-  children: ReactNode;
-  outlineControl: ReactNode;
-}) {
-  return (
-    <div className="file-viewer-frame">
-      {outlineControl}
-      {children}
-    </div>
-  );
+function FileViewerFrame({ children }: { children: ReactNode; outlineControl?: ReactNode }) {
+  return <div className="file-viewer-frame">{children}</div>;
 }
 
 export function FileOutlineControl({

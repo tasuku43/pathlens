@@ -18,7 +18,7 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div style={{ minHeight: "100vh", paddingTop: 32, background: "#090d15" }}>
+      <div style={{ minHeight: "100vh", background: "#090d15" }}>
         <Story />
       </div>
     ),
