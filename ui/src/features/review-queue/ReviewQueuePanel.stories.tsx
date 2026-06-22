@@ -15,7 +15,6 @@ import { Inspector } from "./Inspector.js";
 const noop = () => undefined;
 const baseArgs = {
   file: sampleFiles.code,
-  outline: [],
   reviewChanges: sampleReviewChanges,
   reviewItems: sampleReviewQueueItems,
   reviewDiffStats: sampleReviewDiffStats,
@@ -28,7 +27,6 @@ const baseArgs = {
   threadActivities: sampleThreadActivities,
   selectedCodeRange: { start: 9, end: 12 },
   activePaneId: "main",
-  onOutlineSelect: noop,
   onOpenEventPath: noop,
   onConfirmEventPath: noop,
   onOpenNextChanged: noop,
