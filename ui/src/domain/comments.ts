@@ -332,11 +332,10 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
         comments: [],
       } satisfies CommentThread);
     thread.comments.push(comment);
-    if (commentStatusRank(comment.status) > commentStatusRank(thread.status)) {
+    if (comment.updatedAt > thread.updatedAt) {
       thread.status = comment.status;
-    }
-    if (comment.updatedAt > thread.updatedAt)
       thread.updatedAt = comment.updatedAt;
+    }
     if (!thread.reviewBatchId && comment.reviewBatchId)
       thread.reviewBatchId = comment.reviewBatchId;
     if (comment.createdAt < thread.createdAt)
@@ -354,10 +353,6 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
     threads.set(threadId, thread);
   }
   return [...threads.values()];
-}
-
-function commentStatusRank(status: CommentStatus): number {
-  return status === "open" ? 3 : status === "resolved" ? 2 : 1;
 }
 
 export function exportThreadAsJsonLine(thread: CommentThread): string {
