@@ -1735,7 +1735,6 @@ body.resizing-workbench-pane {
     color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
     transparent
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
 }
 .markdown .vivi-rendered-comment-block.active-rendered-comment {
   background: transparent;
@@ -1763,7 +1762,6 @@ body.resizing-workbench-pane {
     var(--comment-tint) 72%,
     transparent
   );
-  box-shadow: inset 3px 0 0 var(--comment-text);
 }
 .rendered-comment-marker {
   position: absolute;
