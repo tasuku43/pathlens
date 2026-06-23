@@ -190,6 +190,7 @@ import {
   type ReviewNavigationTarget,
 } from "../../state/review-navigation.js";
 import type { ViviClient } from "../../application/ports/ViviClient.js";
+import { WorkbenchErrorMessage } from "./WorkbenchErrorMessage.js";
 
 interface LiveRefreshMetrics {
   fsEventsReceived: number;
@@ -2499,7 +2500,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           onScroll={() => updateActiveOutlineForPane(pane.id, paneFile)}
         >
           {error && pane.id === layout.activePaneId ? (
-            <div className="error">{error}</div>
+            <WorkbenchErrorMessage error={error} />
           ) : (
             <>
               {showPaneTextSearch ? (

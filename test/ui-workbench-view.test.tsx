@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
+import { WorkbenchErrorMessage } from "../ui/src/features/workbench/WorkbenchErrorMessage.js";
 import { WorkbenchView } from "../ui/src/features/workbench/WorkbenchView.js";
 
 it("keeps the classic sidebar, viewer, and inspector regions decomposed", () => {
@@ -61,4 +62,14 @@ it("keeps inspector header focused on status instead of duplicate collapse contr
   expect(html).toContain("Read-only");
   expect(html).not.toContain("Collapse inspector");
   expect(html).not.toContain("Inspector target");
+});
+
+it("turns transient fetch failures into a recoverable viewer error", () => {
+  const html = renderToStaticMarkup(
+    <WorkbenchErrorMessage error="TypeError: Failed to fetch" />,
+  );
+
+  expect(html).toContain("Preview unavailable");
+  expect(html).toContain("Vivi could not load this preview");
+  expect(html).not.toContain("TypeError: Failed to fetch");
 });

@@ -17,6 +17,7 @@ import { ShortcutHelp } from "../shared/components/ShortcutHelp.js";
 import { OpenTabs } from "../shared/components/OpenTabs.js";
 import { Topbar } from "../shared/components/Topbar.js";
 import { TreeSidebar } from "../shared/components/TreeSidebar.js";
+import { WorkbenchErrorMessage } from "../features/workbench/WorkbenchErrorMessage.js";
 import { extractMarkdownOutline } from "../state/outline.js";
 import { draftReviewCommentAsViviComment } from "../state/comments.js";
 import {
@@ -75,6 +76,7 @@ export interface ReviewWorkbenchStoryProps {
   shortcutHelpOpen?: boolean;
   draftPublishing?: boolean;
   draftPublishError?: string | null;
+  viewerError?: string;
   publishedBatchId?: string | null;
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
@@ -106,6 +108,7 @@ export function ReviewWorkbenchStory({
   shortcutHelpOpen = false,
   draftPublishing = false,
   draftPublishError = null,
+  viewerError = "Failed to load comments: simulated adapter failure for Storybook.",
   publishedBatchId = null,
   activeCommentId = null,
   inlineComment = null,
@@ -302,10 +305,7 @@ export function ReviewWorkbenchStory({
             />
             <div className="viewer-pane">
               {state === "error" ? (
-                <div className="error">
-                  Failed to load comments: simulated adapter failure for
-                  Storybook.
-                </div>
+                <WorkbenchErrorMessage error={viewerError} />
               ) : state === "loading" ? (
                 <div className="empty-viewer" aria-live="polite">
                   Loading preview...

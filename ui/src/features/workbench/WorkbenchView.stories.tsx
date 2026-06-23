@@ -356,6 +356,17 @@ export const ErrorState: Story = {
   args: {
     state: "error",
     file: sampleFiles.code,
+    viewerError: "TypeError: Failed to fetch",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Preview unavailable")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "Vivi could not load this preview. Select the file again after the server is ready.",
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("TypeError: Failed to fetch")).toBeNull();
   },
 };
 
