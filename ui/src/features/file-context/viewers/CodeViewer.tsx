@@ -20,6 +20,7 @@ import {
 import { languageForPath } from "../../../state/file-icons.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
+import { DiffToggleButton } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function CodeViewer({
@@ -179,14 +180,11 @@ export function CodeViewer({
             <span className="copy-status">{copyStatus}</span>
           ) : null}
           {toolbarAction}
-          <button
-            aria-pressed={Boolean(diffEnabled)}
-            className={`diff-toggle${diffEnabled ? " active" : ""}`}
-            type="button"
-            onClick={onDiffToggle}
-          >
-            Diff from HEAD
-          </button>
+          <DiffToggleButton
+            enabled={diffEnabled}
+            path={file.path}
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       <div className="code-scope-bar">

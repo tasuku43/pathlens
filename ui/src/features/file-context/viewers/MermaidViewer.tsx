@@ -18,6 +18,10 @@ import {
   renderMermaidSvg,
   slugForMarker,
 } from "../rendering/mermaid-rendering.js";
+import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export { hasCustomMermaidStyle } from "../../../domain/mermaid-preview.js";
@@ -85,29 +89,28 @@ export function MermaidViewer({
         <span className="sandbox-status">
           Mermaid preview · strict security
         </span>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         <div className="segmented-control" aria-label="Mermaid view mode">
-          <button
-            className={mode === "preview" ? "active" : ""}
-            type="button"
+          <ViewerModeButton
+            active={mode === "preview"}
+            mode="preview"
+            path={file.path}
             onClick={() => setMode("preview")}
           >
             Preview
-          </button>
-          <button
-            className={mode === "source" ? "active" : ""}
-            type="button"
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
             onClick={() => setMode("source")}
           >
             Source
-          </button>
+          </ViewerModeButton>
         </div>
       </div>
       {diffEnabled ? (

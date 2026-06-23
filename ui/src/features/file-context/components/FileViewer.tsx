@@ -7,6 +7,7 @@ import type { CommentActivitySummary } from "../../../state/comment-activity.js"
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { BinaryMetadataViewer } from "../viewers/BinaryMetadataViewer.js";
+import { DiffToggleButton } from "./ViewerControlButton.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import {
   buildCodeMetadata,
@@ -397,14 +398,11 @@ export function FileViewer({
     <FileViewerFrame {...frameProps}>
       <div className="unsupported">
         <h2>{file.path}</h2>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         {diffEnabled ? (
           <DiffViewer
             path={file.path}

@@ -13,6 +13,10 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export interface ParsedDelimitedText {
@@ -78,29 +82,28 @@ export function CsvViewer({
           {parsed.rows.length} rows · {parsed.headers.length} columns
           {parsed.truncated ? " · preview limited" : ""}
         </span>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         <div className="segmented-control" aria-label="CSV view mode">
-          <button
-            className={mode === "table" ? "active" : ""}
-            type="button"
+          <ViewerModeButton
+            active={mode === "table"}
+            mode="table"
+            path={file.path}
             onClick={() => setMode("table")}
           >
             Table
-          </button>
-          <button
-            className={mode === "source" ? "active" : ""}
-            type="button"
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
             onClick={() => setMode("source")}
           >
             Source
-          </button>
+          </ViewerModeButton>
         </div>
       </div>
       {diffEnabled ? (

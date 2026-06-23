@@ -13,6 +13,7 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import { DiffToggleButton } from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function TextViewer({
@@ -67,14 +68,11 @@ export function TextViewer({
     <section className="text-viewer">
       <div className="text-toolbar">
         <strong>{file.path}</strong>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         <button type="button" onClick={() => setWrap((value) => !value)}>
           {wrap ? "No wrap" : "Wrap"}
         </button>

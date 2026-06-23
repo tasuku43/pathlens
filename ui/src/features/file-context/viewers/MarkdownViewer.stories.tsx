@@ -43,11 +43,19 @@ export const RenderedMarkdownComment: Story = {
     await expect(
       canvas.getByRole("heading", { name: "Review Surface" }),
     ).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Source" }));
-    await expect(args.onModeChange).toHaveBeenCalledWith("source");
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    const sourceMode = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-mode-option"][data-viewer-mode="source"][data-viewer-path="${sampleFiles.markdown.path}"]`,
     );
+    await expect(sourceMode).toBeInTheDocument();
+    await expect(sourceMode).toHaveAttribute("data-active", "false");
+    await userEvent.click(sourceMode!);
+    await expect(args.onModeChange).toHaveBeenCalledWith("source");
+    const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.markdown.path}"]`,
+    );
+    await expect(diffToggle).toBeInTheDocument();
+    await expect(diffToggle).toHaveAttribute("data-diff-enabled", "false");
+    await userEvent.click(diffToggle!);
     await expect(args.onDiffToggle).toHaveBeenCalled();
   },
 };

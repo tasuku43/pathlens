@@ -42,11 +42,19 @@ export const SourceHtmlComment: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("list")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Preview" }));
-    await expect(args.onModeChange).toHaveBeenCalledWith("preview");
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    const previewMode = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-mode-option"][data-viewer-mode="preview"][data-viewer-path="${sampleFiles.html.path}"]`,
     );
+    await expect(previewMode).toBeInTheDocument();
+    await expect(previewMode).toHaveAttribute("data-active", "false");
+    await userEvent.click(previewMode!);
+    await expect(args.onModeChange).toHaveBeenCalledWith("preview");
+    const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.html.path}"]`,
+    );
+    await expect(diffToggle).toBeInTheDocument();
+    await expect(diffToggle).toHaveAttribute("data-diff-enabled", "false");
+    await userEvent.click(diffToggle!);
     await expect(args.onDiffToggle).toHaveBeenCalled();
   },
 };

@@ -27,6 +27,10 @@ import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
 import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function HtmlViewer({
@@ -271,30 +275,29 @@ export function HtmlViewer({
         </span>
         <div className="viewer-toolbar-actions">
           <div className="segmented-control" aria-label="HTML view mode">
-            <button
-              className={mode === "preview" ? "active" : ""}
-              type="button"
+            <ViewerModeButton
+              active={mode === "preview"}
+              mode="preview"
+              path={file.path}
               onClick={() => setMode("preview")}
             >
               Preview
-            </button>
-            <button
-              className={mode === "source" ? "active" : ""}
-              type="button"
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={mode === "source"}
+              mode="source"
+              path={file.path}
               onClick={() => setMode("source")}
             >
               Source
-            </button>
+            </ViewerModeButton>
           </div>
           {toolbarAction}
-          <button
-            aria-pressed={Boolean(diffEnabled)}
-            className={`diff-toggle${diffEnabled ? " active" : ""}`}
-            type="button"
-            onClick={onDiffToggle}
-          >
-            Diff from HEAD
-          </button>
+          <DiffToggleButton
+            enabled={diffEnabled}
+            path={file.path}
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

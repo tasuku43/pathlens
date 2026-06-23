@@ -13,6 +13,10 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
 import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function JsonViewer({
@@ -71,29 +75,28 @@ export function JsonViewer({
         <span className="sandbox-status">
           {parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
         </span>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         <div className="segmented-control" aria-label="JSON view mode">
-          <button
-            className={mode === "tree" ? "active" : ""}
-            type="button"
+          <ViewerModeButton
+            active={mode === "tree"}
+            mode="tree"
+            path={file.path}
             onClick={() => setMode("tree")}
           >
             Tree
-          </button>
-          <button
-            className={mode === "source" ? "active" : ""}
-            type="button"
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={mode === "source"}
+            mode="source"
+            path={file.path}
             onClick={() => setMode("source")}
           >
             Source
-          </button>
+          </ViewerModeButton>
         </div>
       </div>
       {diffEnabled ? (

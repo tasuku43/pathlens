@@ -48,9 +48,12 @@ export const SourceWithOpenThread: Story = {
         name: `Code viewer for ${sampleFiles.code.path}`,
       }),
     ).toBeInTheDocument();
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Diff from HEAD" }),
+    const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.code.path}"]`,
     );
+    await expect(diffToggle).toBeInTheDocument();
+    await expect(diffToggle).toHaveAttribute("data-diff-enabled", "false");
+    await userEvent.click(diffToggle!);
     await expect(args.onDiffToggle).toHaveBeenCalled();
     await expect(canvas.getByText("Current scope")).toBeInTheDocument();
   },
@@ -67,6 +70,13 @@ export const DiffMode: Story = {
     diffEnabled: true,
     diff: sampleDiff,
     activeCommentId: "comment-diff-added",
+  },
+  play: async ({ canvasElement }) => {
+    const diffToggle = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="viewer-diff-toggle"][data-viewer-path="${sampleFiles.code.path}"]`,
+    );
+    await expect(diffToggle).toBeInTheDocument();
+    await expect(diffToggle).toHaveAttribute("data-diff-enabled", "true");
   },
 };
 

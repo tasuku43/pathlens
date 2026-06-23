@@ -39,6 +39,10 @@ import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
 import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
+import {
   injectMermaidPreviewBlocks,
   renderMarkdownDocumentHtml,
 } from "../rendering/markdown-rendering.js";
@@ -307,30 +311,29 @@ export function MarkdownViewer({
       >
         <div className="viewer-toolbar-actions">
           <div className="segmented-control" aria-label="Markdown view mode">
-            <button
-              className={mode === "rendered" ? "active" : ""}
-              type="button"
+            <ViewerModeButton
+              active={mode === "rendered"}
+              mode="rendered"
+              path={file.path}
               onClick={() => setMode("rendered")}
             >
               Rendered
-            </button>
-            <button
-              className={mode === "source" ? "active" : ""}
-              type="button"
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={mode === "source"}
+              mode="source"
+              path={file.path}
               onClick={() => setMode("source")}
             >
               Source
-            </button>
+            </ViewerModeButton>
           </div>
           {toolbarAction}
-          <button
-            aria-pressed={Boolean(diffEnabled)}
-            className={`diff-toggle${diffEnabled ? " active" : ""}`}
-            type="button"
-            onClick={onDiffToggle}
-          >
-            Diff from HEAD
-          </button>
+          <DiffToggleButton
+            enabled={diffEnabled}
+            path={file.path}
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

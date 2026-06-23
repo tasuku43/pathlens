@@ -4,6 +4,10 @@ import type { ViviComment } from "../../../domain/comments.js";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import type { CommentCreateHandler } from "../../../state/comments.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
+import {
+  DiffToggleButton,
+  ViewerModeButton,
+} from "../components/ViewerControlButton.js";
 import { DiffViewer } from "./DiffViewer.js";
 
 export function ImageViewer({
@@ -52,29 +56,28 @@ export function ImageViewer({
             ? " · SVG as image, scripts inactive"
             : ""}
         </span>
-        <button
-          aria-pressed={Boolean(diffEnabled)}
-          className={`diff-toggle${diffEnabled ? " active" : ""}`}
-          type="button"
-          onClick={onDiffToggle}
-        >
-          Diff from HEAD
-        </button>
+        <DiffToggleButton
+          enabled={diffEnabled}
+          path={file.path}
+          onToggle={onDiffToggle}
+        />
         <div className="segmented-control" aria-label="Image size mode">
-          <button
-            className={fit === "fit" ? "active" : ""}
-            type="button"
+          <ViewerModeButton
+            active={fit === "fit"}
+            mode="fit"
+            path={file.path}
             onClick={() => setFit("fit")}
           >
             Fit
-          </button>
-          <button
-            className={fit === "actual" ? "active" : ""}
-            type="button"
+          </ViewerModeButton>
+          <ViewerModeButton
+            active={fit === "actual"}
+            mode="actual"
+            path={file.path}
             onClick={() => setFit("actual")}
           >
             Actual
-          </button>
+          </ViewerModeButton>
         </div>
       </div>
       {diffEnabled ? (
