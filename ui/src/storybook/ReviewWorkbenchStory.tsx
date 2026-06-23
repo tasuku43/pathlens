@@ -18,6 +18,7 @@ import { OpenTabs } from "../shared/components/OpenTabs.js";
 import { Topbar } from "../shared/components/Topbar.js";
 import { TreeSidebar } from "../shared/components/TreeSidebar.js";
 import { WorkbenchErrorMessage } from "../features/workbench/WorkbenchErrorMessage.js";
+import { WorkbenchPendingFileMessage } from "../features/workbench/WorkbenchPendingFileMessage.js";
 import { extractMarkdownOutline } from "../state/outline.js";
 import { draftReviewCommentAsViviComment } from "../state/comments.js";
 import {
@@ -78,6 +79,7 @@ export interface ReviewWorkbenchStoryProps {
   draftPublishError?: string | null;
   viewerError?: string;
   viewerSourceMissing?: boolean;
+  pendingFilePath?: string;
   reviewQueueOpenFile?: FilePayload;
   publishedBatchId?: string | null;
   activeCommentId?: string | null;
@@ -112,6 +114,7 @@ export function ReviewWorkbenchStory({
   draftPublishError = null,
   viewerError = "Failed to load comments: simulated adapter failure for Storybook.",
   viewerSourceMissing = false,
+  pendingFilePath,
   reviewQueueOpenFile,
   publishedBatchId = null,
   activeCommentId = null,
@@ -194,7 +197,7 @@ export function ReviewWorkbenchStory({
     setStoryCommentsPanelOpen(false);
   }
 
-  const selectedPath = storyFile?.path ?? null;
+  const selectedPath = storyFile?.path ?? pendingFilePath ?? null;
   const activeTabs =
     tabs ??
     (storyFile
@@ -350,6 +353,8 @@ export function ReviewWorkbenchStory({
                   path={selectedPath}
                   sourceMissing={storyViewerSourceMissing}
                 />
+              ) : pendingFilePath && !storyFile ? (
+                <WorkbenchPendingFileMessage path={pendingFilePath} />
               ) : storyState === "loading" ? (
                 <div className="empty-viewer" aria-live="polite">
                   Loading preview...

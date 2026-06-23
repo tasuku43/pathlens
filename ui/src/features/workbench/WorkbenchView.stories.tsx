@@ -383,6 +383,22 @@ export const LoadingState: Story = {
   },
 };
 
+export const PendingFileLoadState: Story = {
+  args: {
+    file: null,
+    pendingFilePath: sampleFiles.code.path,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText(`Loading preview for ${sampleFiles.code.path}...`),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.queryByText("Select a file from the tree."),
+    ).not.toBeInTheDocument();
+  },
+};
+
 export const ErrorState: Story = {
   args: {
     state: "error",

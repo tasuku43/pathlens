@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { Inspector } from "../ui/src/features/review-queue/Inspector.js";
 import { WorkbenchErrorMessage } from "../ui/src/features/workbench/WorkbenchErrorMessage.js";
+import { WorkbenchPendingFileMessage } from "../ui/src/features/workbench/WorkbenchPendingFileMessage.js";
 import { WorkbenchView } from "../ui/src/features/workbench/WorkbenchView.js";
 
 it("keeps the classic sidebar, viewer, and inspector regions decomposed", () => {
@@ -72,6 +73,17 @@ it("turns transient fetch failures into a recoverable viewer error", () => {
   expect(html).toContain("Preview unavailable");
   expect(html).toContain("Vivi could not load this preview");
   expect(html).not.toContain("TypeError: Failed to fetch");
+});
+
+it("names the pending file while a preview payload loads", () => {
+  const html = renderToStaticMarkup(
+    <WorkbenchPendingFileMessage path="net/netfilter/xt_DSCP.c" />,
+  );
+
+  expect(html).toContain("Loading preview for");
+  expect(html).toContain("net/netfilter/xt_DSCP.c");
+  expect(html).toContain('aria-live="polite"');
+  expect(html).not.toContain("Select a file from the tree.");
 });
 
 it("turns missing source failures into a comment-preserving viewer error", () => {

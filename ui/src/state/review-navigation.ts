@@ -144,6 +144,13 @@ export function commentNavigationTarget(
   };
 }
 
+export function inlineThreadFocusCommentId(
+  activeCommentId: string | null,
+  scheduledCommentId: string | null = null,
+): string | null {
+  return scheduledCommentId ?? activeCommentId;
+}
+
 export function countAttentionCommentThreads(
   comments: ViviComment[],
   unreadReviewPaths: ReadonlySet<string>,

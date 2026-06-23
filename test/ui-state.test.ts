@@ -142,6 +142,7 @@ import {
   countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
+  inlineThreadFocusCommentId,
   latestUnreadActivityTarget,
   moveReviewNavigationTarget,
   openThreadNavigationTargets,
@@ -2043,6 +2044,18 @@ it("prefers relevant open threads when jumping from a review queue item", () => 
     commentId: "open-1",
     surface: "diff",
   });
+});
+
+it("uses scheduled inline comment ids instead of stale active comment state", () => {
+  expect(inlineThreadFocusCommentId(null, "comment-next")).toBe(
+    "comment-next",
+  );
+  expect(inlineThreadFocusCommentId("comment-current", "comment-next")).toBe(
+    "comment-next",
+  );
+  expect(inlineThreadFocusCommentId("comment-current")).toBe(
+    "comment-current",
+  );
 });
 
 it("treats unread activity as a navigation hint rather than status", () => {

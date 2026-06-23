@@ -184,6 +184,7 @@ import {
   countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
+  inlineThreadFocusCommentId,
   moveReviewNavigationTarget,
   openThreadNavigationTargets,
   reviewQueueOpenTransition,
@@ -192,6 +193,7 @@ import {
 } from "../../state/review-navigation.js";
 import type { ViviClient } from "../../application/ports/ViviClient.js";
 import { WorkbenchErrorMessage } from "./WorkbenchErrorMessage.js";
+import { WorkbenchPendingFileMessage } from "./WorkbenchPendingFileMessage.js";
 
 interface LiveRefreshMetrics {
   fsEventsReceived: number;
@@ -208,6 +210,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [config, setConfig] = useState<ViewerConfig | null>(null);
   const [layout, setLayout] = useState(initialEditorLayout);
   const [files, setFiles] = useState<Record<string, FilePayload>>({});
+  const [loadingFilePaths, setLoadingFilePaths] = useState<
+    Record<string, number>
+  >({});
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
@@ -886,20 +891,34 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     paneId = layout.activePaneId,
     mode: OpenTabMode = "preview",
   ): Promise<FilePayload> {
+    setLoadingFilePaths((items) => ({
+      ...items,
+      [path]: (items[path] ?? 0) + 1,
+    }));
     setActiveCommentId(null);
     setActiveCommentRect(null);
     setLayout((current) => setPaneActivePath(current, paneId, path));
     setError(null);
-    const payload = await fetchFilePayload(path);
-    setFiles((items) => ({ ...items, [payload.path]: payload }));
-    setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
-    setRecentFiles((items) => recordRecentFile(items, payload));
-    markReviewPathRead(payload.path);
-    void loadComments(payload.path).catch((err) => setError(String(err)));
-    if (diffEnabled && supportsDiffMode(payload)) {
-      void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
+    try {
+      const payload = await fetchFilePayload(path);
+      setFiles((items) => ({ ...items, [payload.path]: payload }));
+      setOpenTabs((tabs) => upsertOpenTab(tabs, payload, paneId, mode));
+      setRecentFiles((items) => recordRecentFile(items, payload));
+      markReviewPathRead(payload.path);
+      void loadComments(payload.path).catch((err) => setError(String(err)));
+      if (diffEnabled && supportsDiffMode(payload)) {
+        void loadHeadDiff(payload.path).catch((err) => setError(String(err)));
+      }
+      return payload;
+    } finally {
+      setLoadingFilePaths((items) => {
+        const nextCount = (items[path] ?? 1) - 1;
+        if (nextCount > 0) return { ...items, [path]: nextCount };
+        const next = { ...items };
+        delete next[path];
+        return next;
+      });
     }
-    return payload;
   }
 
   function scheduleLiveFileRefresh(path: string, delayMs = 75) {
@@ -1231,6 +1250,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   function openReviewQueueItem(path: string, mode: OpenTabMode) {
     const paneId = layout.activePaneId;
+    const activateReviewPath = () =>
+      setLayout((current) => setPaneActivePath(current, paneId, path));
     const transition = reviewQueueOpenTransition({ layout, paneId, path });
     setActiveCommentId(transition.activeCommentId);
     setActiveCommentRect(transition.activeCommentRect);
@@ -1247,14 +1268,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       ? firstRelevantThreadForReviewItem(item, comments)
       : null;
     if (target) {
-      void openReviewTarget(target, mode, paneId).catch((err) =>
-        setError(String(err)),
-      );
+      void openReviewTarget(target, mode, paneId)
+        .then(activateReviewPath)
+        .catch((err) => setError(String(err)));
       return;
     }
-    void loadFile(path, paneId, mode).catch((err) =>
-      setError(String(err)),
-    );
+    void loadFile(path, paneId, mode)
+      .then(activateReviewPath)
+      .catch((err) => setError(String(err)));
   }
 
   async function openReviewTarget(
@@ -1293,7 +1314,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (target.commentId) {
       setActiveCommentId(target.commentId);
       setActiveCommentRect(null);
-      window.setTimeout(() => focusCurrentInlineThread(), 120);
+      window.setTimeout(() => focusCurrentInlineThread(target.commentId), 120);
     }
   }
 
@@ -1390,15 +1411,19 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }, 0);
   }
 
-  function focusCurrentInlineThread() {
-    if (!activeCommentId) {
+  function focusCurrentInlineThread(commentId: string | null = null) {
+    const focusCommentId = inlineThreadFocusCommentId(
+      activeCommentId,
+      commentId,
+    );
+    if (!focusCommentId) {
       openMovedTarget(currentFileOpenThreadTargets, "next");
       return;
     }
     const target =
       Array.from(
         document.querySelectorAll<HTMLElement>("[data-comment-id]"),
-      ).find((element) => element.dataset.commentId === activeCommentId) ??
+      ).find((element) => element.dataset.commentId === focusCommentId) ??
       document.querySelector<HTMLElement>(".inline-comment-card");
     target?.focus();
   }
@@ -2413,6 +2438,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   function renderEditorPane(pane: EditorPane): ReactNode {
     const paneTabs = openTabs.filter((tab) => tab.paneId === pane.id);
     const paneFile = pane.activePath ? (files[pane.activePath] ?? null) : null;
+    const panePendingPath =
+      pane.activePath && !paneFile && loadingFilePaths[pane.activePath]
+        ? pane.activePath
+        : null;
     const paneActiveTab = pane.activePath
       ? paneTabs.find((tab) => tab.path === pane.activePath)
       : null;
@@ -2508,93 +2537,101 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   }}
                 />
               ) : null}
-              <FileViewer
-                key={paneFile?.path ?? "empty"}
-                file={paneFile}
-                removed={Boolean(paneActiveTab?.removed)}
-                allowHtmlScripts={config?.allowHtmlScripts ?? false}
-                theme={resolvedTheme}
-                selectedCodeRange={
-                  paneFile?.path
-                    ? (codeSelections[paneFile.path] ?? null)
-                    : null
-                }
-                focusLineNumber={
-                  paneFile &&
-                  sourceFocusTarget?.paneId === pane.id &&
-                  sourceFocusTarget.path === paneFile.path
-                    ? sourceFocusTarget.lineNumber
-                    : null
-                }
-                focusRevision={
-                  paneFile &&
-                  sourceFocusTarget?.paneId === pane.id &&
-                  sourceFocusTarget.path === paneFile.path
-                    ? sourceFocusTarget.revision
-                    : 0
-                }
-                viewerMode={
-                  paneFile
-                    ? (viewerModes[paneFile.path] ??
-                      defaultViewerMode(paneFile))
-                    : undefined
-                }
-                diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
-                diffLoading={
-                  paneFile?.path ? Boolean(loadingDiffs[paneFile.path]) : false
-                }
-                diffEnabled={
-                  paneFile ? diffEnabled && supportsDiffMode(paneFile) : false
-                }
-                outline={outlineForFile(paneFile)}
-                refreshedAt={
-                  paneFile?.path ? refreshedFiles[paneFile.path] : undefined
-                }
-                onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
-                onCreateComment={(draft, body, rect) =>
-                  createComment(draft, body, rect).catch((err) =>
-                    setError(String(err)),
-                  )
-                }
-                comments={
-                  paneFile?.path
-                    ? combinePublishedAndDraftComments(
-                        comments,
-                        draftComments,
-                        paneFile.path,
-                      )
-                    : []
-                }
-                activeCommentId={activeCommentId}
-                expandActiveCommentThread={!commentsPanelOpen}
-                onOpenComment={openInlineComment}
-                onCloseComment={closeInlineComment}
-                onCommentStatusChange={updateCommentStatus}
-                threadActivities={commentActivitySummaries}
-                onFocusActiveComment={focusCurrentInlineThread}
-                onCodeSelectionChange={(range) => {
-                  if (!paneFile?.path) return;
-                  setCodeSelections((items) => ({
-                    ...items,
-                    [paneFile.path]: range,
-                  }));
-                }}
-                onViewerModeChange={(mode) => {
-                  if (!paneFile?.path) return;
-                  setViewerModes((items) => ({
-                    ...items,
-                    [paneFile.path]: mode,
-                  }));
-                }}
-                onDiffToggle={() => {
-                  if (!paneFile?.path) return;
-                  toggleHeadDiff(paneFile.path);
-                }}
-                onRevealInTree={(path) => revealActiveFileInTree(path)}
-                onCloseRemoved={() => {
-                  if (pane.activePath) closeTab(pane.activePath, pane.id);
-                }}
-              />
+              {panePendingPath ? (
+                <WorkbenchPendingFileMessage path={panePendingPath} />
+              ) : (
+                <FileViewer
+                  key={paneFile?.path ?? "empty"}
+                  file={paneFile}
+                  removed={Boolean(paneActiveTab?.removed)}
+                  allowHtmlScripts={config?.allowHtmlScripts ?? false}
+                  theme={resolvedTheme}
+                  selectedCodeRange={
+                    paneFile?.path
+                      ? (codeSelections[paneFile.path] ?? null)
+                      : null
+                  }
+                  focusLineNumber={
+                    paneFile &&
+                    sourceFocusTarget?.paneId === pane.id &&
+                    sourceFocusTarget.path === paneFile.path
+                      ? sourceFocusTarget.lineNumber
+                      : null
+                  }
+                  focusRevision={
+                    paneFile &&
+                    sourceFocusTarget?.paneId === pane.id &&
+                    sourceFocusTarget.path === paneFile.path
+                      ? sourceFocusTarget.revision
+                      : 0
+                  }
+                  viewerMode={
+                    paneFile
+                      ? (viewerModes[paneFile.path] ??
+                        defaultViewerMode(paneFile))
+                      : undefined
+                  }
+                  diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}
+                  diffLoading={
+                    paneFile?.path
+                      ? Boolean(loadingDiffs[paneFile.path])
+                      : false
+                  }
+                  diffEnabled={
+                    paneFile
+                      ? diffEnabled && supportsDiffMode(paneFile)
+                      : false
+                  }
+                  outline={outlineForFile(paneFile)}
+                  refreshedAt={
+                    paneFile?.path ? refreshedFiles[paneFile.path] : undefined
+                  }
+                  onOutlineSelect={(id) => jumpToOutline(id, pane.id)}
+                  onCreateComment={(draft, body, rect) =>
+                    createComment(draft, body, rect).catch((err) =>
+                      setError(String(err)),
+                    )
+                  }
+                  comments={
+                    paneFile?.path
+                      ? combinePublishedAndDraftComments(
+                          comments,
+                          draftComments,
+                          paneFile.path,
+                        )
+                      : []
+                  }
+                  activeCommentId={activeCommentId}
+                  expandActiveCommentThread={!commentsPanelOpen}
+                  onOpenComment={openInlineComment}
+                  onCloseComment={closeInlineComment}
+                  onCommentStatusChange={updateCommentStatus}
+                  threadActivities={commentActivitySummaries}
+                  onFocusActiveComment={focusCurrentInlineThread}
+                  onCodeSelectionChange={(range) => {
+                    if (!paneFile?.path) return;
+                    setCodeSelections((items) => ({
+                      ...items,
+                      [paneFile.path]: range,
+                    }));
+                  }}
+                  onViewerModeChange={(mode) => {
+                    if (!paneFile?.path) return;
+                    setViewerModes((items) => ({
+                      ...items,
+                      [paneFile.path]: mode,
+                    }));
+                  }}
+                  onDiffToggle={() => {
+                    if (!paneFile?.path) return;
+                    toggleHeadDiff(paneFile.path);
+                  }}
+                  onRevealInTree={(path) => revealActiveFileInTree(path)}
+                  onCloseRemoved={() => {
+                    if (pane.activePath) closeTab(pane.activePath, pane.id);
+                  }}
+                />
+              )}
             </>
           )}
         </div>
