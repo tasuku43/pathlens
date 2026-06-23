@@ -202,6 +202,9 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 	serverURL := commentsSuggestedServerURL(args)
 	receiptLog := commentsArgValue(args, "--receipt-log")
 	if code == "invalid_arguments" {
+		if command == "show" && firstCommentsPositionalArg(command, args) == "" {
+			return suggestedCommandsForMissingShowThreadID(args, actorID, serverURL, receiptLog)
+		}
 		if positionalURL := commentsPositionalURLArg(args); positionalURL != "" {
 			return []commentSuggestedCommand{
 				suggestedCommentsCommand("retry_with_url_flag", "comments "+command, withURLArg(removeFirstArg(append([]string{"comments"}, args...), positionalURL), strings.TrimRight(positionalURL, "/")), "", "Move the Vivi server URL into --url; positional URLs are treated as unexpected arguments."),
@@ -258,6 +261,27 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 		}
 	default:
 		return nil
+	}
+}
+
+func suggestedCommandsForMissingShowThreadID(args []string, actorID string, serverURL string, receiptLog string) []commentSuggestedCommand {
+	path := commentsArgValue(args, "--path")
+	listArgs := []string{"comments", "list", "--json"}
+	if path != "" {
+		listArgs = []string{"comments", "list", "--path", path, "--json"}
+	}
+	if actorID == "" {
+		return []commentSuggestedCommand{
+			suggestedCommentsCommand("find_thread_id", "comments list", withURLArg(listArgs, serverURL), "", "List matching comment threads, copy the thread id, then rerun comments show <thread-id>."),
+		}
+	}
+	inboxArgs := actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--json")
+	if path != "" {
+		inboxArgs = actorCommand([]string{"comments", "inbox"}, actorID, commentsArgValue(args, "--actor-kind"), "--path", path, "--json")
+	}
+	return []commentSuggestedCommand{
+		suggestedCommentsCommand("find_thread_id", "comments inbox", withRuntimeArgs(inboxArgs, serverURL, receiptLog), "", "List matching open work queues, copy the thread id, then rerun comments show <thread-id>."),
+		suggestedCommentsCommand("list_matching_threads", "comments list", withURLArg(listArgs, serverURL), "", "List all matching comment threads, including terminal history, when the thread is not in the open inbox."),
 	}
 }
 

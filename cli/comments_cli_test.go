@@ -1532,6 +1532,32 @@ func TestCommentsCLIClassifiesServerUnreachableForAgentRecovery(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIShowMissingThreadIDSuggestsPathDiscovery(t *testing.T) {
+	err := newCommentsCommandError(
+		[]string{"show", "--path", "net/netfilter/xt_RATEEST.c", "--actor", "codex:show", "--url", "http://127.0.0.1:59432", "--json"},
+		errors.New("show requires exactly one thread id"),
+	)
+	payload, ok := cliErrorPayload(err)
+	if !ok {
+		t.Fatalf("expected structured show error, got %T", err)
+	}
+	envelope := payload.(commentsErrorEnvelope)
+	if envelope.Error.Code != "invalid_arguments" || envelope.Error.Command != "comments show" || envelope.Error.Recoverable {
+		t.Fatalf("show missing id envelope = %#v", envelope)
+	}
+	if len(envelope.Error.SuggestedCommands) != 2 {
+		t.Fatalf("show missing id suggestions = %#v", envelope.Error.SuggestedCommands)
+	}
+	inbox := envelope.Error.SuggestedCommands[0]
+	if inbox.Intent != "find_thread_id" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "--path") || !containsString(inbox.Args, "net/netfilter/xt_RATEEST.c") || !containsString(inbox.Args, "http://127.0.0.1:59432") || !strings.Contains(inbox.DisplayCommand, "comments inbox --actor codex:show") {
+		t.Fatalf("show missing id inbox suggestion = %#v", inbox)
+	}
+	list := envelope.Error.SuggestedCommands[1]
+	if list.Intent != "list_matching_threads" || list.Command != "comments list" || !containsString(list.Args, "--path") || !containsString(list.Args, "net/netfilter/xt_RATEEST.c") || !containsString(list.Args, "http://127.0.0.1:59432") || !strings.Contains(list.DisplayCommand, "comments list --path net/netfilter/xt_RATEEST.c") {
+		t.Fatalf("show missing id list suggestion = %#v", list)
+	}
+}
+
 func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
