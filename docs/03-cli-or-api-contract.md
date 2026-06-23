@@ -7,6 +7,7 @@ vivi [root]
 vivi [root] --port 4317
 vivi [root] --host 127.0.0.1
 vivi [root] --open
+vivi [root] --port 0 --ready-json
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
@@ -78,6 +79,11 @@ Default host: `127.0.0.1`
 Default security posture: local-only, sandboxed HTML preview, local CSS enabled for practical artifact inspection, and HTML script execution disabled. Use `--allow-html-scripts` only when intentionally reviewing generated HTML that needs script execution.
 
 Default rich preview limit: `1048576` bytes. Use `--max-file-size <bytes>` to change it for the current local run.
+
+Pass `--ready-json` when a launcher or coding agent needs a stable startup
+handoff. After the local server is listening, Vivi emits one JSON object on
+stdout with `event: "vivi_server_ready"`, the selected root, the resolved server
+URL, and `suggestedCommands` that already include the resolved `--url`.
 
 ### Agent comments CLI
 

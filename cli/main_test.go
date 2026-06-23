@@ -16,10 +16,42 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
 		"vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
+		"--ready-json",
 	} {
 		if !strings.Contains(help, command) {
 			t.Fatalf("help text did not include %q\n%s", command, help)
 		}
+	}
+}
+
+func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
+	payload := newServerReadyPayload("/work/linux", "http://127.0.0.1:59432")
+
+	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" {
+		t.Fatalf("unexpected ready payload metadata: %#v", payload)
+	}
+	if len(payload.SuggestedCommands) != 2 {
+		t.Fatalf("expected two suggested commands, got %#v", payload.SuggestedCommands)
+	}
+	reviewCommand := payload.SuggestedCommands[0]
+	if reviewCommand.Intent != "inspect_review_queue" || reviewCommand.Command != "review queue" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
+		t.Fatalf("review ready suggestion did not carry resolved url: %#v", reviewCommand)
+	}
+	commentsCommand := payload.SuggestedCommands[1]
+	if commentsCommand.Intent != "check_comments_readiness" || commentsCommand.Command != "comments doctor" || !containsString(commentsCommand.Args, "--url") || !containsString(commentsCommand.Args, "http://127.0.0.1:59432") || !containsString(commentsCommand.Args, "--json") {
+		t.Fatalf("comments ready suggestion did not carry resolved url: %#v", commentsCommand)
+	}
+
+	var stdout bytes.Buffer
+	if err := writeJSON(&stdout, payload); err != nil {
+		t.Fatalf("write ready JSON: %v", err)
+	}
+	var decoded serverReadyPayload
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("ready payload was not JSON: %v\n%s", err, stdout.String())
+	}
+	if decoded.Event != payload.Event || decoded.URL != payload.URL {
+		t.Fatalf("decoded ready payload lost metadata: %#v", decoded)
 	}
 }
 

@@ -60,6 +60,7 @@ func run(args []string) error {
 	noHTMLScripts := flags.Bool("no-html-scripts", false, "keep HTML preview scripts disabled")
 	gitTimeout := flags.Duration("git-review-timeout", 2*time.Second, "Git review timeout")
 	logLevel := flags.String("log-level", "info", "log level")
+	readyJSON := flags.Bool("ready-json", false, "print a JSON server-ready event after startup")
 	showVersion := flags.Bool("version", false, "print version")
 	flags.Usage = func() { fmt.Fprintln(flags.Output(), helpText()) }
 	flagArgs, positional := splitFlagsAndPositionals(args)
@@ -120,8 +121,14 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Vivi serving %s\n", workspaceFS.Config().Root)
-	fmt.Println(httpServer.URL())
+	if *readyJSON {
+		if err := writeJSON(os.Stdout, newServerReadyPayload(workspaceFS.Config().Root, httpServer.URL())); err != nil {
+			return err
+		}
+	} else {
+		fmt.Printf("Vivi serving %s\n", workspaceFS.Config().Root)
+		fmt.Println(httpServer.URL())
+	}
 	if *open {
 		_ = openBrowser(httpServer.URL())
 	}
@@ -192,9 +199,43 @@ func helpText() string {
 		"  --no-html-scripts          Keep HTML preview scripts disabled",
 		"  --git-review-timeout <d>   Git review timeout such as 2s or 500ms",
 		"  --log-level <level>        Log level (default: info)",
+		"  --ready-json               Print a JSON server-ready event after startup",
 		"  --version                  Print version",
 		"  --help                     Show this help",
 	}, "\n")
+}
+
+type serverReadyPayload struct {
+	SchemaVersion     int                       `json:"schemaVersion"`
+	Event             string                    `json:"event"`
+	Root              string                    `json:"root"`
+	URL               string                    `json:"url"`
+	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
+}
+
+func newServerReadyPayload(root string, serverURL string) serverReadyPayload {
+	return serverReadyPayload{
+		SchemaVersion: 1,
+		Event:         "vivi_server_ready",
+		Root:          root,
+		URL:           serverURL,
+		SuggestedCommands: []commentSuggestedCommand{
+			suggestedCommentsCommand(
+				"inspect_review_queue",
+				"review queue",
+				[]string{"review", "queue", "--url", serverURL, "--json"},
+				"",
+				"Inspect the changed-file review queue using the resolved Vivi server URL.",
+			),
+			suggestedCommentsCommand(
+				"check_comments_readiness",
+				"comments doctor",
+				[]string{"comments", "doctor", "--url", serverURL, "--json"},
+				"",
+				"Check comment protocol readiness before starting an actor-owned feedback loop.",
+			),
+		},
+	}
 }
 
 func splitFlagsAndPositionals(args []string) ([]string, []string) {
