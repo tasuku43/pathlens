@@ -14,9 +14,11 @@ import {
   commentsForLine,
   flushDeferredSourceHighlightState,
   hasTextSelectionInElement,
+  lineCommentThreadActionLabel,
   lineRangeForQuote,
   matchingCodeCommentThread,
   nextDeferredSourceHighlightState,
+  preferredCodeCommentThread,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
   selectedLineRangeInElement,
@@ -313,20 +315,18 @@ export function SourceCommentSurface({
         const selectionEnd = selected?.end === lineNumber;
         const highlighted = highlightState.visible?.[index];
         const lineComments = commentsForLine(comments, lineNumber);
-        const firstComment = lineComments[0];
-        const containingThread = firstComment
-          ? commentThreads.find((thread) =>
-              thread.comments.some((comment) => comment.id === firstComment.id),
-            )
-          : undefined;
-        const rowThread =
-          containingThread?.lineEnd === lineNumber
-            ? containingThread
-            : commentThreads.find(
-                (thread) =>
-                  thread.lineStart === lineNumber &&
-                  thread.lineEnd === lineNumber,
-              );
+        const lineThreads = commentThreads.filter(
+          (thread) =>
+            lineNumber >= thread.lineStart && lineNumber <= thread.lineEnd,
+        );
+        const containingThread = preferredCodeCommentThread(
+          lineThreads,
+          activeCommentId,
+        );
+        const rowThread = preferredCodeCommentThread(
+          lineThreads.filter((thread) => thread.lineEnd === lineNumber),
+          activeCommentId,
+        );
         const displayedThread = commentThreads.find(
           (thread) =>
             thread.key === visibleThreadKey && thread.lineEnd === lineNumber,
@@ -400,8 +400,11 @@ export function SourceCommentSurface({
                 className={`code-line-comment-action${actionThread ? " has-thread" : ""}`}
                 type="button"
                 aria-expanded={threadOpen}
-                aria-label={lineCommentActionLabel(lineNumber, actionThread)}
-                title={lineCommentActionLabel(lineNumber, actionThread)}
+                aria-label={lineCommentThreadActionLabel(
+                  lineNumber,
+                  actionThread,
+                )}
+                title={lineCommentThreadActionLabel(lineNumber, actionThread)}
                 data-comment-id={actionThread?.comments[0]?.id}
                 data-comment-surface="source"
                 data-line={lineNumber}
@@ -462,16 +465,6 @@ export function SourceCommentSurface({
       })}
     </div>
   );
-}
-
-function lineCommentActionLabel(
-  lineNumber: number,
-  thread?: CodeCommentThreadModel,
-): string {
-  if (!thread) return `Add comment on line ${lineNumber}`;
-  const count = thread.comments.length;
-  const messageLabel = count === 1 ? "message" : "messages";
-  return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; open to reply`;
 }
 
 interface DOMRectLike {

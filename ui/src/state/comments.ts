@@ -230,6 +230,36 @@ export function matchingCodeCommentThread(
   );
 }
 
+export function preferredCodeCommentThread(
+  threads: CodeCommentThread[],
+  activeCommentId?: string | null,
+): CodeCommentThread | undefined {
+  if (activeCommentId) {
+    const activeThread = threads.find((thread) =>
+      thread.comments.some((comment) => comment.id === activeCommentId),
+    );
+    if (activeThread) return activeThread;
+  }
+  return (
+    threads.find((thread) => thread.status === "open") ??
+    threads.find((thread) => thread.status === "resolved") ??
+    threads[0]
+  );
+}
+
+export function lineCommentThreadActionLabel(
+  lineNumber: number,
+  thread?: CodeCommentThread,
+): string {
+  if (!thread) return `Add comment on line ${lineNumber}`;
+  const count = thread.comments.length;
+  const messageLabel = count === 1 ? "message" : "messages";
+  if (thread.status === "open") {
+    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; open to reply`;
+  }
+  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; reopen to reply`;
+}
+
 function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
   const published = comments.filter((comment) => !isDraftThreadComment(comment));
   if (!published.length) return "open";

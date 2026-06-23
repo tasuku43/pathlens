@@ -77,6 +77,52 @@ export const DiffCommentOnRemovedLine: Story = {
   },
 };
 
+export const ResolvedDiffThreadMarker: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [
+      {
+        ...sampleComments[2]!,
+        id: "comment-diff-resolved-root",
+        threadId: "thread-diff-resolved",
+        status: "resolved",
+        body: "Resolved diff history should not look like an open reply target.",
+      },
+      {
+        ...sampleComments[2]!,
+        id: "comment-diff-resolved-reply",
+        threadId: "thread-diff-resolved",
+        status: "resolved",
+        body: "The follow-up verification already closed this discussion.",
+        createdAt: "2026-06-20T09:14:00.000Z",
+        updatedAt: "2026-06-20T09:14:00.000Z",
+      },
+    ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const marker = canvas.getByRole("button", {
+      name: "Open resolved comment thread on line 10 with 2 messages; reopen to reply",
+    });
+    await expect(marker).toBeInTheDocument();
+    await userEvent.click(marker);
+    await expect(args.onOpenComment).toHaveBeenCalledWith(
+      "comment-diff-resolved-root",
+      expect.objectContaining({
+        height: expect.any(Number),
+        left: expect.any(Number),
+        top: expect.any(Number),
+        width: expect.any(Number),
+      }),
+    );
+    const thread = canvas.getByRole("article", {
+      name: "Comment thread for line 10",
+    });
+    await expect(thread).toBeVisible();
+    expect(within(thread).getAllByText("Resolved").length).toBeGreaterThan(0);
+  },
+};
+
 export const RenderedMarkdownComment: Story = {
   args: {
     path: sampleFiles.markdown.path,

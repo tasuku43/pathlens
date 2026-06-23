@@ -3972,6 +3972,129 @@ it("keeps inline Markdown code inline in rendered diffs", () => {
   expect(html).not.toContain("diff-line-no");
 });
 
+it("labels terminal diff comment markers as reopenable", () => {
+  const resolvedDiffComment: ViviComment = {
+    ...codeLineComment,
+    id: "diff-resolved-root",
+    threadId: "thread-diff-resolved",
+    status: "resolved",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        quote: "return true;",
+        fileHash: "sha256:test",
+      },
+      diff: {
+        path: "src/app.ts",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -1,3 +1,3 @@",
+        side: "new",
+        newLineStart: 2,
+        newLineEnd: 2,
+      },
+    },
+    body: "Already resolved",
+  };
+  const resolvedReply: ViviComment = {
+    ...resolvedDiffComment,
+    id: "diff-resolved-reply",
+    body: "Verification complete",
+    createdAt: "2026-01-01T00:02:00.000Z",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="src/app.ts"
+      renderKind="source"
+      comments={[resolvedDiffComment, resolvedReply]}
+      activeCommentId={resolvedDiffComment.id}
+      diff={{
+        path: "src/app.ts",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content:
+          "@@ -1,3 +1,3 @@\n export function start() {\n+  return true;\n }",
+      }}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open resolved comment thread on line 2 with 2 messages; reopen to reply"',
+  );
+  expect(html).toContain(
+    'title="Open resolved comment thread on line 2 with 2 messages; reopen to reply"',
+  );
+  expect(html).not.toContain(
+    'aria-label="Open comment thread on line 2 with 2 messages; open to reply"',
+  );
+});
+
+it("prefers open diff comment threads when a line also has terminal history", () => {
+  const resolvedDiffComment: ViviComment = {
+    ...codeLineComment,
+    id: "diff-resolved-root",
+    threadId: "thread-diff-resolved",
+    status: "resolved",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "src/app.ts",
+        lineStart: 2,
+        lineEnd: 2,
+        quote: "return true;",
+        fileHash: "sha256:test",
+      },
+      diff: {
+        path: "src/app.ts",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -1,3 +1,3 @@",
+        side: "new",
+        newLineStart: 2,
+        newLineEnd: 2,
+      },
+    },
+    body: "Resolved history",
+  };
+  const openDiffComment: ViviComment = {
+    ...resolvedDiffComment,
+    id: "diff-open-root",
+    threadId: "thread-diff-open",
+    status: "open",
+    body: "Still needs attention",
+    createdAt: "2026-01-01T00:03:00.000Z",
+    updatedAt: "2026-01-01T00:03:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="src/app.ts"
+      renderKind="source"
+      comments={[resolvedDiffComment, openDiffComment]}
+      diff={{
+        path: "src/app.ts",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content:
+          "@@ -1,3 +1,3 @@\n export function start() {\n+  return true;\n }",
+      }}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+  );
+  expect(html).toContain('data-comment-id="diff-open-root"');
+  expect(html).not.toContain(
+    'aria-label="Open resolved comment thread on line 2 with 1 message; reopen to reply"',
+  );
+});
+
 it("renders HTML diffs as rendered snippets without line numbers", () => {
   const html = renderToStaticMarkup(
     <DiffViewer

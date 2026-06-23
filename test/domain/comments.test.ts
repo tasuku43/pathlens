@@ -4,6 +4,8 @@ import { buildCommentThreads } from "../../ui/src/domain/comments.js";
 import {
   activeCommentsForPath,
   codeCommentThreads,
+  lineCommentThreadActionLabel,
+  preferredCodeCommentThread,
 } from "../../ui/src/state/comments.js";
 
 const anchor = {
@@ -57,12 +59,12 @@ describe("comment thread projection", () => {
       id: "legacy",
       status: "resolved",
     });
-    expect(buildCommentThreads([openedThread, resolvedThread])[0]).toMatchObject(
-      {
-        id: "thread-a",
-        status: "resolved",
-      },
-    );
+    expect(
+      buildCommentThreads([openedThread, resolvedThread])[0],
+    ).toMatchObject({
+      id: "thread-a",
+      status: "resolved",
+    });
     expect(
       activeCommentsForPath(
         [
@@ -75,5 +77,34 @@ describe("comment thread projection", () => {
         "README.md",
       ).map((item) => item.id),
     ).toEqual(["open"]);
+  });
+
+  it("prefers open inline threads and labels terminal threads honestly", () => {
+    const resolved = comment("resolved", "resolved", "thread-resolved");
+    const open = comment("open", "open", "thread-open");
+    const archived = comment("archived", "archived", "thread-archived");
+    const threads = codeCommentThreads([resolved, archived, open]);
+
+    expect(preferredCodeCommentThread(threads)?.comments[0]?.id).toBe("open");
+    expect(
+      preferredCodeCommentThread(threads, "resolved")?.comments[0]?.id,
+    ).toBe("resolved");
+    expect(lineCommentThreadActionLabel(3, threads[0])).toBe(
+      "Open archived comment thread on line 3 with 1 message; reopen to reply",
+    );
+    expect(
+      lineCommentThreadActionLabel(
+        3,
+        threads.find((thread) => thread.status === "resolved"),
+      ),
+    ).toBe(
+      "Open resolved comment thread on line 3 with 1 message; reopen to reply",
+    );
+    expect(
+      lineCommentThreadActionLabel(
+        3,
+        threads.find((thread) => thread.status === "open"),
+      ),
+    ).toBe("Open comment thread on line 3 with 1 message; open to reply");
   });
 });
