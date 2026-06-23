@@ -67,6 +67,49 @@ export const DiffMode: Story = {
   },
 };
 
+export const NarrowInlineCommentDraft: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [],
+    selectedRange: null,
+  },
+  render: (args) => (
+    <div
+      className="viewer-pane"
+      style={{
+        width: 520,
+        height: 620,
+        borderRight: "1px solid var(--line)",
+      }}
+    >
+      <CodeViewer {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add comment on line 6" }),
+    );
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+
+    const viewerPane = canvasElement.querySelector<HTMLElement>(".viewer-pane");
+    const thread =
+      canvasElement.querySelector<HTMLElement>(".code-comment-thread");
+    const saveButton = canvas.getByRole("button", {
+      name: "Save line comment",
+    });
+    if (!viewerPane || !thread) throw new Error("missing inline comment story");
+
+    const paneRight = viewerPane.getBoundingClientRect().right;
+    expect(thread.getBoundingClientRect().right).toBeLessThanOrEqual(
+      paneRight + 1,
+    );
+    expect(saveButton.getBoundingClientRect().right).toBeLessThanOrEqual(
+      paneRight + 1,
+    );
+  },
+};
+
 export const LoadingHighlightFallback: Story = {
   args: {
     selectedRange: null,

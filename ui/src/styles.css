@@ -905,6 +905,7 @@ body.resizing-workbench-pane {
 }
 
 .viewer-pane {
+  container-type: inline-size;
   min-height: 0;
   flex: 1;
   overflow: auto;
@@ -2303,7 +2304,9 @@ body.resizing-workbench-pane {
 }
 .code-comment-thread-row {
   display: grid;
-  grid-template-columns: 64px minmax(320px, 680px) minmax(0, 1fr);
+  grid-template-columns:
+    64px minmax(0, min(680px, calc(100cqw - 88px)))
+    minmax(0, 1fr);
   width: 100%;
   padding: 5px 0 11px;
 }
@@ -5475,7 +5478,7 @@ kbd {
     grid-template-columns: 48px max-content minmax(0, 1fr);
   }
   .code-comment-thread-row {
-    grid-template-columns: 48px minmax(280px, calc(100vw - 112px));
+    grid-template-columns: 48px minmax(0, calc(100cqw - 64px));
   }
   .line-code {
     padding: 0 12px;
