@@ -58,19 +58,20 @@ export function CodeCommentThread({
   const archiveLabel = hasActiveComment ? "Archive current stop" : "Archive";
 
   useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
+    const onClick = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (target && threadRef.current?.contains(target)) return;
+      if (isTopbarTarget(target)) return;
       onClose();
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       onClose();
     };
-    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("click", onClick);
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("click", onClick);
       window.removeEventListener("keydown", onKeyDown, { capture: true });
     };
   }, [onClose]);
@@ -269,6 +270,10 @@ export function CodeCommentThread({
       </form>
     </article>
   );
+}
+
+function isTopbarTarget(target: Node | null): boolean {
+  return target instanceof Element && Boolean(target.closest(".topbar"));
 }
 
 export function isCommentSubmitShortcut(event: {

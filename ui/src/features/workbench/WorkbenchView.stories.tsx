@@ -359,6 +359,15 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "Reply to thread" }),
     ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Open command palette" }),
+    );
+    await expect(
+      canvas.getByRole("dialog", { name: "Quick open" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", { name: "Quick open query" }),
+    ).toHaveFocus();
   },
 };
 

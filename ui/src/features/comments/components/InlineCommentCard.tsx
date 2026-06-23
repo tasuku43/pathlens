@@ -45,13 +45,14 @@ export function InlineCommentCard({
 
   useEffect(() => {
     if (!comment) return;
-    const onPointerDown = (event: PointerEvent) => {
+    const onClick = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (target && cardRef.current?.contains(target)) return;
+      if (isTopbarTarget(target)) return;
       onClose();
     };
-    window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
   }, [comment, rect, onClose]);
 
   if (!comment || !rect) return null;
@@ -121,6 +122,10 @@ export function InlineCommentCard({
       </div>
     </article>
   );
+}
+
+function isTopbarTarget(target: Node | null): boolean {
+  return target instanceof Element && Boolean(target.closest(".topbar"));
 }
 
 export interface DOMRectLike {
