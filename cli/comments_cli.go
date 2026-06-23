@@ -1509,6 +1509,7 @@ func commentClaimOutputSchema() commentSchemaOutput {
 				"cursor":     map[string]any{"type": "string"},
 				"count":      map[string]any{"type": "integer", "minimum": 0},
 				"remaining":  map[string]any{"type": "integer", "minimum": 0},
+				"brief":      commentBriefSchema(),
 				"summary":    commentClaimSummarySchema(),
 				"file":       map[string]any{"type": "object"},
 				"source":     sourceContextSchema(),
@@ -1950,6 +1951,16 @@ func commentClaimOutputExample() map[string]any {
 		"cursor":    "open:...",
 		"count":     1,
 		"remaining": 0,
+		"brief": map[string]any{
+			"threadId":                "comment-thread-1",
+			"path":                    "README.md",
+			"status":                  "open",
+			"recommendedAction":       "start_work",
+			"attentionReasons":        []string{"claimed_open_thread", "human_comment"},
+			"latestComment":           "Please check the docs",
+			"latestCommentAuthor":     "human:tasuku",
+			"suggestedCommandIntents": []string{"acknowledge_initial_feedback", "handoff_after_triage", "complete_after_fix", "archive_after_decision"},
+		},
 		"summary": map[string]any{
 			"kinds":                []string{"claimed_work", "human_comment", "own_claim"},
 			"attentionReasons":     []string{"claimed_open_thread", "human_comment"},
@@ -2473,6 +2484,7 @@ func commentWorkClaimedEventSchema() commentSchemaOutput {
 				"cursor":             map[string]any{"type": "string"},
 				"count":              map[string]any{"type": "integer", "minimum": 0},
 				"remaining":          map[string]any{"type": "integer", "minimum": 0},
+				"brief":              commentBriefSchema(),
 				"summary":            commentActivityBatchSummarySchema(),
 				"file":               map[string]any{"type": "object"},
 				"source":             sourceContextSchema(),
@@ -2509,6 +2521,17 @@ func commentWorkClaimedEventSchema() commentSchemaOutput {
 			"cursor":    "comment-thread-cursor-...",
 			"count":     1,
 			"remaining": 0,
+			"brief": map[string]any{
+				"threadId":                "comment-thread-...",
+				"path":                    "README.md",
+				"status":                  "open",
+				"recommendedAction":       "start_work",
+				"attentionReasons":        []string{"claimed_open_thread"},
+				"latestComment":           "Please check the docs",
+				"latestCommentAuthor":     "human:tasuku",
+				"sourceState":             "current",
+				"suggestedCommandIntents": []string{"acknowledge_initial_feedback", "handoff_after_triage", "complete_after_fix", "archive_after_decision"},
+			},
 			"summary": map[string]any{
 				"kinds":                 []string{"claimed_work", "human_comment", "own_claim"},
 				"requiresAttention":     true,
@@ -3098,6 +3121,24 @@ func sourceContextSchema() map[string]any {
 			"anchorEndLine":   map[string]any{"type": "integer"},
 			"truncated":       map[string]any{"type": "boolean"},
 			"lines":           arraySchema(map[string]any{"type": "object"}),
+		},
+	}
+}
+
+func commentBriefSchema() map[string]any {
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": true,
+		"properties": map[string]any{
+			"threadId":                map[string]any{"type": "string"},
+			"path":                    map[string]any{"type": "string"},
+			"status":                  map[string]any{"type": "string"},
+			"recommendedAction":       map[string]any{"type": "string"},
+			"attentionReasons":        arraySchema(map[string]any{"type": "string"}),
+			"latestComment":           map[string]any{"type": "string"},
+			"latestCommentAuthor":     map[string]any{"type": "string"},
+			"sourceState":             map[string]any{"type": "string"},
+			"suggestedCommandIntents": arraySchema(map[string]any{"type": "string"}),
 		},
 	}
 }
@@ -4208,18 +4249,70 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		}
 	}
 	if selected != nil && claim != nil {
-		payload["summary"] = summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
+		summary := summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
+		payload["summary"] = summary
 		outputThread := limitCommentThreadHistory(*selected, options.CommentLimit)
 		payload["thread"] = &outputThread
+		payload["brief"] = commentBriefForThread(outputThread, summary, selectedItem)
 	}
 	if selected == nil {
 		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
 		if err != nil {
 			return nil, false, err
 		}
-		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
+		summary := summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
+		payload["summary"] = summary
+		payload["brief"] = commentBriefOutput{
+			RecommendedAction: summary.RecommendedAction,
+			AttentionReasons:  summary.AttentionReasons,
+		}
 	}
 	return payload, selected != nil, nil
+}
+
+func commentBriefForThread(thread commentThreadOutput, summary commentActivityBatchSummary, item *commentWorkItemOutput) commentBriefOutput {
+	brief := commentBriefOutput{
+		ThreadID:                thread.ID,
+		Path:                    thread.Path,
+		Status:                  thread.Status,
+		RecommendedAction:       summary.RecommendedAction,
+		AttentionReasons:        summary.AttentionReasons,
+		SuggestedCommandIntents: suggestedCommandIntents(summary.SuggestedCommands),
+	}
+	if len(thread.Comments) > 0 {
+		latest := thread.Comments[len(thread.Comments)-1]
+		brief.LatestComment = commentExcerpt(latest.Body, 240)
+		brief.LatestCommentAuthor = latest.CreatedBy.ID
+	}
+	if item != nil && item.Source != nil {
+		brief.SourceState = item.Source.SourceState
+	}
+	return brief
+}
+
+func suggestedCommandIntents(commands []commentSuggestedCommand) []string {
+	intents := make([]string, 0, len(commands))
+	for _, command := range commands {
+		if strings.TrimSpace(command.Intent) != "" {
+			intents = append(intents, command.Intent)
+		}
+	}
+	return intents
+}
+
+func commentExcerpt(body string, maxRunes int) string {
+	body = strings.Join(strings.Fields(body), " ")
+	if maxRunes <= 0 {
+		return body
+	}
+	runes := []rune(body)
+	if len(runes) <= maxRunes {
+		return body
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
 }
 
 func commentsMine(ctx context.Context, stdout io.Writer, options commentsCommandOptions) error {
@@ -6896,6 +6989,18 @@ type commentHoldEvent struct {
 	EmittedAt string                `json:"emittedAt"`
 	Thread    commentThreadOutput   `json:"thread"`
 	Renewal   commentActivityOutput `json:"renewal"`
+}
+
+type commentBriefOutput struct {
+	ThreadID                string   `json:"threadId,omitempty"`
+	Path                    string   `json:"path,omitempty"`
+	Status                  string   `json:"status,omitempty"`
+	RecommendedAction       string   `json:"recommendedAction,omitempty"`
+	AttentionReasons        []string `json:"attentionReasons,omitempty"`
+	LatestComment           string   `json:"latestComment,omitempty"`
+	LatestCommentAuthor     string   `json:"latestCommentAuthor,omitempty"`
+	SourceState             string   `json:"sourceState,omitempty"`
+	SuggestedCommandIntents []string `json:"suggestedCommandIntents,omitempty"`
 }
 
 type commentWorkItemOutput struct {

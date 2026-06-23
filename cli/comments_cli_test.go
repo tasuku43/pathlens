@@ -2752,6 +2752,9 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	if claimed.Summary.RecommendedAction != "start_work" || !claimed.Summary.RequiresAttention || !containsString(claimed.Summary.Kinds, "claimed_work") || !containsString(claimed.Summary.Kinds, "human_comment") {
 		t.Fatalf("claimed work summary = %#v", claimed.Summary)
 	}
+	if claimed.Brief.ThreadID != threadID || claimed.Brief.Path != "README.md" || claimed.Brief.RecommendedAction != "start_work" || claimed.Brief.LatestComment != "Work on this feedback" || claimed.Brief.LatestCommentAuthor != "human:tasuku" || !containsString(claimed.Brief.SuggestedCommandIntents, "acknowledge_initial_feedback") {
+		t.Fatalf("claimed work brief = %#v", claimed.Brief)
+	}
 	if len(claimed.Summary.SuggestedCommands) != 4 || claimed.Summary.SuggestedCommands[0].Intent != "acknowledge_initial_feedback" || !containsString(claimed.Summary.SuggestedCommands[0].Args, server.URL) || claimed.Summary.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(claimed.Summary.SuggestedCommands[1].Args, server.URL) || claimed.Summary.SuggestedCommands[1].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[2].StdinSchema != "commentResultFileInput" || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) || claimed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(claimed.Summary.SuggestedCommands[3].Args, server.URL) {
 		t.Fatalf("claimed work suggested commands = %#v", claimed.Summary.SuggestedCommands)
 	}
@@ -2800,6 +2803,25 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("work returned error: %v", err)
+	}
+}
+
+func TestCommentsCLIWorkPlacesBriefBeforeDiffInRawJSON(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Start here before reading the diff")
+
+	output := runCommentsCLIForTest(t, "work", threadID, "--url", server.URL, "--actor", "codex:brief-order", "--actor-kind", "codex", "--client-event-id", "brief-order-1", "--lease", "30s", "--full", "--max-events", "1", "--json")
+	raw := output.String()
+	briefIndex := strings.Index(raw, `"brief":`)
+	diffIndex := strings.Index(raw, `"diff":`)
+	if briefIndex < 0 || diffIndex < 0 || briefIndex > diffIndex {
+		t.Fatalf("brief should appear before diff in raw work JSON: %s", raw)
+	}
+	var event commentWorkStreamEvent
+	decodeCLIJSON(t, output, &event)
+	if event.Brief.LatestComment != "Start here before reading the diff" || event.Brief.RecommendedAction != "start_work" {
+		t.Fatalf("brief payload = %#v", event.Brief)
 	}
 }
 
@@ -3264,6 +3286,7 @@ type commentWorkStreamEvent struct {
 	Count              int                         `json:"count"`
 	Thread             commentThreadOutput         `json:"thread"`
 	Claim              commentActivityOutput       `json:"claim"`
+	Brief              commentBriefOutput          `json:"brief"`
 	Source             *sourceContextOutput        `json:"source"`
 	Diff               *textDiffOutput             `json:"diff"`
 	Summary            commentActivityBatchSummary `json:"summary"`

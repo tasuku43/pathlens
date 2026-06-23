@@ -317,8 +317,13 @@ who is currently working, and an abandoned claim naturally becomes stale after
 `leaseExpiresAt`. Pass `--full` for the same source, diff, and activity shape
 as `next --full`; the returned activity history includes the claim. The output
 is described by `commentClaimOutput` and, on a successful claim, includes
+`brief` before the heavier `diff`/`source` fields for terminal logs,
 `summary.recommendedAction: "start_work"` plus suggested structured
 `triage`, `release`, `done`, and `dismiss` commands for the newly owned thread.
+`brief` is intentionally compact: it repeats the thread path, latest comment
+excerpt, recommended action, source freshness state when available, and
+suggested command intents so a coding agent operator can orient before reading
+large source or diff payloads.
 When no thread can be claimed, the payload still includes `summary` with
 routing counts and a next action. In particular,
 `summary.recommendedAction: "wait_for_claim_release"` means open threads exist
