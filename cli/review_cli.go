@@ -373,6 +373,7 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 	firstPath := queue.Changes[0].Path
 	summary.SuggestedCommands = []commentSuggestedCommand{
 		suggestedCommentsCommand("inspect_first_changed_file_diff", "review diff", withURLArg([]string{"review", "diff", firstPath, "--base", base, "--json"}, serverURL), "", "Inspect the first changed file diff before deciding whether to comment or continue."),
+		suggestedCommentsCommand("wait_for_gui_feedback", "comments work", withURLArg([]string{"comments", "work", "--wait", "--loop", "--idle-events", "--full", "--json"}, serverURL), "", "Keep a resident GUI feedback loop running while reviewing changed files."),
 	}
 	return summary
 }

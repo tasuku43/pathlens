@@ -45,7 +45,10 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	if !queuePayload.Summary.RequiresAttention || queuePayload.Summary.RecommendedAction != "review_changed_files" || queuePayload.Summary.ChangedFileCount != 1 || !containsString(queuePayload.Summary.AttentionReasons, "changed_files_available") {
 		t.Fatalf("review queue summary = %#v", queuePayload.Summary)
 	}
-	if len(queuePayload.Summary.SuggestedCommands) != 1 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
+	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
+		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
+	}
+	if queuePayload.Summary.SuggestedCommands[1].Command != "comments work" || queuePayload.Summary.SuggestedCommands[1].Intent != "wait_for_gui_feedback" || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--wait") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--loop") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
 
