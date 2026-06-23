@@ -97,6 +97,7 @@ import {
   buildReviewQueueItems,
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
+  summarizeReviewQueue,
 } from "../../state/review-queue.js";
 import {
   shouldLoadInitialGitReview,
@@ -704,6 +705,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       reviewChanges,
       unreadReviewPathSet,
     ],
+  );
+  const reviewQueueProgress = useMemo(
+    () => summarizeReviewQueue(reviewItems),
+    [reviewItems],
   );
   const openThreadTargets = useMemo(
     () => openThreadNavigationTargets(comments),
@@ -2005,6 +2010,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         onQuickOpen={() => openPalette("file")}
         onSearchText={() => openPalette("text")}
         openCommentThreadCount={openThreadTargets.length}
+        reviewOpenCommentThreadCount={reviewQueueProgress.openThreads}
         commentAttentionCount={attentionCommentThreadCount}
         onOpenComments={() => {
           const entry = commentInboxOpenState({

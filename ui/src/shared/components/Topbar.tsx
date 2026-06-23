@@ -10,6 +10,7 @@ interface TopbarProps {
   onQuickOpen: () => void;
   onSearchText: () => void;
   openCommentThreadCount?: number;
+  reviewOpenCommentThreadCount?: number;
   commentAttentionCount?: number;
   onOpenComments?: () => void;
   onOpenShortcuts: () => void;
@@ -22,6 +23,7 @@ export function Topbar({
   onQuickOpen,
   onSearchText,
   openCommentThreadCount = 0,
+  reviewOpenCommentThreadCount,
   commentAttentionCount = 0,
   onOpenComments,
   onOpenShortcuts,
@@ -32,6 +34,7 @@ export function Topbar({
   const commentsButton = commentsButtonState({
     attentionCount: commentAttentionCount,
     openThreadCount: openCommentThreadCount,
+    reviewOpenThreadCount: reviewOpenCommentThreadCount,
   });
 
   return (
@@ -109,9 +112,11 @@ export function Topbar({
 function commentsButtonState({
   attentionCount,
   openThreadCount,
+  reviewOpenThreadCount,
 }: {
   attentionCount: number;
   openThreadCount: number;
+  reviewOpenThreadCount?: number;
 }): {
   ariaLabel: string;
   count: number;
@@ -133,11 +138,17 @@ function commentsButtonState({
   const summary = openThreadCount
     ? `${openThreadCount} open ${noun}`
     : "no open threads";
+  const reviewSummary =
+    reviewOpenThreadCount !== undefined &&
+    reviewOpenThreadCount >= 0 &&
+    reviewOpenThreadCount !== openThreadCount
+      ? `, ${reviewOpenThreadCount} in review queue`
+      : "";
   return {
-    ariaLabel: `Open Comments inbox, ${summary}`,
+    ariaLabel: `Open Comments inbox, ${summary}${reviewSummary}`,
     count: openThreadCount,
     label: "Comments",
-    title: `Open Comments inbox: ${summary} (Cmd/Ctrl+Shift+C)`,
+    title: `Open Comments inbox: ${summary}${reviewSummary} (Cmd/Ctrl+Shift+C)`,
   };
 }
 

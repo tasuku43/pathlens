@@ -22,6 +22,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const activateTab = fn();
+const openStaleCommentRouting = fn();
 
 export const TopbarStory: Story = {
   name: "Topbar",
@@ -37,6 +38,36 @@ export const TopbarStory: Story = {
       onOpenShortcuts={() => undefined}
     />
   ),
+};
+
+export const TopbarWithStaleCommentRouting: Story = {
+  name: "Topbar with stale comment routing",
+  render: () => (
+    <Topbar
+      root={storyRoot}
+      themePreference="system"
+      openCommentThreadCount={3}
+      reviewOpenCommentThreadCount={1}
+      onThemeCycle={() => undefined}
+      onQuickOpen={() => undefined}
+      onSearchText={() => undefined}
+      onOpenComments={openStaleCommentRouting}
+      onOpenShortcuts={() => undefined}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    openStaleCommentRouting.mockClear();
+    const canvas = within(canvasElement);
+    const commentsButton = canvas.getByRole("button", {
+      name: "Open Comments inbox, 3 open threads, 1 in review queue",
+    });
+    await expect(commentsButton).toHaveAttribute(
+      "title",
+      "Open Comments inbox: 3 open threads, 1 in review queue (Cmd/Ctrl+Shift+C)",
+    );
+    await userEvent.click(commentsButton);
+    await expect(openStaleCommentRouting).toHaveBeenCalled();
+  },
 };
 
 export const SidebarFileTree: Story = {
