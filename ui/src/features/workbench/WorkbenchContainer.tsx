@@ -758,7 +758,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           ? {
               path: selectedPath,
               changed: changedPathSet.has(selectedPath),
-              diffEnabled: Boolean(file && diffEnabled && supportsDiffMode(file)),
+              diffEnabled: Boolean(
+                file && diffEnabled && supportsDiffMode(file),
+              ),
               isPreview: Boolean(activeTab?.isPreview),
               removed: Boolean(activeTab?.removed),
               viewerMode: activeViewerMode,
@@ -858,7 +860,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setActiveOutlineByPane((items) => {
       const current = items[paneId] ?? null;
       const normalized = current && validIds.has(current) ? current : nextId;
-      return current === normalized ? items : { ...items, [paneId]: normalized };
+      return current === normalized
+        ? items
+        : { ...items, [paneId]: normalized };
     });
   }, [activeFileOutline, layout.activePaneId]);
 
@@ -1123,7 +1127,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     );
   }
 
-  function openFromPalette(path: string, preview: boolean, lineNumber?: number) {
+  function openFromPalette(
+    path: string,
+    preview: boolean,
+    lineNumber?: number,
+  ) {
     const query = paletteQuery.trim();
     const session = lineNumber
       ? textSearchSessionForSelection({
@@ -1165,8 +1173,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     if (id === "open-latest-unread") openLatestUnreadReviewFile();
     if (id === "open-next-review") openReviewQueueFile("next");
     if (id === "focus-review-queue") focusReviewQueue();
-    if (id === "open-next-thread")
-      openMovedTarget(openThreadTargets, "next");
+    if (id === "open-next-thread") openMovedTarget(openThreadTargets, "next");
     if (id === "open-previous-thread")
       openMovedTarget(openThreadTargets, "previous");
     if (id === "toggle-diff") toggleHeadDiff();
@@ -1210,12 +1217,15 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     target: ReviewNavigationTarget,
     mode: OpenTabMode = "preview",
   ) {
+    const paneId = layout.activePaneId;
     setPaletteOpen(false);
     setShortcutHelpOpen(false);
     setCommentsPanelOpen(false);
-    const payload = await loadFile(target.path, layout.activePaneId, mode);
+    const payload = await loadFile(target.path, paneId, mode);
     const targetComment = target.commentId
-      ? allCommentMessages.find((comment) => comment.id === target.commentId)
+      ? (allCommentMessages.find(
+          (comment) => comment.id === target.commentId,
+        ) ?? null)
       : null;
     if (target.surface === "diff") {
       if (supportsDiffMode(payload)) {
@@ -1226,6 +1236,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       setDiffEnabled(false);
       if (target.surface === "source") {
         setViewerModes((items) => ({ ...items, [target.path]: "source" }));
+        focusReviewTargetSourceLine(payload, targetComment, paneId);
       }
       if (target.surface === "rendered") {
         setViewerModes((items) => ({
@@ -1239,6 +1250,28 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       setActiveCommentId(target.commentId);
       setActiveCommentRect(null);
       window.setTimeout(() => focusCurrentInlineThread(), 120);
+    }
+  }
+
+  function focusReviewTargetSourceLine(
+    payload: FilePayload,
+    comment: ViviComment | null,
+    paneId: string,
+  ) {
+    const lineStart = comment?.anchor.canonical.lineStart;
+    if (!lineStart) return;
+    const lineEnd = comment.anchor.canonical.lineEnd ?? lineStart;
+    setSourceFocusTarget((current) => ({
+      paneId,
+      path: payload.path,
+      lineNumber: lineStart,
+      revision: (current?.revision ?? 0) + 1,
+    }));
+    if (payload.viewerKind === "code") {
+      setCodeSelections((items) => ({
+        ...items,
+        [payload.path]: { start: lineStart, end: lineEnd },
+      }));
     }
   }
 
@@ -2337,9 +2370,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       paneFile && sourceFocusTarget?.paneId === pane.id
         ? activeTextSearchResult(textSearchNavigation)
         : null;
-    const paneTextSearchPosition = textSearchPositionLabel(
-      textSearchNavigation,
-    );
+    const paneTextSearchPosition =
+      textSearchPositionLabel(textSearchNavigation);
     const showPaneTextSearch =
       paneTextSearchResult &&
       paneFile &&
@@ -2449,7 +2481,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                 }
                 viewerMode={
                   paneFile
-                    ? (viewerModes[paneFile.path] ?? defaultViewerMode(paneFile))
+                    ? (viewerModes[paneFile.path] ??
+                      defaultViewerMode(paneFile))
                     : undefined
                 }
                 diff={paneFile?.path ? (diffs[paneFile.path] ?? null) : null}

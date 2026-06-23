@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
 import {
   commentsForPath,
@@ -268,6 +268,33 @@ export const CommentsPanelOpen: Story = {
     file: sampleFiles.code,
     commentsPanelOpen: true,
     commentsPanelStatus: "all",
+  },
+};
+
+export const CommentsPanelOpensInlineThread: Story = {
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.code,
+    commentsPanelOpen: true,
+    commentsPanelStatus: "attention",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: /Open thread in .*WorkbenchContainer\.tsx/i,
+      }),
+    );
+
+    await expect(
+      canvas.queryByRole("complementary", { name: "Comments" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText(/Comment thread for lines 9-12/i),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("textbox", { name: "Reply to thread" }),
+    ).toBeInTheDocument();
   },
 };
 

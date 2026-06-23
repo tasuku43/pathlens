@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
 import type { DraftReviewComment, ViviComment } from "../domain/comments.js";
@@ -99,6 +100,19 @@ export function ReviewWorkbenchStory({
   inlineComment = null,
   inspectorTitle,
 }: ReviewWorkbenchStoryProps) {
+  const [storyActiveCommentId, setStoryActiveCommentId] =
+    useState(activeCommentId);
+  const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
+    useState(commentsPanelOpen);
+
+  useEffect(() => {
+    setStoryActiveCommentId(activeCommentId);
+  }, [activeCommentId]);
+
+  useEffect(() => {
+    setStoryCommentsPanelOpen(commentsPanelOpen);
+  }, [commentsPanelOpen]);
+
   const selectedPath = file?.path ?? null;
   const activeTabs =
     tabs ??
@@ -227,7 +241,7 @@ export function ReviewWorkbenchStory({
                   diffEnabled={diffEnabled}
                   outline={outline}
                   comments={viewerComments}
-                  activeCommentId={activeCommentId}
+                  activeCommentId={storyActiveCommentId}
                   threadActivities={threadActivities}
                   onCodeSelectionChange={noop}
                   onViewerModeChange={noop}
@@ -339,15 +353,18 @@ export function ReviewWorkbenchStory({
       />
       <ShortcutHelp open={shortcutHelpOpen} onClose={noop} />
       <CommentsPanel
-        open={commentsPanelOpen}
+        open={storyCommentsPanelOpen}
         comments={comments}
         query={commentsPanelQuery}
         statusFilter={commentsPanelStatus}
         threadActivities={threadActivities}
         onQueryChange={noop}
         onStatusFilterChange={noop}
-        onClose={noop}
-        onOpenComment={noop}
+        onClose={() => setStoryCommentsPanelOpen(false)}
+        onOpenComment={(comment) => {
+          setStoryActiveCommentId(comment.id);
+          setStoryCommentsPanelOpen(false);
+        }}
       />
       <DraftReviewTray
         drafts={draftComments}
