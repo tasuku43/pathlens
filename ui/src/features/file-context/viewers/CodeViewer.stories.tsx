@@ -96,7 +96,7 @@ export const NarrowInlineCommentDraft: Story = {
     const thread =
       canvasElement.querySelector<HTMLElement>(".code-comment-thread");
     const saveButton = canvas.getByRole("button", {
-      name: "Save line comment",
+      name: "Save draft comment",
     });
     if (!viewerPane || !thread) throw new Error("missing inline comment story");
 

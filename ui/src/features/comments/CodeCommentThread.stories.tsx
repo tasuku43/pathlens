@@ -128,6 +128,7 @@ export const NewLineComment: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText("New draft")).toBeVisible();
     await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
   },
 };

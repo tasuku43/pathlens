@@ -42,7 +42,7 @@ export function CodeCommentThread({
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
   const replyHintId = commentReplyHintId(thread.key);
-  const submitLabel = thread.comments.length ? "Add reply" : "Save line comment";
+  const submitLabel = thread.comments.length ? "Add reply" : "Save draft comment";
   const hasActiveComment = Boolean(
     activeCommentId &&
       thread.comments.some((comment) => comment.id === activeCommentId),
@@ -116,7 +116,7 @@ export function CodeCommentThread({
           <span>
             {thread.comments.length
               ? `${thread.comments.length} ${thread.comments.length === 1 ? "message" : "messages"}`
-              : "New thread"}
+              : "New draft"}
           </span>
           {thread.comments.length ? (
             <span className={`comment-status ${threadStatus}`}>
