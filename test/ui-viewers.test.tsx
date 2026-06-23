@@ -4091,7 +4091,7 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain("tree-row file has-review-work has-unread-work current-review-stop");
   expect(html).toContain('role="tree"');
   expect(html).toContain(
-    'aria-label="Live workspace map, 3 files, 2 review files, 2 unseen review files, 2 open files, 2 open threads, 3 comments"',
+    'aria-label="Live workspace map, 1 root entry, 3 loaded files, 2 review files, 2 unseen review files, 2 open files, 2 open threads, 3 comments"',
   );
   expect(html).toContain('id="workspace-tree-interaction-help"');
   expect(html).toContain(
@@ -4139,6 +4139,37 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain(">mod</span>");
   expect(html).not.toContain("tree-badge thread");
   expect(html).not.toContain("tree-badge comment");
+});
+
+it("labels tree size as root entries and loaded files", () => {
+  const html = renderToStaticMarkup(
+    <TreeSidebar
+      nodes={[
+        {
+          id: "README.md",
+          path: "README.md",
+          name: "README.md",
+          kind: "file",
+          parentPath: null,
+          viewerKind: "markdown",
+        },
+        {
+          id: "src",
+          path: "src",
+          name: "src",
+          kind: "directory",
+          parentPath: null,
+        },
+      ]}
+      selectedPath={null}
+      onSelect={() => undefined}
+      onOpen={() => undefined}
+    />,
+  );
+
+  expect(html).toContain(
+    'aria-label="Live workspace map, 2 root entries, 1 loaded file"',
+  );
 });
 
 it("names the next review stop in tree folders when there is no current stop", () => {

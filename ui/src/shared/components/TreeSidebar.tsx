@@ -618,6 +618,9 @@ function countReason(count: number, label: string): string {
 
 function countPhrase(count: number, label: string): string {
   if (!count) return "";
+  if (label === "root entry") {
+    return count === 1 ? "1 root entry" : `${count} root entries`;
+  }
   return `${count} ${label}${count === 1 ? "" : "s"}`;
 }
 
@@ -630,7 +633,8 @@ function workspaceTreeAriaLabel(
 ): string {
   return [
     "Live workspace map",
-    countPhrase(summary.files, "file"),
+    countPhrase(summary.rootEntries, "root entry"),
+    countPhrase(summary.files, "loaded file"),
     countPhrase(summary.reviewFiles, "review file"),
     countPhrase(summary.unreadFiles, "unseen review file"),
     countPhrase(summary.openFiles, "open file"),
@@ -848,8 +852,8 @@ function workspaceTreeSummary(
     reviewPaths: Set<string>;
     unreadReviewPaths: Set<string>;
   },
-): TreeReviewSummary & { files: number } {
-  return nodes.reduce<TreeReviewSummary & { files: number }>(
+): TreeReviewSummary & { files: number; rootEntries: number } {
+  return nodes.reduce<TreeReviewSummary & { files: number; rootEntries: number }>(
     (summary, node) => {
       const childSummary = workspaceNodeSummary(node, context);
       return {
@@ -860,6 +864,7 @@ function workspaceTreeSummary(
         reviewFiles: summary.reviewFiles + childSummary.reviewFiles,
         reviewStopKind: preferredReviewStop(summary, childSummary).kind,
         reviewStopPath: preferredReviewStop(summary, childSummary).path,
+        rootEntries: summary.rootEntries,
         unreadFiles: summary.unreadFiles + childSummary.unreadFiles,
       };
     },
@@ -871,6 +876,7 @@ function workspaceTreeSummary(
       reviewFiles: 0,
       reviewStopKind: null,
       reviewStopPath: null,
+      rootEntries: nodes.length,
       unreadFiles: 0,
     },
   );
