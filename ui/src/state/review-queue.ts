@@ -30,6 +30,10 @@ export interface ReviewQueuePosition {
   activeItem: ReviewQueueItem | null;
 }
 
+export interface ReviewQueueBuildOptions {
+  knownMissingPaths?: ReadonlySet<string>;
+}
+
 /**
  * Builds a file-level work queue without inventing lifecycle state from
  * activity. Comment status is the authoritative projection; activity only
@@ -40,11 +44,17 @@ export function buildReviewQueueItems(
   comments: ViviComment[],
   activities: Record<string, CommentActivitySummary>,
   unreadPaths: ReadonlySet<string>,
+  options: ReviewQueueBuildOptions = {},
 ): ReviewQueueItem[] {
   const threads = collectThreads(comments);
   const paths = new Set(changes.map((change) => change.path));
   for (const thread of threads.values()) {
-    if (thread.status === "open") paths.add(thread.path);
+    if (
+      thread.status === "open" &&
+      !options.knownMissingPaths?.has(thread.path)
+    ) {
+      paths.add(thread.path);
+    }
   }
 
   const changeByPath = new Map(changes.map((change) => [change.path, change]));
@@ -166,7 +176,11 @@ export function pinActiveReviewQueueItem(
   );
   if (activeIndex <= 0) return items;
   const active = items[activeIndex]!;
-  return [active, ...items.slice(0, activeIndex), ...items.slice(activeIndex + 1)];
+  return [
+    active,
+    ...items.slice(0, activeIndex),
+    ...items.slice(activeIndex + 1),
+  ];
 }
 
 export function activityNeedsHumanAttention(

@@ -75,6 +75,7 @@ import {
 } from "../../state/editor-layout.js";
 import {
   filterTreeToPaths,
+  isPathKnownMissing,
   replaceDirectoryChildren,
 } from "../../state/files.js";
 import {
@@ -665,6 +666,19 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => countAttentionCommentThreads(comments, unreadReviewPathSet),
     [comments, unreadReviewPathSet],
   );
+  const knownMissingCommentPathSet = useMemo(() => {
+    if (!tree) return new Set<string>();
+    const paths = new Set<string>();
+    for (const comment of comments) {
+      if (
+        comment.status === "open" &&
+        isPathKnownMissing(tree.nodes, comment.path)
+      ) {
+        paths.add(comment.path);
+      }
+    }
+    return paths;
+  }, [comments, tree]);
   const reviewItems = useMemo(
     () =>
       buildReviewQueueItems(
@@ -672,8 +686,15 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         comments,
         commentActivitySummaries,
         unreadReviewPathSet,
+        { knownMissingPaths: knownMissingCommentPathSet },
       ),
-    [commentActivitySummaries, comments, reviewChanges, unreadReviewPathSet],
+    [
+      commentActivitySummaries,
+      comments,
+      knownMissingCommentPathSet,
+      reviewChanges,
+      unreadReviewPathSet,
+    ],
   );
   const openThreadTargets = useMemo(
     () => openThreadNavigationTargets(comments),

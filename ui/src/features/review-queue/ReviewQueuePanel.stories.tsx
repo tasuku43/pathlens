@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, within } from "storybook/test";
 import { buildReviewQueueItems } from "../../state/review-queue.js";
 import {
   manyReviewComments,
@@ -13,6 +14,14 @@ import {
 import { Inspector } from "./Inspector.js";
 
 const noop = () => undefined;
+const staleThreadOnlyComment = {
+  ...sampleComments[0]!,
+  id: "stale-thread-only-comment",
+  threadId: "stale-thread-only",
+  path: "missing-review.md",
+  body: "Old note for a file that is no longer in the workspace.",
+  status: "open" as const,
+};
 const baseArgs = {
   file: sampleFiles.code,
   reviewChanges: sampleReviewChanges,
@@ -63,6 +72,28 @@ export const PublishedOpenThreads: Story = {
     comments: sampleComments.filter(
       (comment) => comment.reviewBatchId === "review-batch-story-001",
     ),
+  },
+};
+
+export const StaleThreadOnlyPathsHidden: Story = {
+  args: {
+    reviewItems: buildReviewQueueItems(
+      sampleReviewChanges,
+      [...sampleComments, staleThreadOnlyComment],
+      sampleThreadActivities,
+      sampleUnreadReviewPaths,
+      { knownMissingPaths: new Set(["missing-review.md"]) },
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(
+      canvas.queryByText("missing-review.md"),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText(sampleReviewQueueItems[0]!.path),
+    ).toBeInTheDocument();
   },
 };
 

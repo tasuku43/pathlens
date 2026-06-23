@@ -10,6 +10,7 @@ import {
 import {
   filterTreeToPaths,
   fuzzyFileResults,
+  isPathKnownMissing,
   parentDirectoryPath,
   replaceDirectoryChildren,
   reviewArtifactResults,
@@ -1029,6 +1030,51 @@ it("replaces loaded directory children in a lazy tree", () => {
   expect(parentDirectoryPath("README.md")).toBe("");
 });
 
+it("only treats paths as missing when the loaded tree proves absence", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "README",
+      path: "README",
+      name: "README",
+      kind: "file",
+      parentPath: null,
+      viewerKind: "text",
+    },
+    {
+      id: "net",
+      path: "net",
+      name: "net",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: false,
+    },
+    {
+      id: "docs",
+      path: "docs",
+      name: "docs",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: true,
+      children: [
+        {
+          id: "docs/guide.md",
+          path: "docs/guide.md",
+          name: "guide.md",
+          kind: "file",
+          parentPath: "docs",
+          viewerKind: "markdown",
+        },
+      ],
+    },
+  ];
+
+  expect(isPathKnownMissing(nodes, "README.md")).toBe(true);
+  expect(isPathKnownMissing(nodes, "README")).toBe(false);
+  expect(isPathKnownMissing(nodes, "docs/guide.md")).toBe(false);
+  expect(isPathKnownMissing(nodes, "docs/missing.md")).toBe(true);
+  expect(isPathKnownMissing(nodes, "net/netfilter/xt_DSCP.c")).toBe(false);
+});
+
 it("does not auto-expand unloaded lazy directories", () => {
   const expanded = initialExpandedPaths([
     {
@@ -1475,6 +1521,46 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
     unread: 1,
     openThreads: 1,
     filesWithOpenThreads: 1,
+  });
+});
+
+it("hides stale comment-only paths while keeping git review paths", () => {
+  const comments = [
+    {
+      ...makeReviewComment("stale-1", "README.md", "open"),
+      threadId: "thread-stale",
+    },
+    {
+      ...makeReviewComment("live-1", "docs/agent.md", "open"),
+      threadId: "thread-live",
+    },
+    {
+      ...makeReviewComment("deleted-1", "docs/deleted.md", "open"),
+      threadId: "thread-deleted",
+    },
+  ];
+  const items = buildReviewQueueItems(
+    [
+      {
+        path: "docs/deleted.md",
+        status: "deleted",
+        source: "git",
+      },
+    ],
+    comments,
+    {},
+    new Set(),
+    { knownMissingPaths: new Set(["README.md", "docs/deleted.md"]) },
+  );
+
+  expect(items.map((item) => item.path).sort()).toEqual([
+    "docs/agent.md",
+    "docs/deleted.md",
+  ]);
+  expect(items.find((item) => item.path === "README.md")).toBeUndefined();
+  expect(items.find((item) => item.path === "docs/deleted.md")).toMatchObject({
+    change: { status: "deleted" },
+    threadCounts: { open: 1, resolved: 0, archived: 0 },
   });
 });
 

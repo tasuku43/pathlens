@@ -105,6 +105,24 @@ export function filterTreeToPaths(
   });
 }
 
+export function isPathKnownMissing(nodes: FsNode[], path: string): boolean {
+  const segments = path.split("/").filter(Boolean);
+  if (!segments.length) return false;
+  let currentNodes = nodes;
+  for (let index = 0; index < segments.length; index += 1) {
+    const currentPath = segments.slice(0, index + 1).join("/");
+    const node = currentNodes.find(
+      (candidate) => candidate.path === currentPath,
+    );
+    if (!node) return true;
+    if (index === segments.length - 1) return false;
+    if (node.kind !== "directory") return true;
+    if (node.childrenLoaded === false || !node.children) return false;
+    currentNodes = node.children;
+  }
+  return false;
+}
+
 export function reviewArtifactResults(nodes: FsNode[], limit = 8): FsNode[] {
   return flattenFiles(nodes)
     .map((file) => ({
