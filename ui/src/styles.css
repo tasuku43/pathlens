@@ -541,6 +541,7 @@ body.resizing-workbench-pane {
   align-items: center;
   gap: 7px;
   width: 100%;
+  box-sizing: border-box;
   border: 0;
   background: transparent;
   color: var(--muted);
@@ -594,6 +595,7 @@ body.resizing-workbench-pane {
   text-decoration: line-through;
 }
 .tree-main {
+  flex: 1 1 auto;
   display: inline-grid;
   min-width: 0;
   gap: 1px;
@@ -622,12 +624,16 @@ body.resizing-workbench-pane {
 }
 .tree-badges {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 4px;
   min-width: 0;
+  max-width: 42%;
   margin-left: auto;
+  overflow: hidden;
 }
 .tree-badge {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;

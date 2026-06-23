@@ -3703,14 +3703,17 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   expect(html).toContain("tree-unread-dot");
   expect(html).toContain("tree-badge attention");
   expect(html).toContain("tree-badge current");
-  expect(html).toContain(">current</span>");
-  expect(html).toContain("attention 2");
-  expect(html).toContain(">attention</span>");
-  expect(html).toContain("review");
-  expect(html).toContain("open 2");
+  expect(html).toContain(">now</span>");
+  expect(html).toContain('title="2 attention items"');
+  expect(html).toContain(">!</span>");
+  expect(html).toContain(">2</span>");
+  expect(html).toContain(">rev 2</span>");
   expect(html).toContain("open");
-  expect(html).toContain("2 threads");
+  expect(html).toContain("2 open threads");
   expect(html).toContain("changed");
+  expect(html).toContain(">mod</span>");
+  expect(html).not.toContain("tree-badge thread");
+  expect(html).not.toContain("tree-badge comment");
 });
 
 it("names the next review stop in tree folders when there is no current stop", () => {
