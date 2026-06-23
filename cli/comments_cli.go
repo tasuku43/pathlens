@@ -3340,7 +3340,7 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 		if err != nil {
 			return err
 		}
-		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "next", options.URL, options.ReceiptLog)
+		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "next", options.URL, options.ReceiptLog)
 	}
 	if options.WithContext {
 		payload["file"] = nil
@@ -3415,7 +3415,7 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 		if !claimed {
 			if (options.WaitForWork || options.WorkLoop) && !options.WatchOnce {
 				if options.WorkIdleEvents {
-					if err := emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.URL, options.ReceiptLog); err != nil {
+					if err := emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog); err != nil {
 						return err
 					}
 					emitted++
@@ -3428,7 +3428,7 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 				}
 				continue
 			}
-			return emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.URL, options.ReceiptLog)
+			return emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
 		}
 		payload["type"] = "comment_work_claimed"
 		payload["schemaVersion"] = commentsStreamSchemaVersion
@@ -3466,7 +3466,7 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 	}
 }
 
-func emitCommentsWorkIdleEvent(encoder *json.Encoder, payload map[string]any, sessionID string, sequence int, actorID string, serverURL string, receiptLog string) error {
+func emitCommentsWorkIdleEvent(encoder *json.Encoder, payload map[string]any, sessionID string, sequence int, actorID string, actorKind string, serverURL string, receiptLog string) error {
 	payload["type"] = "comment_work_idle"
 	payload["reason"] = "no_claimable_work"
 	payload["schemaVersion"] = commentsStreamSchemaVersion
@@ -3474,11 +3474,11 @@ func emitCommentsWorkIdleEvent(encoder *json.Encoder, payload map[string]any, se
 	payload["sessionId"] = sessionID
 	payload["sequence"] = sequence
 	payload["emittedAt"] = time.Now().UTC().Format(time.RFC3339Nano)
-	payload["summary"] = commentWorkIdleSummary(payload, actorID, serverURL, receiptLog)
+	payload["summary"] = commentWorkIdleSummary(payload, actorID, actorKind, serverURL, receiptLog)
 	return encoder.Encode(payload)
 }
 
-func commentWorkIdleSummary(payload map[string]any, actorID string, serverURL string, receiptLog string) commentOpenWorklistSummary {
+func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind string, serverURL string, receiptLog string) commentOpenWorklistSummary {
 	count, _ := payload["count"].(int)
 	cursor, _ := payload["cursor"].(string)
 	if count <= 0 {
@@ -3496,8 +3496,8 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, serverURL st
 		RecommendedAction: "wait_for_claim_release",
 		OpenThreadCount:   count,
 		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--full", "--json"}), serverURL, receiptLog), "", "Inspect open threads currently routed to this actor, unclaimed work, and live claims held by others."),
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--full", "--json")), serverURL, receiptLog), "", "Inspect open threads currently routed to this actor, unclaimed work, and live claims held by others."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--full", "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
 		},
 	}
 }
@@ -3535,7 +3535,7 @@ func commentsWorkFollow(ctx context.Context, encoder *json.Encoder, options comm
 				Cursor:             cursor,
 				EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 				Count:              len(deliver),
-				Summary:            summarizeActivityBatch(deliver, options.ActorID, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
+				Summary:            summarizeActivityBatch(deliver, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
 				Activities:         deliver,
 				Comments:           snapshots.Comments,
 				File:               context.File,
@@ -3652,7 +3652,7 @@ func commentBatchContext(ctx context.Context, options commentsCommandOptions, th
 	return context, nil
 }
 
-func summarizeActivityBatch(activities []commentActivityOutput, actorID string, threadID string, commentBodies map[string]string, serverURL string, receiptLog string) commentActivityBatchSummary {
+func summarizeActivityBatch(activities []commentActivityOutput, actorID string, actorKind string, threadID string, commentBodies map[string]string, serverURL string, receiptLog string) commentActivityBatchSummary {
 	summary := commentActivityBatchSummary{}
 	kinds := map[string]bool{}
 	attentionReasons := map[string]bool{}
@@ -3761,11 +3761,11 @@ func summarizeActivityBatch(activities []commentActivityOutput, actorID string, 
 	sort.Strings(summary.AttentionReasons)
 	summary.RequiresAttention = hasNonTerminalAttentionReason(summary.AttentionReasons)
 	summary.RecommendedAction = recommendedActivityBatchAction(summary)
-	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), strings.TrimSpace(threadID), latestActivityID(activities), serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), actorKind, strings.TrimSpace(threadID), latestActivityID(activities), serverURL, receiptLog)
 	return summary
 }
 
-func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutput, actorID string, serverURL string, receiptLog string, sourceUnavailable bool) commentActivityBatchSummary {
+func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutput, actorID string, actorKind string, serverURL string, receiptLog string, sourceUnavailable bool) commentActivityBatchSummary {
 	summary := commentActivityBatchSummary{
 		Kinds:             []string{"claimed_work"},
 		AttentionReasons:  []string{"claimed_open_thread"},
@@ -3811,7 +3811,7 @@ func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutpu
 	}
 	sort.Strings(summary.Kinds)
 	sort.Strings(summary.AttentionReasons)
-	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), thread.ID, claim.ID, serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), actorKind, thread.ID, claim.ID, serverURL, receiptLog)
 	return summary
 }
 
@@ -3824,7 +3824,7 @@ func latestActivityID(activities []commentActivityOutput) string {
 	return ""
 }
 
-func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, cursor string, serverURL string, receiptLog string) commentOpenWorklistSummary {
+func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, actorKind string, cursor string, serverURL string, receiptLog string) commentOpenWorklistSummary {
 	summary := commentOpenWorklistSummary{
 		AttentionReasons:  []string{},
 		OpenThreadCount:   len(threads),
@@ -3836,11 +3836,11 @@ func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, cursor
 	summary.RequiresAttention = true
 	summary.AttentionReasons = []string{"open_threads_available"}
 	summary.RecommendedAction = "claim_open_work"
-	summary.SuggestedCommands = suggestedCommandsForOpenWorklist(strings.TrimSpace(actorID), cursor, serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForOpenWorklist(strings.TrimSpace(actorID), actorKind, cursor, serverURL, receiptLog)
 	return summary
 }
 
-func suggestedCommandsForOpenWorklist(actorID string, cursor string, serverURL string, receiptLog string) []commentSuggestedCommand {
+func suggestedCommandsForOpenWorklist(actorID string, actorKind string, cursor string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	if actorID == "" {
 		return []commentSuggestedCommand{
 			suggestedCommentsCommand("inspect_open_worklist", "comments list", withURLArg([]string{"comments", "list", "--status", "open", "--full", "--json"}, serverURL), "", "Inspect open threads before choosing an actor-specific claim command."),
@@ -3848,7 +3848,7 @@ func suggestedCommandsForOpenWorklist(actorID string, cursor string, serverURL s
 	}
 	clientEventID := commentSuggestedClientEventID("watch", cursor, "claim")
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--once", "--full", "--json"}), serverURL, receiptLog), "", "Claim the next open thread, emit one self-describing work event, and exit.", clientEventID),
+		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--once", "--full", "--json")), serverURL, receiptLog), "", "Claim the next open thread, emit one self-describing work event, and exit.", clientEventID),
 	}
 }
 
@@ -3887,7 +3887,7 @@ func recommendedActivityBatchAction(summary commentActivityBatchSummary) string 
 	return "observe"
 }
 
-func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, actorID string, threadID string, activitySeed string, serverURL string, receiptLog string) []commentSuggestedCommand {
+func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, actorID string, actorKind string, threadID string, activitySeed string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	if threadID == "" {
 		return nil
 	}
@@ -3899,9 +3899,9 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("handoff_after_source_unavailable", "comments release", withRuntimeArgs([]string{"comments", "release", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Report that the referenced source path is unavailable, then release the live claim for a better anchor or workspace.", suggestedWriteClientEventID("activity", threadID, "release-source-unavailable", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("archive_after_source_unavailable_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread only after confirming the missing source means the feedback no longer applies.", suggestedWriteClientEventID("activity", threadID, "dismiss-source-unavailable", activitySeed)),
-			suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--actor", actorID, "--json"}, serverURL), "", "Inspect the thread conversation without assuming the missing source file can be opened."),
+			suggestedCommentsCommandWithClientEventID("handoff_after_source_unavailable", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Report that the referenced source path is unavailable, then release the live claim for a better anchor or workspace.", suggestedWriteClientEventID("activity", threadID, "release-source-unavailable", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("archive_after_source_unavailable_decision", "comments dismiss", withRuntimeArgs(actorCommand([]string{"comments", "dismiss", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Archive the thread only after confirming the missing source means the feedback no longer applies.", suggestedWriteClientEventID("activity", threadID, "dismiss-source-unavailable", activitySeed)),
+			suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg(actorCommand([]string{"comments", "show", threadID}, actorID, actorKind, "--json"), serverURL), "", "Inspect the thread conversation without assuming the missing source file can be opened."),
 		}
 	case "start_work":
 		if actorID == "" {
@@ -3910,10 +3910,10 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("acknowledge_initial_feedback", "comments triage", withRuntimeArgs([]string{"comments", "triage", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement that the agent has started the claimed work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs([]string{"comments", "release", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("activity", threadID, "release", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs([]string{"comments", "done", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("activity", threadID, "done", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("activity", threadID, "dismiss", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("acknowledge_initial_feedback", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement that the agent has started the claimed work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("activity", threadID, "release", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs(actorCommand([]string{"comments", "done", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("activity", threadID, "done", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs(actorCommand([]string{"comments", "dismiss", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("activity", threadID, "dismiss", activitySeed)),
 		}
 	case "reconsider_work":
 		if actorID == "" {
@@ -3922,10 +3922,10 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("acknowledge_follow_up", "comments triage", withRuntimeArgs([]string{"comments", "triage", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured non-terminal acknowledgement before continuing work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs([]string{"comments", "release", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("activity", threadID, "release", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs([]string{"comments", "done", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("activity", threadID, "done", activitySeed)),
-			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("activity", threadID, "dismiss", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("acknowledge_follow_up", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured non-terminal acknowledgement before continuing work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("activity", threadID, "release", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("complete_after_verification", "comments done", withRuntimeArgs(actorCommand([]string{"comments", "done", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Resolve the thread with structured verification after the fix is complete.", suggestedWriteClientEventID("activity", threadID, "done", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("archive_after_decision", "comments dismiss", withRuntimeArgs(actorCommand([]string{"comments", "dismiss", threadID}, actorID, actorKind, "--result-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentResultFileInput", "Archive the thread with a structured explanation when the feedback is intentionally not fixed.", suggestedWriteClientEventID("activity", threadID, "dismiss", activitySeed)),
 		}
 	case "inspect_external_activity":
 		args := []string{"comments", "show", threadID, "--json"}
@@ -4283,7 +4283,7 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		}
 	}
 	if selected != nil && claim != nil {
-		summary := summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
+		summary := summarizeClaimedWork(*selected, *claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
 		payload["summary"] = summary
 		outputThread := limitCommentThreadHistory(*selected, options.CommentLimit)
 		payload["thread"] = &outputThread
@@ -4294,7 +4294,7 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		if err != nil {
 			return nil, false, err
 		}
-		summary := summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
+		summary := summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "claim", options.URL, options.ReceiptLog)
 		payload["summary"] = summary
 		payload["brief"] = commentBriefOutput{
 			RecommendedAction: summary.RecommendedAction,
@@ -4377,7 +4377,7 @@ func commentsMine(ctx context.Context, stdout io.Writer, options commentsCommand
 		"claims":  claims,
 		"count":   len(mine),
 		"cursor":  cursor,
-		"summary": summarizeOwnedRoutingRecovery(group, options.ActorID, "mine", options.URL, options.ReceiptLog),
+		"summary": summarizeOwnedRoutingRecovery(group, options.ActorID, options.ActorKind, "mine", options.URL, options.ReceiptLog),
 	}
 	if commentsNeedsWorkItem(options) {
 		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), mine)
@@ -4418,7 +4418,7 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		"actor":             actorInput(options),
 		"cursor":            cursor,
 		"count":             len(ordered),
-		"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "inbox", options.URL, options.ReceiptLog),
+		"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.URL, options.ReceiptLog),
 		"mine":              outputRouting.Mine,
 		"unclaimed":         outputRouting.Unclaimed,
 		"claimedByOthers":   outputRouting.ClaimedByOthers,
@@ -4427,7 +4427,7 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 	return writeJSON(stdout, payload)
 }
 
-func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, cursor string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
+func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, actorKind string, cursor string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
 	actionableOpenThreadCount := routing.Mine.Count + routing.Unclaimed.Count + routing.ClaimedByOthers.Count
 	summary := commentRoutingSummary{
 		RequiresAttention:      false,
@@ -4445,14 +4445,14 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, curs
 		summary.RequiresAttention = true
 		summary.AttentionReasons = []string{"owned_live_claims"}
 		summary.RecommendedAction = "resume_owned_work"
-		summary.SuggestedCommands = suggestedCommandsForOwnedRoutingWork(routing.Mine, actorID, clientEventScope, serverURL, receiptLog)
+		summary.SuggestedCommands = suggestedCommandsForOwnedRoutingWork(routing.Mine, actorID, actorKind, clientEventScope, serverURL, receiptLog)
 		return summary
 	}
 	if routing.Unclaimed.Count > 0 {
 		summary.RequiresAttention = true
 		summary.AttentionReasons = []string{"unclaimed_open_threads"}
 		summary.RecommendedAction = "claim_open_work"
-		summary.SuggestedCommands = suggestedCommandsForOpenWorklist(actorID, cursor, serverURL, receiptLog)
+		summary.SuggestedCommands = suggestedCommandsForOpenWorklist(actorID, actorKind, cursor, serverURL, receiptLog)
 		return summary
 	}
 	if routing.ClaimedByOthers.Count > 0 {
@@ -4460,17 +4460,17 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, curs
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--full", "--cursor", cursor, "--json"}), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--full", "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch for a new unclaimed thread or a claim release before trying to claim again."),
 		}
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--full", "--json")), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
 	}
 	return summary
 }
 
-func summarizeOwnedRoutingRecovery(group commentInboxGroupOutput, actorID string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
+func summarizeOwnedRoutingRecovery(group commentInboxGroupOutput, actorID string, actorKind string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
 	summary := commentRoutingSummary{
 		RequiresAttention:      false,
 		AttentionReasons:       []string{},
@@ -4487,12 +4487,12 @@ func summarizeOwnedRoutingRecovery(group commentInboxGroupOutput, actorID string
 		summary.RequiresAttention = true
 		summary.AttentionReasons = []string{"owned_live_claims"}
 		summary.RecommendedAction = "resume_owned_work"
-		summary.SuggestedCommands = suggestedCommandsForOwnedRoutingWork(group, actorID, clientEventScope, serverURL, receiptLog)
+		summary.SuggestedCommands = suggestedCommandsForOwnedRoutingWork(group, actorID, actorKind, clientEventScope, serverURL, receiptLog)
 	}
 	return summary
 }
 
-func suggestedCommandsForOwnedRoutingWork(group commentInboxGroupOutput, actorID string, clientEventScope string, serverURL string, receiptLog string) []commentSuggestedCommand {
+func suggestedCommandsForOwnedRoutingWork(group commentInboxGroupOutput, actorID string, actorKind string, clientEventScope string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	if len(group.Threads) == 0 {
 		return nil
 	}
@@ -4501,9 +4501,9 @@ func suggestedCommandsForOwnedRoutingWork(group commentInboxGroupOutput, actorID
 		return nil
 	}
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("renew_owned_claim", "comments renew", withURLArg([]string{"comments", "renew", threadID, "--actor", actorID, "--json"}, serverURL), "", "Refresh the recovered live claim before continuing work after an adapter restart.", commentSuggestedClientEventID(clientEventScope, threadID, "renew")),
-		suggestedCommentsCommand("follow_owned_thread", "comments follow", withRuntimeArgs([]string{"comments", "follow", threadID, "--actor", actorID, "--full", "--json"}, serverURL, receiptLog), "", "Resume watching human follow-up and lifecycle activity for the recovered owned thread."),
-		suggestedCommentsCommand("check_owned_thread", "comments check", withRuntimeArgs([]string{"comments", "check", threadID, "--actor", actorID, "--full", "--json"}, serverURL, receiptLog), "", "Inspect live ownership and guarded-write suggestions before replying or closing the recovered thread."),
+		suggestedCommentsCommandWithClientEventID("renew_owned_claim", "comments renew", withURLArg(actorCommand([]string{"comments", "renew", threadID}, actorID, actorKind, "--json"), serverURL), "", "Refresh the recovered live claim before continuing work after an adapter restart.", commentSuggestedClientEventID(clientEventScope, threadID, "renew")),
+		suggestedCommentsCommand("follow_owned_thread", "comments follow", withRuntimeArgs(actorCommand([]string{"comments", "follow", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Resume watching human follow-up and lifecycle activity for the recovered owned thread."),
+		suggestedCommentsCommand("check_owned_thread", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live ownership and guarded-write suggestions before replying or closing the recovered thread."),
 	}
 }
 
@@ -4553,7 +4553,7 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 		"threads": outputThreads,
 		"open": map[string]any{
 			"count":             len(openThreads),
-			"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "batch", options.URL, options.ReceiptLog),
+			"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "batch", options.URL, options.ReceiptLog),
 			"mine":              outputRouting.Mine,
 			"unclaimed":         outputRouting.Unclaimed,
 			"claimedByOthers":   outputRouting.ClaimedByOthers,
@@ -5125,7 +5125,7 @@ func commentsWatch(ctx context.Context, stdout io.Writer, options commentsComman
 					Cursor:             cursor,
 					EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 					Count:              len(threads),
-					Summary:            summarizeOpenWorklist(threads, options.ActorID, cursor, options.URL, options.ReceiptLog),
+					Summary:            summarizeOpenWorklist(threads, options.ActorID, options.ActorKind, cursor, options.URL, options.ReceiptLog),
 					Threads:            limitCommentThreadsHistory(threads, options.CommentLimit),
 				}
 				if commentsNeedsWorkItem(options) {
@@ -5221,7 +5221,7 @@ func commentsFollow(ctx context.Context, stdout io.Writer, options commentsComma
 				Cursor:             cursor,
 				EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 				Count:              len(deliver),
-				Summary:            summarizeActivityBatch(deliver, options.ActorID, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
+				Summary:            summarizeActivityBatch(deliver, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
 				Activities:         deliver,
 				Comments:           snapshots.Comments,
 				File:               context.File,
@@ -6657,6 +6657,35 @@ func actorInput(options commentsCommandOptions) map[string]any {
 		actor["displayName"] = options.ActorName
 	}
 	return actor
+}
+
+func actorCommandArgs(actorID string, actorKind string) []string {
+	actorID = strings.TrimSpace(actorID)
+	if actorID == "" {
+		return nil
+	}
+	args := []string{"--actor", actorID}
+	if kind := suggestedActorKind(actorKind); kind != "" {
+		args = append(args, "--actor-kind", kind)
+	}
+	return args
+}
+
+func actorCommand(prefix []string, actorID string, actorKind string, suffix ...string) []string {
+	args := append([]string{}, prefix...)
+	args = append(args, actorCommandArgs(actorID, actorKind)...)
+	args = append(args, suffix...)
+	return args
+}
+
+func suggestedActorKind(actorKind string) string {
+	kind := strings.ReplaceAll(strings.TrimSpace(actorKind), "-", "_")
+	switch kind {
+	case "human", "claude_code", "codex":
+		return kind
+	default:
+		return ""
+	}
 }
 
 func inferActorKind(actorID, explicit string) string {

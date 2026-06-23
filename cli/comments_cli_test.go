@@ -1243,7 +1243,7 @@ func TestCommentsCLIReleaseTriageFilePostsHandoffAndReleasesClaim(t *testing.T) 
 }
 
 func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T) {
-	start := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "start_work"}, "codex:suggest", "comment-thread-1", "activity-1", "", "")
+	start := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "start_work"}, "codex:suggest", "codex", "comment-thread-1", "activity-1", "", "")
 	if len(start) != 4 {
 		t.Fatalf("start suggestions = %#v", start)
 	}
@@ -1260,7 +1260,7 @@ func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T
 		t.Fatalf("start dismiss suggestion = %#v", start[3])
 	}
 
-	reconsider := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "reconsider_work"}, "codex:suggest", "comment-thread-1", "activity-2", "", "")
+	reconsider := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "reconsider_work"}, "codex:suggest", "codex", "comment-thread-1", "activity-2", "", "")
 	if len(reconsider) != 4 {
 		t.Fatalf("reconsider suggestions = %#v", reconsider)
 	}
@@ -1277,12 +1277,12 @@ func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T
 		t.Fatalf("reconsider dismiss suggestion = %#v", reconsider[3])
 	}
 
-	withLedger := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "start_work"}, "codex:suggest", "comment-thread-1", "activity-6", "http://127.0.0.1:4455", "/tmp/vivi-agent-receipts.jsonl")
+	withLedger := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "start_work"}, "codex:suggest", "codex", "comment-thread-1", "activity-6", "http://127.0.0.1:4455", "/tmp/vivi-agent-receipts.jsonl")
 	if len(withLedger) != 4 || !containsString(withLedger[0].Args, "--receipt-log") || !containsString(withLedger[0].Args, "/tmp/vivi-agent-receipts.jsonl") || !containsString(withLedger[0].Args, "--url") || !containsString(withLedger[0].Args, "http://127.0.0.1:4455") || !containsString(withLedger[2].Args, "--receipt-log") || !containsString(withLedger[2].Args, "http://127.0.0.1:4455") {
 		t.Fatalf("ledger suggestions = %#v", withLedger)
 	}
 
-	inspect := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "inspect_external_activity"}, "codex:suggest", "comment-thread-1", "activity-3", "", "")
+	inspect := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "inspect_external_activity"}, "codex:suggest", "codex", "comment-thread-1", "activity-3", "", "")
 	if len(inspect) != 1 || inspect[0].Intent != "inspect_thread" || inspect[0].Command != "comments show" || !containsString(inspect[0].Args, "--actor") || !containsString(inspect[0].Args, "codex:suggest") {
 		t.Fatalf("inspect suggestions = %#v", inspect)
 	}
@@ -1290,10 +1290,10 @@ func TestCommentActivityBatchSuggestedCommandsMapRecommendedActions(t *testing.T
 		t.Fatalf("inspect suggestion should not include stdin metadata = %#v", inspect[0])
 	}
 
-	if ignored := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "ignore_own_activity"}, "codex:suggest", "comment-thread-1", "activity-4", "", ""); len(ignored) != 0 {
+	if ignored := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "ignore_own_activity"}, "codex:suggest", "codex", "comment-thread-1", "activity-4", "", ""); len(ignored) != 0 {
 		t.Fatalf("ignore suggestions = %#v", ignored)
 	}
-	if missingActor := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "reconsider_work"}, "", "comment-thread-1", "activity-5", "", ""); len(missingActor) != 1 || missingActor[0].Intent != "inspect_thread" {
+	if missingActor := suggestedCommandsForActivityBatch(commentActivityBatchSummary{RecommendedAction: "reconsider_work"}, "", "", "comment-thread-1", "activity-5", "", ""); len(missingActor) != 1 || missingActor[0].Intent != "inspect_thread" {
 		t.Fatalf("missing actor suggestions = %#v", missingActor)
 	}
 }
@@ -2755,7 +2755,7 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	if claimed.Brief.ThreadID != threadID || claimed.Brief.Path != "README.md" || claimed.Brief.RecommendedAction != "start_work" || claimed.Brief.LatestComment != "Work on this feedback" || claimed.Brief.LatestCommentAuthor != "human:tasuku" || !containsString(claimed.Brief.SuggestedCommandIntents, "acknowledge_initial_feedback") {
 		t.Fatalf("claimed work brief = %#v", claimed.Brief)
 	}
-	if len(claimed.Summary.SuggestedCommands) != 4 || claimed.Summary.SuggestedCommands[0].Intent != "acknowledge_initial_feedback" || !containsString(claimed.Summary.SuggestedCommands[0].Args, server.URL) || claimed.Summary.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(claimed.Summary.SuggestedCommands[1].Args, server.URL) || claimed.Summary.SuggestedCommands[1].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[2].StdinSchema != "commentResultFileInput" || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) || claimed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(claimed.Summary.SuggestedCommands[3].Args, server.URL) {
+	if len(claimed.Summary.SuggestedCommands) != 4 || claimed.Summary.SuggestedCommands[0].Intent != "acknowledge_initial_feedback" || !containsString(claimed.Summary.SuggestedCommands[0].Args, server.URL) || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--actor-kind") || !containsString(claimed.Summary.SuggestedCommands[0].Args, "codex") || claimed.Summary.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(claimed.Summary.SuggestedCommands[1].Args, server.URL) || claimed.Summary.SuggestedCommands[1].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[2].StdinSchema != "commentResultFileInput" || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) || !containsString(claimed.Summary.SuggestedCommands[2].Args, "--actor-kind") || !containsString(claimed.Summary.SuggestedCommands[2].Args, "codex") || claimed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(claimed.Summary.SuggestedCommands[3].Args, server.URL) {
 		t.Fatalf("claimed work suggested commands = %#v", claimed.Summary.SuggestedCommands)
 	}
 
@@ -2798,7 +2798,7 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	if !followed.Summary.RequiresAttention || followed.Summary.RecommendedAction != "reconsider_work" || !containsString(followed.Summary.AttentionReasons, "external_human_comment") {
 		t.Fatalf("followed work attention summary = %#v", followed.Summary)
 	}
-	if len(followed.Summary.SuggestedCommands) != 4 || followed.Summary.SuggestedCommands[0].Intent != "acknowledge_follow_up" || !containsString(followed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(followed.Summary.SuggestedCommands[0].Args, "codex:work-1") || !containsString(followed.Summary.SuggestedCommands[0].Args, server.URL) || followed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(followed.Summary.SuggestedCommands[1].Args, server.URL) || followed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(followed.Summary.SuggestedCommands[3].Args, server.URL) {
+	if len(followed.Summary.SuggestedCommands) != 4 || followed.Summary.SuggestedCommands[0].Intent != "acknowledge_follow_up" || !containsString(followed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(followed.Summary.SuggestedCommands[0].Args, "codex:work-1") || !containsString(followed.Summary.SuggestedCommands[0].Args, "--actor-kind") || !containsString(followed.Summary.SuggestedCommands[0].Args, "codex") || !containsString(followed.Summary.SuggestedCommands[0].Args, server.URL) || followed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(followed.Summary.SuggestedCommands[1].Args, server.URL) || followed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(followed.Summary.SuggestedCommands[3].Args, server.URL) {
 		t.Fatalf("followed work suggested commands = %#v", followed.Summary.SuggestedCommands)
 	}
 	if err := <-done; err != nil {
