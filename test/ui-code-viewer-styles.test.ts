@@ -12,7 +12,7 @@ describe("code viewer line actions", () => {
       "grid-template-columns: 48px max-content minmax(0, 1fr);",
     );
     expect(styles).toMatch(
-      /\.code-line-comment-action \{[\s\S]*?position: absolute;[\s\S]*?left: 5px;/,
+      /\.code-line-comment-action \{[\s\S]*?position: absolute;[\s\S]*?left: 1px;[\s\S]*?width: 28px;[\s\S]*?height: 24px;/,
     );
   });
 });

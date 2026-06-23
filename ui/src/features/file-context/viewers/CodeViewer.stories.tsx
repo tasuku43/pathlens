@@ -104,6 +104,12 @@ export const NarrowInlineCommentDraft: Story = {
       `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="6"][data-path="${sampleFiles.code.path}"]`,
     );
     expect(lineAction).toBeInTheDocument();
+    expect(lineAction!.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      28,
+    );
+    expect(lineAction!.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+      24,
+    );
     await userEvent.click(lineAction!);
     await expect(canvas.getByLabelText("New line comment")).toBeVisible();
 

@@ -48,6 +48,12 @@ export const DiffCommentOnAddedLine: Story = {
       `[data-testid="line-comment-action"][data-comment-surface="diff"][data-path="${sampleFiles.code.path}"]`,
     );
     expect(lineAction).toBeInTheDocument();
+    expect(lineAction!.getBoundingClientRect().width).toBeGreaterThanOrEqual(
+      28,
+    );
+    expect(lineAction!.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+      24,
+    );
     await expect(
       canvas.getAllByRole("button", {
         name: /Open comment thread on line/,

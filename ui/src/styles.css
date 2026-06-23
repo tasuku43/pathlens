@@ -2213,10 +2213,10 @@ body.resizing-workbench-pane {
 .code-line-comment-action {
   position: absolute;
   z-index: 2;
-  left: 5px;
-  top: 2px;
-  width: 19px;
-  height: 19px;
+  left: 1px;
+  top: 0;
+  width: 28px;
+  height: 24px;
   border: 0;
   border-radius: 5px;
   background: var(--panel-2);
@@ -2228,9 +2228,9 @@ body.resizing-workbench-pane {
 .code-line-comment-action::before {
   content: "";
   position: absolute;
-  left: 5px;
-  top: 9px;
-  width: 9px;
+  left: 9px;
+  top: 11px;
+  width: 10px;
   height: 1.5px;
   border-radius: 2px;
   background: currentColor;
@@ -2238,10 +2238,10 @@ body.resizing-workbench-pane {
 .code-line-comment-action::after {
   content: "";
   position: absolute;
-  left: 9px;
-  top: 5px;
+  left: 13px;
+  top: 7px;
   width: 1.5px;
-  height: 9px;
+  height: 10px;
   border-radius: 2px;
   background: currentColor;
 }
@@ -2250,17 +2250,17 @@ body.resizing-workbench-pane {
   opacity: 1;
 }
 .code-line-comment-action.has-thread::before {
-  left: 4px;
-  top: 4px;
-  width: 10px;
-  height: 8px;
+  left: 8px;
+  top: 6px;
+  width: 12px;
+  height: 9px;
   border: 1.5px solid currentColor;
   border-radius: 4px;
   background: transparent;
 }
 .code-line-comment-action.has-thread::after {
-  left: 7px;
-  top: 11px;
+  left: 12px;
+  top: 14px;
   width: 4px;
   height: 4px;
   border-left: 1.5px solid currentColor;
@@ -2287,8 +2287,8 @@ body.resizing-workbench-pane {
 }
 .code-line-comment-count {
   position: absolute;
-  left: 13px;
-  top: -4px;
+  left: 18px;
+  top: -5px;
   display: grid;
   place-items: center;
   min-width: 14px;
