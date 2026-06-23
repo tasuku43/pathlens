@@ -256,7 +256,12 @@ Minimal `review queue --json` shape:
     "changedFileCount": 1,
     "reviewUrl": "http://127.0.0.1:4317/?diff=1&path=README.md",
     "suggestedCommands": [
-      { "intent": "inspect_first_changed_file_diff", "command": "review diff", "args": [] }
+      {
+        "intent": "inspect_first_changed_file_diff",
+        "command": "review diff",
+        "args": ["review", "diff", "README.md", "--base", "HEAD", "--url", "http://127.0.0.1:4317", "--json"],
+        "displayCommand": "vivi review diff README.md --base HEAD --url http://127.0.0.1:4317 --json"
+      }
     ]
   }
 }
@@ -613,11 +618,14 @@ means another actor changed claim/lifecycle state or posted a structured triage
 reply, `finish_current_work` means a terminal status was observed, and
 `observe` means no stronger recommendation applies.
 `suggestedCommands` is the command-level companion for adapters. It returns
-subcommand argv that can be prefixed with the adapter's own Vivi launcher, plus
-`clientEventId` when the suggested action has a stable retry/correlation id,
-and `stdinSchema`, `stdinSchemaCommand`, and `stdinExample` when the command
-expects structured JSON on stdin. Runtime write suggestions include the same
-`clientEventId` in both the top-level field and the argv's
+subcommand argv in `args` that can be prefixed with the adapter's own Vivi
+launcher, plus `displayCommand` as a shell-quoted command string using the Vivi
+executable that emitted the suggestion. Use `args` for structured execution and
+`displayCommand` for logs, transcripts, and operator-facing guidance.
+Suggestions also include `clientEventId` when the suggested action has a stable
+retry/correlation id, and `stdinSchema`, `stdinSchemaCommand`, and
+`stdinExample` when the command expects structured JSON on stdin. Runtime write
+suggestions include the same `clientEventId` in both the top-level field and the argv's
 `--client-event-id`; execute the argv as-is and reuse that id for retries of
 that logical write. The reusable recipe object is available as
 `comments schema commentSuggestedCommand --json` and is also exposed through

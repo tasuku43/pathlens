@@ -786,7 +786,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "resume_owned_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 1 || inboxPayload.Summary.UnclaimedCount != 1 || inboxPayload.Summary.ClaimedByOthersCount != 1 || !containsString(inboxPayload.Summary.AttentionReasons, "owned_live_claims") {
 		t.Fatalf("inbox summary = %#v", inboxPayload.Summary)
 	}
-	if len(inboxPayload.Summary.SuggestedCommands) != 3 || inboxPayload.Summary.SuggestedCommands[0].Intent != "renew_owned_claim" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments renew" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, inboxPayload.Summary.SuggestedCommands[0].ClientEventID) || inboxPayload.Summary.SuggestedCommands[1].Command != "comments follow" || inboxPayload.Summary.SuggestedCommands[2].Command != "comments check" {
+	if len(inboxPayload.Summary.SuggestedCommands) != 3 || inboxPayload.Summary.SuggestedCommands[0].Intent != "renew_owned_claim" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments renew" || !strings.HasPrefix(inboxPayload.Summary.SuggestedCommands[0].DisplayCommand, "vivi comments renew "+mineID+" --actor codex:inbox-1") || !strings.Contains(inboxPayload.Summary.SuggestedCommands[0].DisplayCommand, " --url "+server.URL+" ") || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, inboxPayload.Summary.SuggestedCommands[0].ClientEventID) || inboxPayload.Summary.SuggestedCommands[1].Command != "comments follow" || inboxPayload.Summary.SuggestedCommands[2].Command != "comments check" {
 		t.Fatalf("inbox summary suggestions = %#v", inboxPayload.Summary.SuggestedCommands)
 	}
 	if inboxPayload.Mine.Count != 1 || len(inboxPayload.Mine.Threads) != 1 || inboxPayload.Mine.Threads[0].ID != mineID {
@@ -1874,13 +1874,16 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if _, ok := suggestedCommandProperties["clientEventId"]; !ok {
 		t.Fatalf("suggested command schema missing clientEventId = %#v", suggestedCommandPayload)
 	}
+	if _, ok := suggestedCommandProperties["displayCommand"]; !ok {
+		t.Fatalf("suggested command schema missing displayCommand = %#v", suggestedCommandPayload)
+	}
 	if _, ok := suggestedCommandProperties["stdinRequired"]; !ok {
 		t.Fatalf("suggested command schema missing stdinRequired = %#v", suggestedCommandPayload)
 	}
 	if _, ok := suggestedCommandProperties["stdinSchemaCommand"]; !ok || len(suggestedCommandPayload.AcceptedBy) < 6 {
 		t.Fatalf("suggested command schema properties = %#v", suggestedCommandPayload)
 	}
-	if suggestedCommandPayload.Example["command"] != "comments done" || suggestedCommandPayload.Example["stdinSchema"] != "commentResultFileInput" || suggestedCommandPayload.Example["stdinRequired"] != true || suggestedCommandPayload.Example["clientEventId"] == "" {
+	if suggestedCommandPayload.Example["command"] != "comments done" || suggestedCommandPayload.Example["displayCommand"] == "" || suggestedCommandPayload.Example["stdinSchema"] != "commentResultFileInput" || suggestedCommandPayload.Example["stdinRequired"] != true || suggestedCommandPayload.Example["clientEventId"] == "" {
 		t.Fatalf("suggested command schema example = %#v", suggestedCommandPayload.Example)
 	}
 

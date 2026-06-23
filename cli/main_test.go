@@ -38,11 +38,11 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 		t.Fatalf("expected two suggested commands, got %#v", payload.SuggestedCommands)
 	}
 	reviewCommand := payload.SuggestedCommands[0]
-	if reviewCommand.Intent != "inspect_review_queue" || reviewCommand.Command != "review queue" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
+	if reviewCommand.Intent != "inspect_review_queue" || reviewCommand.Command != "review queue" || reviewCommand.DisplayCommand != "vivi review queue --url http://127.0.0.1:59432 --json" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
 		t.Fatalf("review ready suggestion did not carry resolved url: %#v", reviewCommand)
 	}
 	commentsCommand := payload.SuggestedCommands[1]
-	if commentsCommand.Intent != "check_comments_readiness" || commentsCommand.Command != "comments doctor" || !containsString(commentsCommand.Args, "--url") || !containsString(commentsCommand.Args, "http://127.0.0.1:59432") || !containsString(commentsCommand.Args, "--json") {
+	if commentsCommand.Intent != "check_comments_readiness" || commentsCommand.Command != "comments doctor" || commentsCommand.DisplayCommand != "vivi comments doctor --url http://127.0.0.1:59432 --json" || !containsString(commentsCommand.Args, "--url") || !containsString(commentsCommand.Args, "http://127.0.0.1:59432") || !containsString(commentsCommand.Args, "--json") {
 		t.Fatalf("comments ready suggestion did not carry resolved url: %#v", commentsCommand)
 	}
 

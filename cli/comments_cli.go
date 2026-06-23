@@ -1801,12 +1801,13 @@ func commentSuggestedCommandOutputSchema() commentSchemaOutput {
 			{Command: "vivi comments <command> --json", Flag: "error.suggestedCommands"},
 		},
 		Example: map[string]any{
-			"intent":        "complete_after_verification",
-			"command":       "comments done",
-			"args":          []string{"comments", "done", "comment-thread-1", "--actor", "codex:agent", "--result-file", "-", "--require-claim", "--client-event-id", "activity:comment-thread-1:done:activity-1", "--json"},
-			"clientEventId": "activity:comment-thread-1:done:activity-1",
-			"stdinRequired": true,
-			"stdinSchema":   "commentResultFileInput",
+			"intent":         "complete_after_verification",
+			"command":        "comments done",
+			"args":           []string{"comments", "done", "comment-thread-1", "--actor", "codex:agent", "--result-file", "-", "--require-claim", "--client-event-id", "activity:comment-thread-1:done:activity-1", "--json"},
+			"displayCommand": "vivi comments done comment-thread-1 --actor codex:agent --result-file - --require-claim --client-event-id activity:comment-thread-1:done:activity-1 --json",
+			"clientEventId":  "activity:comment-thread-1:done:activity-1",
+			"stdinRequired":  true,
+			"stdinSchema":    "commentResultFileInput",
 			"stdinSchemaCommand": []string{
 				"comments",
 				"schema",
@@ -2980,6 +2981,7 @@ func commentSuggestedCommandSchema() map[string]any {
 			"intent":             map[string]any{"type": "string"},
 			"command":            map[string]any{"type": "string"},
 			"args":               arraySchema(map[string]any{"type": "string"}),
+			"displayCommand":     map[string]any{"type": "string"},
 			"clientEventId":      map[string]any{"type": "string"},
 			"stdinRequired":      map[string]any{"type": "boolean"},
 			"stdinSchema":        map[string]any{"type": "string"},
@@ -3977,11 +3979,12 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 
 func suggestedCommentsCommand(intent string, command string, args []string, stdinSchema string, reason string) commentSuggestedCommand {
 	suggestion := commentSuggestedCommand{
-		Intent:      intent,
-		Command:     command,
-		Args:        args,
-		StdinSchema: stdinSchema,
-		Reason:      reason,
+		Intent:         intent,
+		Command:        command,
+		Args:           args,
+		DisplayCommand: formatViviCommand(args),
+		StdinSchema:    stdinSchema,
+		Reason:         reason,
 	}
 	if stdinSchema != "" {
 		suggestion.StdinRequired = true
@@ -6977,6 +6980,7 @@ type commentSuggestedCommand struct {
 	Intent             string         `json:"intent"`
 	Command            string         `json:"command"`
 	Args               []string       `json:"args"`
+	DisplayCommand     string         `json:"displayCommand"`
 	ClientEventID      string         `json:"clientEventId,omitempty"`
 	StdinRequired      bool           `json:"stdinRequired,omitempty"`
 	StdinSchema        string         `json:"stdinSchema,omitempty"`

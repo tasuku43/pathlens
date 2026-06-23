@@ -48,7 +48,7 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	if queuePayload.Summary.ReviewURL != server.URL+"?diff=1&path=README.md" {
 		t.Fatalf("review queue review URL = %q", queuePayload.Summary.ReviewURL)
 	}
-	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
+	if len(queuePayload.Summary.SuggestedCommands) != 2 || queuePayload.Summary.SuggestedCommands[0].Command != "review diff" || queuePayload.Summary.SuggestedCommands[0].DisplayCommand != "vivi review diff README.md --base HEAD --url "+server.URL+" --json" || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "README.md") || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
 	if queuePayload.Summary.SuggestedCommands[1].Command != "comments work" || queuePayload.Summary.SuggestedCommands[1].Intent != "wait_for_gui_feedback" || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--actor") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "codex:test") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--wait") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, "--loop") || !containsString(queuePayload.Summary.SuggestedCommands[1].Args, server.URL) || queuePayload.Summary.SuggestedCommands[1].ClientEventID == "" {
@@ -139,6 +139,15 @@ func TestReviewCLIHumanSuggestionsUseInvokedExecutable(t *testing.T) {
 	}
 	if strings.Contains(humanText, "  - inspect_first_changed_file_diff: vivi review diff") {
 		t.Fatalf("human review queue output used PATH command instead of invoked executable:\n%s", humanText)
+	}
+
+	queue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--actor", "codex:test", "--json")
+	var queuePayload struct {
+		Summary reviewRoutingSummary `json:"summary"`
+	}
+	decodeReviewCLIJSON(t, queue, &queuePayload)
+	if got := queuePayload.Summary.SuggestedCommands[0].DisplayCommand; got != "./vivi review diff README.md --base HEAD --url "+server.URL+" --json" {
+		t.Fatalf("json review queue display command = %q", got)
 	}
 }
 
