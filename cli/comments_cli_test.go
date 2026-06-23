@@ -1360,13 +1360,13 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 		StdinSchemas map[string][]string `json:"stdinSchemas"`
 	}
 	decodeCLIJSON(t, out, &payload)
-	if payload.Name != "vivi-comments-agent-protocol" || payload.Version != commentsStreamSchemaVersion || payload.ManifestSchema != "commentProtocolManifest" || !containsString(payload.ManifestSchemaCommand, "commentProtocolManifest") || !containsString(payload.SchemaCommand, "all") {
+	if payload.Name != "vivi-comments-agent-protocol" || payload.Version != commentsStreamSchemaVersion || payload.ManifestSchema != "commentProtocolManifest" || !containsString(payload.ManifestSchemaCommand, "commentProtocolManifest") || !containsString(payload.SchemaCommand, "list") {
 		t.Fatalf("protocol header = %s", out.String())
 	}
 	if payload.ReceiptLedger.Enabled || payload.ReceiptLedger.Path != "" || !containsString(payload.ReceiptLedger.VerificationCommand, "<receipt-log-path>") || payload.ReceiptLedger.VerificationSchema != "commentWriteReceiptLedgerVerification" || !containsString(payload.ReceiptLedger.VerificationSchemaCommand, "commentWriteReceiptLedgerVerification") || payload.ReceiptLedger.ReceiptSchema != "commentWriteReceipt" || !containsString(payload.ReceiptLedger.ReceiptSchemaCommand, "commentWriteReceipt") {
 		t.Fatalf("protocol receipt ledger = %#v", payload.ReceiptLedger)
 	}
-	if len(payload.Startup) != 3 || payload.Startup[2].Intent != "check_server_readiness" || payload.Startup[2].Command != "comments doctor" || !containsString(payload.Startup[2].Args, "--client-event-id") {
+	if len(payload.Startup) != 3 || payload.Startup[1].Intent != "cache_runtime_schemas" || !containsString(payload.Startup[1].Args, "list") || payload.Startup[2].Intent != "check_server_readiness" || payload.Startup[2].Command != "comments doctor" || !containsString(payload.Startup[2].Args, "--client-event-id") {
 		t.Fatalf("protocol startup = %#v", payload.Startup)
 	}
 	if len(payload.Recovery) != 1 || payload.Recovery[0].Intent != "recover_owned_live_claims" || payload.Recovery[0].Command != "comments mine" || !containsString(payload.Recovery[0].Args, "--full") {
@@ -1562,7 +1562,7 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 	if !payload.OK || payload.URL != server.URL || payload.SchemaVersion != commentsStreamSchemaVersion {
 		t.Fatalf("doctor header = %s", out.String())
 	}
-	if payload.Protocol.Name != "vivi-comments-agent-protocol" || payload.Protocol.ManifestSchema != "commentProtocolManifest" || !containsString(payload.Protocol.ManifestSchemaCommand, "commentProtocolManifest") || !containsString(payload.Protocol.SchemaCommand, "all") {
+	if payload.Protocol.Name != "vivi-comments-agent-protocol" || payload.Protocol.ManifestSchema != "commentProtocolManifest" || !containsString(payload.Protocol.ManifestSchemaCommand, "commentProtocolManifest") || !containsString(payload.Protocol.SchemaCommand, "list") {
 		t.Fatalf("doctor protocol = %#v", payload.Protocol)
 	}
 	if !payload.Server.Reachable || payload.Server.OpenThreadCount != 1 || !strings.HasPrefix(payload.Server.Cursor, "open:") {
@@ -1651,6 +1651,29 @@ func TestCommentsCLIDoctorVerifiesReceiptLedgerForRestart(t *testing.T) {
 }
 
 func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
+	index := runCommentsCLIForTest(t, "schema", "list", "--json")
+	var indexPayload commentSchemaIndexOutput
+	decodeCLIJSON(t, index, &indexPayload)
+	if indexPayload.Name != "commentSchemaIndex" || indexPayload.SchemaVersion != commentsStreamSchemaVersion || len(indexPayload.Schemas) < 20 {
+		t.Fatalf("schema index payload = %s", index.String())
+	}
+	if strings.Contains(index.String(), `"properties"`) || strings.Contains(index.String(), `"example"`) {
+		t.Fatalf("schema index should not embed full schemas or examples: %s", index.String())
+	}
+	foundProtocol := false
+	foundResultInput := false
+	for _, schema := range indexPayload.Schemas {
+		if schema.Name == "commentProtocolManifest" && containsString(schema.SchemaCommand, "commentProtocolManifest") && len(schema.AcceptedBy) > 0 {
+			foundProtocol = true
+		}
+		if schema.Name == "commentResultFileInput" && containsString(schema.SchemaCommand, "commentResultFileInput") && len(schema.AcceptedBy) > 0 {
+			foundResultInput = true
+		}
+	}
+	if !foundProtocol || !foundResultInput {
+		t.Fatalf("schema index missing expected entries = %#v", indexPayload.Schemas)
+	}
+
 	protocol := runCommentsCLIForTest(t, "schema", "protocol", "--json")
 	var protocolPayload commentSchemaOutput
 	decodeCLIJSON(t, protocol, &protocolPayload)

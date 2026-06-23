@@ -104,7 +104,7 @@ When that server is not reachable, the JSON error envelope includes structured
 current directory with `--ready-json`, and retrying `comments doctor` with the
 same actor, URL, and receipt-log context where available.
 `vivi comments --help` is part of that agent contract: its first screen gives
-the recommended startup order (`protocol`, `schema all`, `doctor`, `mine`,
+the recommended startup order (`protocol`, `schema list`, `doctor`, `mine`,
 `work`) and the write rules for claim-guarded triage, release, done, and
 dismiss commands. When an adapter opts into restart-safe receipt recovery, the
 same screen tells it to keep the selected `--receipt-log` on startup, resident
@@ -138,8 +138,9 @@ vivi comments done <thread-id> --actor codex --result-file /tmp/vivi-result.json
 vivi comments protocol --json
 vivi comments protocol --url http://127.0.0.1:4317 --json
 vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments schema list --json
+vivi comments schema list --url http://127.0.0.1:4317 --json
 vivi comments schema all --json
-vivi comments schema all --url http://127.0.0.1:4317 --json
 vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
 vivi comments watch --actor claude-code --full --json
 vivi comments watch --actor claude-code --json
@@ -719,6 +720,9 @@ actor, thread, and client event id returns the existing comment or lifecycle
 effect instead of appending a second agent reply.
 Use `comments schema <name> --json` to fetch machine-readable JSON Schema,
 accepted command flags, and a minimal example for adapter-facing contracts.
+Use `comments schema list --json` first when an agent only needs a compact
+index of available schema names, accepted commands, and exact per-schema fetch
+commands.
 `commentProtocolManifest` validates the startup manifest itself, and
 `commentDoctorOutput` validates the online startup readiness check. For
 suggested stdin payloads, adapters can run the exact `stdinSchemaCommand` from the
@@ -776,10 +780,12 @@ upstream failures. Recovery `suggestedCommands` preserve an explicit `--url`
 or `VIVI_URL`-resolved server where available, and carry `--receipt-log` into
 commands such as `doctor`, `check`, `follow`, and `inbox` that may emit the
 next write-oriented suggestions.
-`comments schema all --json` returns the protocol manifest, doctor readiness,
-snapshot output schemas, stdin schemas, reusable component schemas, stream event
-schemas, receipt verification schemas, and error envelope schema for adapter
-startup caching and does not contact the Vivi server.
+`comments schema list --json` returns the compact schema index for adapter
+startup caching and does not contact the Vivi server. `comments schema all
+--json` still returns the protocol manifest, doctor readiness, snapshot output
+schemas, stdin schemas, reusable component schemas, stream event schemas,
+receipt verification schemas, and error envelope schema in one large payload
+for adapters that intentionally cache the full offline contract.
 
 When `vivi comments ... --json` fails through the CLI entrypoint, it exits
 non-zero and writes a machine-readable error envelope instead of plain text:
@@ -822,7 +828,8 @@ suggested argv as-is so recovery stays attached to the same GUI feedback
 session.
 Adapters can validate this envelope with
 `comments schema commentErrorEvent --json`, or cache it from
-`comments schema all --json` at startup.
+`comments schema list --json` at startup and fetch `commentErrorEvent` on
+demand.
 Passing `--json=false` keeps legacy plain-text stderr behavior.
 `requiresAttention` is true for external comments, updates, claims, releases,
 or status changes; terminal status is still reported in `attentionReasons` and

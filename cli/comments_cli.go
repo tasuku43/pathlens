@@ -1028,6 +1028,9 @@ func appendCommentWriteReceiptLog(path string, receipt commentWriteReceipt) erro
 }
 
 func commentsSchema(stdout io.Writer, _ commentsCommandOptions, name string) error {
+	if commentSchemaListName(name) {
+		return writeJSON(stdout, commentSchemaIndex())
+	}
 	schema, ok := commentSchemaByName(name)
 	if !ok {
 		return fmt.Errorf("unknown comments schema %q", name)
@@ -1051,7 +1054,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"manifestSchemaCommand": commentSchemaCommandArgs("commentProtocolManifest"),
 		"description":           "Machine-readable startup manifest for coding-agent adapters that consume GUI comment feedback through the Vivi CLI.",
 		"defaultURL":            defaultCommentsURL,
-		"schemaCommand":         []string{"comments", "schema", "all", "--json"},
+		"schemaCommand":         []string{"comments", "schema", "list", "--json"},
 		"receiptLedger":         commentProtocolReceiptLedger(receiptLog),
 		"principles": []string{
 			"Prefer suggestedCommands emitted by runtime events over hard-coded command recipes.",
@@ -1071,8 +1074,8 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "cache_runtime_schemas",
 				"command": "comments schema",
-				"args":    withURLArg([]string{"comments", "schema", "all", "--json"}, serverURL),
-				"reason":  "Cache stdin and stream JSON Schemas without contacting a Vivi server.",
+				"args":    withURLArg([]string{"comments", "schema", "list", "--json"}, serverURL),
+				"reason":  "Cache a compact schema index, then fetch named schemas on demand without contacting a Vivi server.",
 			},
 			{
 				"intent":  "check_server_readiness",
@@ -1241,6 +1244,60 @@ func commentSchemaCommandArgs(name string) []string {
 	return []string{"comments", "schema", name, "--json"}
 }
 
+func commentSchemaListName(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "list", "index", "schema-list", "schemalist":
+		return true
+	default:
+		return false
+	}
+}
+
+func commentAllSchemas() []commentSchemaOutput {
+	return []commentSchemaOutput{
+		commentProtocolManifestSchema(),
+		commentDoctorOutputSchema(),
+		commentTriageFileSchema(),
+		commentResultFileSchema(),
+		commentClaimOutputSchema(),
+		commentInboxOutputSchema(),
+		commentMineOutputSchema(),
+		commentBatchOutputSchema(),
+		commentCheckOutputSchema(),
+		commentTriageWriteOutputSchema(),
+		commentReleaseWriteOutputSchema(),
+		commentResultWriteOutputSchema(),
+		commentSuggestedCommandOutputSchema(),
+		commentWriteReceiptOutputSchema(),
+		commentWriteReceiptVerificationOutputSchema(),
+		commentWriteReceiptLedgerVerificationOutputSchema(),
+		commentActivityBatchEventSchema(),
+		commentWorkClaimedEventSchema(),
+		commentWorkIdleEventSchema(),
+		commentOpenWorklistEventSchema(),
+		commentErrorEventSchema(),
+	}
+}
+
+func commentSchemaIndex() commentSchemaIndexOutput {
+	schemas := commentAllSchemas()
+	entries := make([]commentSchemaIndexEntry, 0, len(schemas))
+	for _, schema := range schemas {
+		entries = append(entries, commentSchemaIndexEntry{
+			Name:          schema.Name,
+			Description:   schema.Description,
+			SchemaCommand: commentSchemaCommandArgs(schema.Name),
+			AcceptedBy:    schema.AcceptedBy,
+		})
+	}
+	return commentSchemaIndexOutput{
+		Name:          "commentSchemaIndex",
+		Description:   "Compact index of available comment protocol schemas; fetch individual schemas by name on demand.",
+		SchemaVersion: commentsStreamSchemaVersion,
+		Schemas:       entries,
+	}
+}
+
 func commentSchemaByName(name string) (commentSchemaOutput, bool) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "protocol", "manifest", "protocol-manifest", "commentprotocolmanifest":
@@ -1292,29 +1349,7 @@ func commentSchemaByName(name string) (commentSchemaOutput, bool) {
 				"$schema": "https://json-schema.org/draft/2020-12/schema",
 				"type":    "object",
 			},
-			Schemas: []commentSchemaOutput{
-				commentProtocolManifestSchema(),
-				commentDoctorOutputSchema(),
-				commentTriageFileSchema(),
-				commentResultFileSchema(),
-				commentClaimOutputSchema(),
-				commentInboxOutputSchema(),
-				commentMineOutputSchema(),
-				commentBatchOutputSchema(),
-				commentCheckOutputSchema(),
-				commentTriageWriteOutputSchema(),
-				commentReleaseWriteOutputSchema(),
-				commentResultWriteOutputSchema(),
-				commentSuggestedCommandOutputSchema(),
-				commentWriteReceiptOutputSchema(),
-				commentWriteReceiptVerificationOutputSchema(),
-				commentWriteReceiptLedgerVerificationOutputSchema(),
-				commentActivityBatchEventSchema(),
-				commentWorkClaimedEventSchema(),
-				commentWorkIdleEventSchema(),
-				commentOpenWorklistEventSchema(),
-				commentErrorEventSchema(),
-			},
+			Schemas: commentAllSchemas(),
 		}, true
 	default:
 		return commentSchemaOutput{}, false
@@ -6728,7 +6763,7 @@ func commentsHelpText() string {
 		"",
 		"Agent quick path:",
 		"  1. Discover the contract and receipt ledger: vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  2. Cache schemas offline: vivi comments schema all --json",
+		"  2. Cache the schema index offline: vivi comments schema list --json",
 		"  3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  4. Resume owned work first: vivi comments mine --actor <actor> --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
@@ -6745,7 +6780,7 @@ func commentsHelpText() string {
 		"Usage:",
 		"  vivi comments protocol --json",
 		"  vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"  vivi comments schema <protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
+		"  vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
 		"  vivi comments doctor --actor claude-code --json",
 		"  vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments active --actor claude-code --json",
@@ -6963,6 +6998,20 @@ type commentSchemaCommand struct {
 	Command      string   `json:"command"`
 	Flag         string   `json:"flag,omitempty"`
 	StdinCommand []string `json:"stdinCommand,omitempty"`
+}
+
+type commentSchemaIndexOutput struct {
+	Name          string                    `json:"name"`
+	Description   string                    `json:"description"`
+	SchemaVersion int                       `json:"schemaVersion"`
+	Schemas       []commentSchemaIndexEntry `json:"schemas"`
+}
+
+type commentSchemaIndexEntry struct {
+	Name          string                 `json:"name"`
+	Description   string                 `json:"description,omitempty"`
+	SchemaCommand []string               `json:"schemaCommand"`
+	AcceptedBy    []commentSchemaCommand `json:"acceptedBy,omitempty"`
 }
 
 type commentTriageOutput struct {

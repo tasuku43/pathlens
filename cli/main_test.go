@@ -93,7 +93,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	for _, text := range []string{
 		"Agent quick path:",
 		"1. Discover the contract and receipt ledger: vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"2. Cache schemas offline: vivi comments schema all --json",
+		"2. Cache the schema index offline: vivi comments schema list --json",
 		"3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"4. Resume owned work first: vivi comments mine --actor <actor> --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"5. Run the resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --full --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
@@ -107,7 +107,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
 		"vivi comments protocol --json",
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"vivi comments schema <protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
+		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> --json",
 		"vivi comments doctor --actor claude-code --json",
 		"vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments work --once --actor claude-code --full --json",
