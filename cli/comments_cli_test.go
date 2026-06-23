@@ -624,6 +624,53 @@ func TestCommentsCLIClaimWaitsUntilClaimableWorkAppears(t *testing.T) {
 	}
 }
 
+func TestCommentsCLIWorkTailorsSuggestionsForSourceUnavailableThread(t *testing.T) {
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "stale.md"), []byte("# Stale\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "stale.md", "Feedback on a file that will disappear")
+	if err := os.Remove(filepath.Join(server.Root, "stale.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWorkForTest(t, ctx, "work", threadID, "--url", server.URL, "--actor", "codex:missing-source", "--actor-kind", "codex", "--client-event-id", "work-missing-source-1", "--lease", "30s", "--full", "--interval", "10ms", "--max-events", "1", "--json")
+	claimed := receiveWorkEvent(t, events)
+	if claimed.Type != "comment_work_claimed" || claimed.Thread.ID != threadID || claimed.Claim.Type != "thread_claimed" {
+		t.Fatalf("work source-unavailable payload = %#v", claimed)
+	}
+	if claimed.Source == nil || claimed.Source.Available || claimed.Source.Reason != "source_unavailable" {
+		t.Fatalf("work source-unavailable source = %#v", claimed.Source)
+	}
+	if claimed.Diff == nil || claimed.Diff.Status != "unavailable" || claimed.Diff.Reason != "source_unavailable" {
+		t.Fatalf("work source-unavailable diff = %#v", claimed.Diff)
+	}
+	if claimed.Summary.RecommendedAction != "handle_source_unavailable" || !containsString(claimed.Summary.AttentionReasons, "source_unavailable") || len(claimed.Summary.SuggestedCommands) != 3 {
+		t.Fatalf("work source-unavailable summary = %#v", claimed.Summary)
+	}
+	first := claimed.Summary.SuggestedCommands[0]
+	if first.Intent != "handoff_after_source_unavailable" || first.Command != "comments release" || first.StdinSchema != "commentTriageFileInput" || !containsString(first.Args, server.URL) {
+		t.Fatalf("work source-unavailable first suggestion = %#v", first)
+	}
+	nextAction, _ := first.StdinExample["nextAction"].(string)
+	if strings.Contains(nextAction, "Inspect the referenced file") || !strings.Contains(nextAction, "updated anchor") {
+		t.Fatalf("work source-unavailable stdin example = %#v", first.StdinExample)
+	}
+	if claimed.Summary.SuggestedCommands[1].Intent != "archive_after_source_unavailable_decision" || claimed.Summary.SuggestedCommands[1].Command != "comments dismiss" {
+		t.Fatalf("work source-unavailable archive suggestion = %#v", claimed.Summary.SuggestedCommands[1])
+	}
+	if claimed.Summary.SuggestedCommands[2].Intent != "inspect_source_unavailable_thread" || claimed.Summary.SuggestedCommands[2].Command != "comments show" {
+		t.Fatalf("work source-unavailable inspect suggestion = %#v", claimed.Summary.SuggestedCommands[2])
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("work source-unavailable returned error: %v", err)
+	}
+}
+
 func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	server := newCommentsCLITestServerWithSetup(t, func(root string) {
 		if err := os.WriteFile(filepath.Join(root, "stale.md"), []byte("# Stale\n"), 0o644); err != nil {

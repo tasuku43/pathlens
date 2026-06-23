@@ -3664,7 +3664,7 @@ func summarizeActivityBatch(activities []commentActivityOutput, actorID string, 
 	return summary
 }
 
-func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutput, actorID string, serverURL string, receiptLog string) commentActivityBatchSummary {
+func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutput, actorID string, serverURL string, receiptLog string, sourceUnavailable bool) commentActivityBatchSummary {
 	summary := commentActivityBatchSummary{
 		Kinds:             []string{"claimed_work"},
 		AttentionReasons:  []string{"claimed_open_thread"},
@@ -3704,7 +3704,12 @@ func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutpu
 	if summary.TriageCommentCount > 0 {
 		summary.Kinds = append(summary.Kinds, "triage_comment")
 	}
+	if sourceUnavailable {
+		summary.AttentionReasons = append(summary.AttentionReasons, "source_unavailable")
+		summary.RecommendedAction = "handle_source_unavailable"
+	}
 	sort.Strings(summary.Kinds)
+	sort.Strings(summary.AttentionReasons)
 	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), thread.ID, claim.ID, serverURL, receiptLog)
 	return summary
 }
@@ -3786,6 +3791,17 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 		return nil
 	}
 	switch summary.RecommendedAction {
+	case "handle_source_unavailable":
+		if actorID == "" {
+			return []commentSuggestedCommand{
+				suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the thread conversation because the referenced source path is unavailable in this workspace."),
+			}
+		}
+		return []commentSuggestedCommand{
+			suggestedCommentsCommandWithClientEventID("handoff_after_source_unavailable", "comments release", withRuntimeArgs([]string{"comments", "release", threadID, "--actor", actorID, "--triage-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentTriageFileInput", "Report that the referenced source path is unavailable, then release the live claim for a better anchor or workspace.", suggestedWriteClientEventID("activity", threadID, "release-source-unavailable", activitySeed)),
+			suggestedCommentsCommandWithClientEventID("archive_after_source_unavailable_decision", "comments dismiss", withRuntimeArgs([]string{"comments", "dismiss", threadID, "--actor", actorID, "--result-file", "-", "--require-claim", "--json"}, serverURL, receiptLog), "commentResultFileInput", "Archive the thread only after confirming the missing source means the feedback no longer applies.", suggestedWriteClientEventID("activity", threadID, "dismiss-source-unavailable", activitySeed)),
+			suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--actor", actorID, "--json"}, serverURL), "", "Inspect the thread conversation without assuming the missing source file can be opened."),
+		}
 	case "start_work":
 		if actorID == "" {
 			return []commentSuggestedCommand{
@@ -3858,6 +3874,13 @@ func suggestedCommandStdinExample(intent string, command string, stdinSchema str
 
 func suggestedTriageStdinExample(intent string, command string) map[string]any {
 	switch {
+	case strings.Contains(intent, "source_unavailable"):
+		return map[string]any{
+			"decision":   "blocked",
+			"summary":    "The referenced source path is unavailable in this workspace.",
+			"nextAction": "Ask for an updated anchor or dismiss the stale thread after confirming it no longer applies.",
+			"details":    "- Source context is unavailable\n- No file change was made",
+		}
 	case command == "comments release" || strings.Contains(intent, "handoff"):
 		return map[string]any{
 			"decision":   "blocked",
@@ -3900,6 +3923,12 @@ func suggestedTriageStdinExample(intent string, command string) map[string]any {
 
 func suggestedResultStdinExample(intent string, command string) map[string]any {
 	switch {
+	case strings.Contains(intent, "source_unavailable"):
+		return map[string]any{
+			"summary":      "The feedback references source that is unavailable in this workspace, so it was archived as stale after review.",
+			"verification": []string{"Confirmed the referenced source context is unavailable"},
+			"details":      "- No code change was made\n- Archived with an explicit missing-source explanation",
+		}
 	case command == "comments dismiss" || strings.Contains(intent, "archive"):
 		return map[string]any{
 			"summary":      "The feedback was reviewed and intentionally archived without a code change.",
@@ -4095,6 +4124,7 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 	}
 	var selected *commentThreadOutput
 	var claim *commentActivityOutput
+	var selectedItem *commentWorkItemOutput
 	var lastClaimErr error
 	for index, candidate := range ordered {
 		if strings.TrimSpace(threadID) == "" && options.WithContext && index < len(ordered)-1 {
@@ -4124,16 +4154,6 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 	if selected == nil && strings.TrimSpace(threadID) != "" && lastClaimErr != nil {
 		return nil, false, lastClaimErr
 	}
-	if selected != nil && claim != nil {
-		payload["summary"] = summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog)
-	}
-	if selected == nil {
-		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
-		if err != nil {
-			return nil, false, err
-		}
-		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
-	}
 	if options.WithContext {
 		payload["file"] = nil
 		payload["source"] = nil
@@ -4149,6 +4169,7 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		if err != nil {
 			return nil, false, err
 		}
+		selectedItem = &item
 		if options.WithContext {
 			payload["file"] = item.File
 			payload["source"] = item.Source
@@ -4159,6 +4180,16 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		if options.WithActivities {
 			payload["activities"] = item.Activities
 		}
+	}
+	if selected != nil && claim != nil {
+		payload["summary"] = summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog, selectedItem != nil && sourceContextUnavailable(*selectedItem))
+	}
+	if selected == nil {
+		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
+		if err != nil {
+			return nil, false, err
+		}
+		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
 	}
 	return payload, selected != nil, nil
 }
