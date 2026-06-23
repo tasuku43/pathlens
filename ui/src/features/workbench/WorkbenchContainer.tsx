@@ -846,6 +846,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   );
   const explorerFilterSummary = {
     active: treeChangedOnly,
+    reviewLoading: gitReviewLoading && gitReview === null,
     reviewPathCount: reviewTreePathSet.size,
   };
 

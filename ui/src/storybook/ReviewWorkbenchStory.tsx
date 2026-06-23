@@ -19,6 +19,10 @@ import { Topbar } from "../shared/components/Topbar.js";
 import { TreeSidebar } from "../shared/components/TreeSidebar.js";
 import { extractMarkdownOutline } from "../state/outline.js";
 import { draftReviewCommentAsViviComment } from "../state/comments.js";
+import {
+  explorerFilterLabel,
+  explorerFilterText,
+} from "../state/tree-filter.js";
 import { defaultViewerMode, type ViewerMode } from "../state/viewer-mode.js";
 import type { CommentActivitySummary } from "../state/comment-activity.js";
 import type { DiffStat, ReviewChangeItem } from "../state/git-review.js";
@@ -76,6 +80,8 @@ export interface ReviewWorkbenchStoryProps {
   inlineComment?: ViviComment | null;
   inspectorTitle?: ReactNode;
   compactInspector?: boolean;
+  reviewLoading?: boolean;
+  treeChangedOnly?: boolean;
 }
 
 export function ReviewWorkbenchStory({
@@ -105,6 +111,8 @@ export function ReviewWorkbenchStory({
   inlineComment = null,
   inspectorTitle,
   compactInspector = false,
+  reviewLoading = false,
+  treeChangedOnly = false,
 }: ReviewWorkbenchStoryProps) {
   const [storyActiveCommentId, setStoryActiveCommentId] =
     useState(activeCommentId);
@@ -183,6 +191,11 @@ export function ReviewWorkbenchStory({
         : state === "error"
           ? "review adapter error"
           : "watching";
+  const explorerFilterSummary = {
+    active: treeChangedOnly,
+    reviewLoading,
+    reviewPathCount: reviewItems.length,
+  };
 
   return (
     <div
@@ -226,8 +239,26 @@ export function ReviewWorkbenchStory({
         <aside className="sidebar" aria-label="File explorer">
           <div className="panel-title">
             <span>Explorer</span>
-            <span className={state === "disconnected" ? "pill active" : "pill"}>
-              {state === "disconnected" ? "offline" : "live"}
+            <span
+              aria-label={
+                state === "disconnected"
+                  ? "Workspace events disconnected"
+                  : explorerFilterLabel(explorerFilterSummary)
+              }
+              className={
+                state === "disconnected" || treeChangedOnly
+                  ? "pill active"
+                  : "pill"
+              }
+              title={
+                state === "disconnected"
+                  ? "Workspace events disconnected"
+                  : explorerFilterLabel(explorerFilterSummary)
+              }
+            >
+              {state === "disconnected"
+                ? "offline"
+                : explorerFilterText(explorerFilterSummary)}
             </span>
           </div>
           {state === "loading" ? (

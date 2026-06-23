@@ -87,6 +87,22 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
   },
 };
 
+export const ReviewPathsLoading: Story = {
+  args: {
+    file: sampleFiles.code,
+    reviewItems: [],
+    reviewChanges: [],
+    reviewLoading: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("live ...")).toBeInTheDocument();
+    await expect(
+      canvas.getByLabelText("Showing the live tree while review paths load"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const ReviewQueueFocused: Story = {
   args: {
     file: sampleFiles.queue,

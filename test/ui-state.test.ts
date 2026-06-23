@@ -816,12 +816,40 @@ it("summarizes the Explorer filter with review-path context", () => {
   expect(explorerFilterText({ active: true, reviewPathCount: 3 })).toBe(
     "changed 3",
   );
+  expect(
+    explorerFilterText({
+      active: false,
+      reviewLoading: true,
+      reviewPathCount: 0,
+    }),
+  ).toBe("live ...");
+  expect(
+    explorerFilterText({
+      active: true,
+      reviewLoading: true,
+      reviewPathCount: 0,
+    }),
+  ).toBe("changed ...");
   expect(explorerFilterLabel({ active: false, reviewPathCount: 1 })).toBe(
     "Showing the live tree, 1 review path available",
   );
   expect(explorerFilterLabel({ active: true, reviewPathCount: 3 })).toBe(
     "Showing changed and review paths only, 3 review paths",
   );
+  expect(
+    explorerFilterLabel({
+      active: false,
+      reviewLoading: true,
+      reviewPathCount: 0,
+    }),
+  ).toBe("Showing the live tree while review paths load");
+  expect(
+    explorerFilterLabel({
+      active: true,
+      reviewLoading: true,
+      reviewPathCount: 0,
+    }),
+  ).toBe("Showing changed and review paths while review paths load");
 });
 
 it("closes other tabs while keeping the active tab in the pane", () => {
