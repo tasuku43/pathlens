@@ -282,10 +282,14 @@ export function CommandPalette({
               </button>
             ))}
             {textLoading && mode === "text" ? (
-              <p className="muted palette-empty">Searching...</p>
+              <p className="muted palette-empty" aria-live="polite">
+                Searching workspace text...
+              </p>
             ) : null}
             {fileLoading && mode === "file" ? (
-              <p className="muted palette-empty">Searching...</p>
+              <p className="muted palette-empty" aria-live="polite">
+                Searching file names...
+              </p>
             ) : null}
             {!visibleResults.length && !textLoading && !fileLoading && (
               <p className="muted palette-empty">

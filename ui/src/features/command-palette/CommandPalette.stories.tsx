@@ -125,6 +125,23 @@ export const Loading: Story = {
     fileLoading: true,
     query: "workbench",
   },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Searching file names...")).toBeVisible();
+  },
+};
+
+export const TextLoading: Story = {
+  args: {
+    mode: "text",
+    query: "xt_DSCP",
+    textResults: [],
+    textLoading: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Searching workspace text...")).toBeVisible();
+  },
 };
 
 export const Empty: Story = {

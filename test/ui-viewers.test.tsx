@@ -577,6 +577,46 @@ it("shows an empty recent-files hint before quick-open search starts", () => {
   expect(html).not.toContain("No matching files.");
 });
 
+it("labels command palette loading states by search scope", () => {
+  const fileHtml = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="file"
+      query="workbench"
+      fileResults={[]}
+      fileLoading
+      textResults={[]}
+      textLoading={false}
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+  const textHtml = renderToStaticMarkup(
+    <CommandPalette
+      open
+      mode="text"
+      query="xt_DSCP"
+      fileResults={[]}
+      fileLoading={false}
+      textResults={[]}
+      textLoading
+      actions={[]}
+      onQueryChange={() => undefined}
+      onModeChange={() => undefined}
+      onClose={() => undefined}
+      onOpenPath={() => undefined}
+    />,
+  );
+
+  expect(fileHtml).toContain("Searching file names...");
+  expect(fileHtml).toContain('aria-live="polite"');
+  expect(textHtml).toContain("Searching workspace text...");
+  expect(textHtml).toContain('aria-live="polite"');
+});
+
 it("highlights matching text inside text search results", () => {
   const html = renderToStaticMarkup(
     <CommandPalette
