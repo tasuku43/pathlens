@@ -75,6 +75,7 @@ export interface ReviewWorkbenchStoryProps {
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
   inspectorTitle?: ReactNode;
+  compactInspector?: boolean;
 }
 
 export function ReviewWorkbenchStory({
@@ -103,11 +104,13 @@ export function ReviewWorkbenchStory({
   activeCommentId = null,
   inlineComment = null,
   inspectorTitle,
+  compactInspector = false,
 }: ReviewWorkbenchStoryProps) {
   const [storyActiveCommentId, setStoryActiveCommentId] =
     useState(activeCommentId);
   const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
     useState(commentsPanelOpen);
+  const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
 
   useEffect(() => {
     setStoryActiveCommentId(activeCommentId);
@@ -116,6 +119,10 @@ export function ReviewWorkbenchStory({
   useEffect(() => {
     setStoryCommentsPanelOpen(commentsPanelOpen);
   }, [commentsPanelOpen]);
+
+  useEffect(() => {
+    setCompactInspectorOpen(false);
+  }, [compactInspector]);
 
   const selectedPath = file?.path ?? null;
   const activeTabs =
@@ -153,7 +160,16 @@ export function ReviewWorkbenchStory({
           : "watching";
 
   return (
-    <div className={`app-shell story-workbench story-workbench-${state}`}>
+    <div
+      className={[
+        "app-shell",
+        "story-workbench",
+        `story-workbench-${state}`,
+        compactInspector ? "story-workbench-compact-inspector" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <Topbar
         root={state === "empty" ? null : storyRoot}
         themePreference="system"
@@ -169,7 +185,12 @@ export function ReviewWorkbenchStory({
         onOpenShortcuts={noop}
       />
       <div
-        className="workbench"
+        className={[
+          "workbench",
+          compactInspector && !compactInspectorOpen ? "inspector-hidden" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         style={
           {
             "--sidebar-width": "290px",
@@ -261,6 +282,27 @@ export function ReviewWorkbenchStory({
             </div>
           </section>
         </main>
+        {compactInspector ? (
+          <button
+            className="rail-toggle inspector-rail-toggle"
+            type="button"
+            aria-label={
+              compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
+            }
+            title={
+              compactInspectorOpen ? "Collapse inspector" : "Expand inspector"
+            }
+            onClick={() => setCompactInspectorOpen((open) => !open)}
+          >
+            <span
+              className={
+                compactInspectorOpen
+                  ? "collapse-icon collapse-right"
+                  : "collapse-icon collapse-left"
+              }
+            />
+          </button>
+        ) : null}
         <Inspector
           file={state === "empty" ? null : file}
           reviewChanges={reviewChanges}

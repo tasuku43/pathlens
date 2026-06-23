@@ -31,6 +31,16 @@ export function shouldCollapseInspector(viewportWidth: number): boolean {
     : false;
 }
 
+export function isInspectorEffectivelyVisible(
+  inspectorVisible: boolean,
+  compactInspectorOpen: boolean,
+  viewportWidth: number,
+): boolean {
+  return shouldCollapseInspector(viewportWidth)
+    ? compactInspectorOpen
+    : inspectorVisible;
+}
+
 export function compactSidebarWidth(
   width: number,
   viewportWidth: number,

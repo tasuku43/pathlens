@@ -71,6 +71,35 @@ export const ReviewQueueFocused: Story = {
   },
 };
 
+export const CompactInspectorCanReopenReviewQueue: Story = {
+  tags: ["interaction"],
+  args: {
+    file: sampleFiles.queue,
+    viewerMode: "rendered",
+    compactInspector: true,
+    inspectorTitle:
+      "Narrow workbench keeps an explicit route back to the Review Queue.",
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const expandInspector = canvas.getByRole("button", {
+      name: "Expand inspector",
+    });
+
+    await expect(expandInspector).toBeVisible();
+    await expect(
+      canvas.queryByRole("button", { name: "Collapse inspector" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(expandInspector);
+
+    await expect(
+      canvas.getByRole("button", { name: "Collapse inspector" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("Review Queue")).toBeVisible();
+  },
+};
+
 export const FileWithOpenComments: Story = {
   args: {
     file: sampleFiles.code,

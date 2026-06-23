@@ -140,6 +140,7 @@ import {
   compactSidebarWidth,
   defaultInspectorWidth,
   defaultSidebarWidth,
+  isInspectorEffectivelyVisible,
   shouldCollapseInspector,
 } from "../../state/workbench-layout.js";
 import {
@@ -296,6 +297,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [viewportWidth, setViewportWidth] = useState(readViewportWidth);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [inspectorVisible, setInspectorVisible] = useState(true);
+  const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
   const [inspectorWidth, setInspectorWidth] = useState(defaultInspectorWidth);
   const [resizingWorkbenchPane, setResizingWorkbenchPane] = useState<
@@ -626,8 +628,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     viewportWidth,
   );
   const effectiveSidebarVisible = sidebarVisible;
-  const effectiveInspectorVisible =
-    inspectorVisible && !shouldCollapseInspector(viewportWidth);
+  const inspectorCollapsedByViewport = shouldCollapseInspector(viewportWidth);
+  const effectiveInspectorVisible = isInspectorEffectivelyVisible(
+    inspectorVisible,
+    compactInspectorOpen,
+    viewportWidth,
+  );
   const workbenchClassName = [
     "workbench",
     effectiveSidebarVisible ? "" : "sidebar-hidden",
@@ -1682,6 +1688,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }, []);
 
   useEffect(() => {
+    if (!inspectorCollapsedByViewport) setCompactInspectorOpen(false);
+  }, [inspectorCollapsedByViewport]);
+
+  useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.style.colorScheme = resolvedTheme;
     window.localStorage.setItem(themeStorageKey, themePreference);
@@ -1844,7 +1854,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
       if (action === "toggle-inspector") {
         event.preventDefault();
-        setInspectorVisible((visible) => !visible);
+        if (inspectorCollapsedByViewport) {
+          setCompactInspectorOpen((visible) => !visible);
+        } else {
+          setInspectorVisible((visible) => !visible);
+        }
         return;
       }
 
@@ -2121,7 +2135,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               ? "Collapse inspector"
               : "Expand inspector"
           }
-          onClick={() => setInspectorVisible((visible) => !visible)}
+          onClick={() => {
+            if (inspectorCollapsedByViewport) {
+              setCompactInspectorOpen((visible) => !visible);
+            } else {
+              setInspectorVisible((visible) => !visible);
+            }
+          }}
         >
           <span
             className={

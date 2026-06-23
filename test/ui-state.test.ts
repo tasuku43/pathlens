@@ -93,6 +93,7 @@ import {
   compactSidebarWidth,
   defaultInspectorWidth,
   defaultSidebarWidth,
+  isInspectorEffectivelyVisible,
   maxInspectorWidth,
   maxSidebarWidth,
   minInspectorWidth,
@@ -547,6 +548,10 @@ it("compacts workbench panes for narrow viewports", () => {
   expect(compactSidebarWidth(320, 390)).toBe(179);
   expect(compactSidebarWidth(320, 900)).toBe(320);
   expect(compactSidebarWidth(Number.NaN, 390)).toBe(179);
+  expect(isInspectorEffectivelyVisible(true, false, 764)).toBe(false);
+  expect(isInspectorEffectivelyVisible(true, true, 764)).toBe(true);
+  expect(isInspectorEffectivelyVisible(false, true, 1200)).toBe(false);
+  expect(isInspectorEffectivelyVisible(true, false, 1200)).toBe(true);
 });
 
 it("summarizes workspace status as a human-facing bottom bar", () => {
