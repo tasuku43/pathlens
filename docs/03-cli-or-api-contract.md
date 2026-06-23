@@ -430,8 +430,10 @@ one later batch. If no claimable work exists and `--wait` is not set, it emits
 while the agent is waiting. The idle summary uses
 `recommendedAction: "wait_for_gui_feedback"` when the queue is empty and
 `recommendedAction: "wait_for_claim_release"` when open threads exist but are
-currently claimed by other actors, with `comments inbox` and `comments watch`
-suggestions for inspection.
+currently claimed by other actors. Empty-queue idle events suggest the
+resident `comments work --wait --loop --idle-events` command and passive
+`comments watch`, while claim-release waits suggest `comments inbox` and
+`comments watch` for inspection.
 When a later activity batch contains `thread_status_changed` to `resolved` or
 `archived`, `work` emits that batch and exits successfully, giving adapters a
 natural stop signal after `done` or `dismiss`.

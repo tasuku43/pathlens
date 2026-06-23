@@ -3127,6 +3127,9 @@ func TestCommentsCLIWorkIdleEventIsSelfDescribing(t *testing.T) {
 	if event.Summary.RecommendedAction != "wait_for_gui_feedback" || event.Summary.RequiresAttention {
 		t.Fatalf("idle work summary = %#v", event.Summary)
 	}
+	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].Intent != "start_resident_work_loop" || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(event.Summary.SuggestedCommands[0].Args, server.URL) || event.Summary.SuggestedCommands[1].Command != "comments watch" || event.Summary.SuggestedCommands[1].Intent != "watch_open_worklist" {
+		t.Fatalf("idle work suggestions = %#v", event.Summary.SuggestedCommands)
+	}
 }
 
 func TestCommentsCLIWorkWaitCanEmitIdleHeartbeat(t *testing.T) {

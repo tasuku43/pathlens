@@ -3837,11 +3837,16 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 	count, _ := payload["count"].(int)
 	cursor, _ := payload["cursor"].(string)
 	if count <= 0 {
+		actorID = strings.TrimSpace(actorID)
 		return commentOpenWorklistSummary{
 			RequiresAttention: false,
 			AttentionReasons:  []string{},
 			RecommendedAction: "wait_for_gui_feedback",
 			OpenThreadCount:   0,
+			SuggestedCommands: []commentSuggestedCommand{
+				suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json")), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work."),
+				suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--json")), serverURL, receiptLog), "", "Watch compact routing events for new GUI feedback without claiming work immediately."),
+			},
 		}
 	}
 	actorID = strings.TrimSpace(actorID)
