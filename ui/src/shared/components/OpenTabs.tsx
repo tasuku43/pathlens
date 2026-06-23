@@ -112,7 +112,7 @@ export function OpenTabs({
             <div
               key={tab.path}
               className={[
-                "tab",
+                "tab-shell",
                 tab.path === activePath ? "active" : "",
                 tab.changed ? "changed" : "",
                 tab.removed ? "removed" : "",
@@ -121,25 +121,7 @@ export function OpenTabs({
               ]
                 .filter(Boolean)
                 .join(" ")}
-              role="tab"
-              aria-selected={tab.path === activePath}
-              tabIndex={tab.path === activePath ? 0 : -1}
-              data-tab-path={tab.path}
-              aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
               title={tab.path}
-              draggable
-              onMouseDown={(event) => {
-                if (event.button === 0)
-                  onManualDragStart({ path: tab.path, paneId });
-              }}
-              onClick={() => onActivate(tab.path)}
-              onDragStart={(event) => {
-                writeDraggedTab(event.dataTransfer, { path: tab.path, paneId });
-                event.dataTransfer.effectAllowed = "move";
-                onDragStateChange(true);
-                onManualDragStart({ path: tab.path, paneId });
-              }}
-              onDragEnd={() => onDragStateChange(false)}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();
@@ -149,29 +131,56 @@ export function OpenTabs({
                   onDropTab(dragged.path, dragged.paneId, paneId, tab.path);
               }}
             >
-              <div className="tab-main" aria-hidden="true">
-                <span className="file-icon">
-                  {iconForPath(tab.path, tab.viewerKind)}
-                </span>
-                <span className="tab-title-stack">
-                  <span className="tab-title">{title}</span>
-                  {context ? (
-                    <span className="tab-context" aria-hidden="true">
-                      {context}
+              <button
+                className="tab"
+                type="button"
+                role="tab"
+                aria-selected={tab.path === activePath}
+                tabIndex={tab.path === activePath ? 0 : -1}
+                data-tab-path={tab.path}
+                aria-label={`${tab.path}${tab.isPreview ? " preview" : ""}${tab.changed ? " changed" : ""}${tab.removed ? " removed" : ""}`}
+                title={tab.path}
+                draggable
+                onMouseDown={(event) => {
+                  if (event.button === 0)
+                    onManualDragStart({ path: tab.path, paneId });
+                }}
+                onClick={() => onActivate(tab.path)}
+                onDragStart={(event) => {
+                  writeDraggedTab(event.dataTransfer, {
+                    path: tab.path,
+                    paneId,
+                  });
+                  event.dataTransfer.effectAllowed = "move";
+                  onDragStateChange(true);
+                  onManualDragStart({ path: tab.path, paneId });
+                }}
+                onDragEnd={() => onDragStateChange(false)}
+              >
+                <span className="tab-main" aria-hidden="true">
+                  <span className="file-icon">
+                    {iconForPath(tab.path, tab.viewerKind)}
+                  </span>
+                  <span className="tab-title-stack">
+                    <span className="tab-title">{title}</span>
+                    {context ? (
+                      <span className="tab-context" aria-hidden="true">
+                        {context}
+                      </span>
+                    ) : null}
+                  </span>
+                  {tab.isPreview ? (
+                    <span className="tab-preview-mark" title="Preview tab">
+                      preview
+                    </span>
+                  ) : null}
+                  {tab.removed ? (
+                    <span className="tab-removed-mark" title="Removed from disk">
+                      removed
                     </span>
                   ) : null}
                 </span>
-                {tab.isPreview ? (
-                  <span className="tab-preview-mark" title="Preview tab">
-                    preview
-                  </span>
-                ) : null}
-                {tab.removed ? (
-                  <span className="tab-removed-mark" title="Removed from disk">
-                    removed
-                  </span>
-                ) : null}
-              </div>
+              </button>
               <button
                 className="tab-close"
                 type="button"

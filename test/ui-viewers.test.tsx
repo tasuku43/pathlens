@@ -529,6 +529,9 @@ it("renders open files as an accessible tab set", () => {
   expect(html).toContain('tabindex="0"');
   expect(html).toContain('tabindex="-1"');
   expect(html).toContain('data-tab-path="src/app.ts"');
+  expect(html).toContain('class="tab-shell active changed preview"');
+  expect(html).toContain('class="tab" type="button" role="tab"');
+  expect(html).toContain('class="tab-close" type="button"');
   expect(html).toContain('aria-label="Tab management"');
   expect(html).toContain("Keep tab");
   expect(html).toContain("Close others");
@@ -567,7 +570,7 @@ it("shows parent context only for duplicate tab names", () => {
     />,
   );
 
-  expect(html).toContain('class="tab active duplicate-name"');
+  expect(html).toContain('class="tab-shell active duplicate-name"');
   expect(html).toContain(
     '<span class="tab-context" aria-hidden="true">docs</span>',
   );

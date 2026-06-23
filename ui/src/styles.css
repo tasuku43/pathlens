@@ -737,7 +737,7 @@ body.resizing-workbench-pane {
   gap: 2px;
   overflow-x: auto;
 }
-.tab {
+.tab-shell {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -749,6 +749,17 @@ body.resizing-workbench-pane {
   color: var(--muted);
   padding: 0 4px 0 0;
   white-space: nowrap;
+}
+.tab {
+  min-width: 0;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
 }
 .tab-main {
   min-width: 0;
@@ -762,12 +773,12 @@ body.resizing-workbench-pane {
   cursor: pointer;
   padding: 0 8px 0 10px;
 }
-.tab.active {
+.tab-shell.active {
   border-color: var(--line);
   background: var(--bg);
   color: var(--text);
 }
-.tab.preview .tab-title {
+.tab-shell.preview .tab-title {
   font-style: italic;
 }
 .tab-title-stack {
@@ -788,7 +799,7 @@ body.resizing-workbench-pane {
   color: var(--subtle);
   font-size: 10px;
 }
-.tab.duplicate-name .tab-main {
+.tab-shell.duplicate-name .tab-main {
   align-items: center;
 }
 .tab-preview-mark {
@@ -807,14 +818,14 @@ body.resizing-workbench-pane {
   line-height: 1;
   padding: 3px 5px;
 }
-.tab.changed::after {
+.tab-shell.changed::after {
   content: "";
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: var(--warn);
 }
-.tab.removed {
+.tab-shell.removed {
   opacity: 0.72;
 }
 .tab-close {
