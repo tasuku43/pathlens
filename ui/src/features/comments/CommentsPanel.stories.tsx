@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { useState } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { CommentsPanel } from "./components/CommentsPanel.js";
 import { InlineCommentCard } from "./components/InlineCommentCard.js";
@@ -118,11 +119,27 @@ export const ScopedFileSearch: Story = {
     query: sampleFiles.code.path,
     statusFilter: "all",
   },
+  render: (args) => {
+    const [query, setQuery] = useState(args.query ?? "");
+    return (
+      <CommentsPanel
+        {...args}
+        query={query}
+        onQueryChange={(nextQuery) => {
+          args.onQueryChange(nextQuery);
+          setQuery(nextQuery);
+        }}
+      />
+    );
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByLabelText("Search comments")).toHaveValue(
       sampleFiles.code.path,
     );
+    await expect(
+      canvas.getByRole("button", { name: "Clear comments search" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Show all 3 threads" }))
       .toHaveTextContent("All 3");
     await expect(canvas.getByRole("button", { name: "Show 3 open threads" }))
@@ -135,6 +152,12 @@ export const ScopedFileSearch: Story = {
         name: "Comment threads, 3 threads · 4 messages",
       }),
     ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Clear comments search" }),
+    );
+    await expect(canvas.getByLabelText("Search comments")).toHaveValue("");
+    await expect(canvas.getByRole("button", { name: "Show all 7 threads" }))
+      .toHaveTextContent("All 7");
   },
 };
 

@@ -3357,7 +3357,13 @@ body.resizing-workbench-pane {
   background: color-mix(in srgb, var(--panel) 54%, transparent);
   padding: 10px 16px;
 }
-.global-comments-tools input {
+.global-comments-search-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+}
+.global-comments-search-control input {
   min-width: 0;
   height: 34px;
   border: 1px solid var(--line);
@@ -3366,6 +3372,25 @@ body.resizing-workbench-pane {
   color: var(--text);
   outline: 0;
   padding: 0 10px;
+}
+.global-comments-clear-search {
+  height: 34px;
+  border: 1px solid var(--soft-line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 760;
+  padding: 0 10px;
+}
+.global-comments-clear-search:hover,
+.global-comments-clear-search:focus-visible {
+  border-color: var(--comment-line);
+  background: var(--comment-tint);
+  color: var(--comment-text);
+  outline: 0;
 }
 .global-comments-results {
   border-bottom: 1px solid var(--soft-line);

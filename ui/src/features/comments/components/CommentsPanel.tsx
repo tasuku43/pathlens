@@ -521,24 +521,46 @@ function CommentsSearchInput({
   }, []);
 
   return (
-    <input
-      ref={searchInputRef}
-      value={query}
-      placeholder="Search comments, paths, quotes"
-      aria-label="Search comments"
-      aria-describedby={`${resultSummaryId} ${keyboardHelpId}`}
-      onChange={(event) => onQueryChange(event.currentTarget.value)}
-      onKeyDown={(event) => {
-        const nextTarget = commentInboxKeyboardTarget(
-          event.key,
-          -1,
-          visibleThreadCount,
-        );
-        if (nextTarget === null) return;
-        event.preventDefault();
-        focusCommentInboxTarget(nextTarget);
-      }}
-    />
+    <div className="global-comments-search-control">
+      <input
+        ref={searchInputRef}
+        value={query}
+        placeholder="Search comments, paths, quotes"
+        aria-label="Search comments"
+        aria-describedby={`${resultSummaryId} ${keyboardHelpId}`}
+        onChange={(event) => onQueryChange(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && query.trim()) {
+            event.preventDefault();
+            onQueryChange("");
+            window.setTimeout(() => searchInputRef.current?.focus(), 0);
+            return;
+          }
+          const nextTarget = commentInboxKeyboardTarget(
+            event.key,
+            -1,
+            visibleThreadCount,
+          );
+          if (nextTarget === null) return;
+          event.preventDefault();
+          focusCommentInboxTarget(nextTarget);
+        }}
+      />
+      {query.trim() ? (
+        <button
+          type="button"
+          className="global-comments-clear-search"
+          aria-label="Clear comments search"
+          title="Clear comments search"
+          onClick={() => {
+            onQueryChange("");
+            window.setTimeout(() => searchInputRef.current?.focus(), 0);
+          }}
+        >
+          Clear
+        </button>
+      ) : null}
+    </div>
   );
 }
 

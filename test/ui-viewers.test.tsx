@@ -3015,6 +3015,7 @@ it("scopes comments inbox filter counts to the current search", () => {
   expect(html).toContain("2 open · 1 resolved · 0 archived");
   expect(html).toContain("All 1");
   expect(html).toContain("Open 1");
+  expect(html).toContain('aria-label="Clear comments search"');
   expect(html).toContain('aria-label="Show all 1 thread"');
   expect(html).toContain('aria-label="Show 1 open thread"');
   expect(html).toContain('aria-label="Show 0 resolved threads"');
