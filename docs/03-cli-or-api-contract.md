@@ -336,8 +336,10 @@ is described by `commentClaimOutput` and, on a successful claim, includes
 `triage`, `release`, `done`, and `dismiss` commands for the newly owned thread.
 `brief` is intentionally compact: it repeats the thread path, latest comment
 excerpt, recommended action, source freshness state when available, and
-suggested command intents so a coding agent operator can orient before reading
-large source or diff payloads.
+suggested commands plus their intents so a coding agent operator can act before
+reading large source or diff payloads. `summary.suggestedCommands` remains the
+canonical batch summary, while `brief.suggestedCommands` is the early, terminal
+friendly copy for `--full` output.
 When no thread can be claimed, the payload still includes `summary` with
 routing counts and a next action. In particular,
 `summary.recommendedAction: "wait_for_claim_release"` means open threads exist

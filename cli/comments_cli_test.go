@@ -2037,6 +2037,15 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if len(workClaimedSuggestions) != 3 || workClaimedSuggestions[0].(map[string]any)["intent"] != "acknowledge_initial_feedback" || workClaimedSuggestions[1].(map[string]any)["stdinSchema"] != "commentResultFileInput" || workClaimedSuggestions[2].(map[string]any)["command"] != "comments dismiss" {
 		t.Fatalf("work claimed suggested command example = %#v", workClaimedSummaryExample)
 	}
+	workBriefProperties := workProperties["brief"].(map[string]any)["properties"].(map[string]any)
+	if _, ok := workBriefProperties["suggestedCommands"]; !ok {
+		t.Fatalf("work claimed brief schema missing suggestedCommands = %#v", workBriefProperties)
+	}
+	workClaimedBriefExample := workClaimedPayload.Example["brief"].(map[string]any)
+	workClaimedBriefSuggestions := workClaimedBriefExample["suggestedCommands"].([]any)
+	if len(workClaimedBriefSuggestions) != 3 || workClaimedBriefSuggestions[0].(map[string]any)["command"] != "comments triage" || workClaimedBriefSuggestions[1].(map[string]any)["stdinSchema"] != "commentResultFileInput" {
+		t.Fatalf("work claimed brief suggested command example = %#v", workClaimedBriefExample)
+	}
 
 	workIdle := runCommentsCLIForTest(t, "schema", "workIdle", "--json")
 	var workIdlePayload commentSchemaOutput
@@ -2855,6 +2864,9 @@ func TestCommentsCLIWorkClaimsAndFollowsThreadActivity(t *testing.T) {
 	if len(claimed.Summary.SuggestedCommands) != 4 || claimed.Summary.SuggestedCommands[0].Intent != "acknowledge_initial_feedback" || !containsString(claimed.Summary.SuggestedCommands[0].Args, server.URL) || !containsString(claimed.Summary.SuggestedCommands[0].Args, "--actor-kind") || !containsString(claimed.Summary.SuggestedCommands[0].Args, "codex") || claimed.Summary.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(claimed.Summary.SuggestedCommands[1].Args, server.URL) || claimed.Summary.SuggestedCommands[1].StdinSchema != "commentTriageFileInput" || claimed.Summary.SuggestedCommands[2].StdinSchema != "commentResultFileInput" || !containsString(claimed.Summary.SuggestedCommands[2].Args, server.URL) || !containsString(claimed.Summary.SuggestedCommands[2].Args, "--actor-kind") || !containsString(claimed.Summary.SuggestedCommands[2].Args, "codex") || claimed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(claimed.Summary.SuggestedCommands[3].Args, server.URL) {
 		t.Fatalf("claimed work suggested commands = %#v", claimed.Summary.SuggestedCommands)
 	}
+	if len(claimed.Brief.SuggestedCommands) != len(claimed.Summary.SuggestedCommands) || claimed.Brief.SuggestedCommands[0].DisplayCommand != claimed.Summary.SuggestedCommands[0].DisplayCommand || claimed.Brief.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" {
+		t.Fatalf("claimed work brief suggested commands = brief %#v summary %#v", claimed.Brief.SuggestedCommands, claimed.Summary.SuggestedCommands)
+	}
 
 	graphqlForCLI(t, server.URL, map[string]any{
 		"operationName": "HumanFollowUp",
@@ -2917,7 +2929,7 @@ func TestCommentsCLIWorkPlacesBriefBeforeDiffInRawJSON(t *testing.T) {
 	}
 	var event commentWorkStreamEvent
 	decodeCLIJSON(t, output, &event)
-	if event.Brief.LatestComment != "Start here before reading the diff" || event.Brief.RecommendedAction != "start_work" {
+	if event.Brief.LatestComment != "Start here before reading the diff" || event.Brief.RecommendedAction != "start_work" || len(event.Brief.SuggestedCommands) == 0 || event.Brief.SuggestedCommands[0].Command != "comments triage" {
 		t.Fatalf("brief payload = %#v", event.Brief)
 	}
 }

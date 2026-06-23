@@ -2878,14 +2878,37 @@ func commentWorkClaimedEventSchema() commentSchemaOutput {
 			"count":     1,
 			"remaining": 0,
 			"brief": map[string]any{
-				"threadId":                "comment-thread-...",
-				"path":                    "README.md",
-				"status":                  "open",
-				"recommendedAction":       "start_work",
-				"attentionReasons":        []string{"claimed_open_thread"},
-				"latestComment":           "Please check the docs",
-				"latestCommentAuthor":     "human:tasuku",
-				"sourceState":             "current",
+				"threadId":            "comment-thread-...",
+				"path":                "README.md",
+				"status":              "open",
+				"recommendedAction":   "start_work",
+				"attentionReasons":    []string{"claimed_open_thread"},
+				"latestComment":       "Please check the docs",
+				"latestCommentAuthor": "human:tasuku",
+				"sourceState":         "current",
+				"suggestedCommands": []map[string]any{
+					{
+						"intent":      "acknowledge_initial_feedback",
+						"command":     "comments triage",
+						"args":        []string{"comments", "triage", "comment-thread-...", "--actor", "codex:agent", "--triage-file", "-", "--require-claim", "--json"},
+						"stdinSchema": "commentTriageFileInput",
+						"reason":      "Post a structured acknowledgement that the agent has started the claimed work.",
+					},
+					{
+						"intent":      "complete_after_verification",
+						"command":     "comments done",
+						"args":        []string{"comments", "done", "comment-thread-...", "--actor", "codex:agent", "--result-file", "-", "--require-claim", "--json"},
+						"stdinSchema": "commentResultFileInput",
+						"reason":      "Resolve the thread with structured verification after the fix is complete.",
+					},
+					{
+						"intent":      "archive_after_decision",
+						"command":     "comments dismiss",
+						"args":        []string{"comments", "dismiss", "comment-thread-...", "--actor", "codex:agent", "--result-file", "-", "--require-claim", "--json"},
+						"stdinSchema": "commentResultFileInput",
+						"reason":      "Archive the thread after determining no code change is needed.",
+					},
+				},
 				"suggestedCommandIntents": []string{"acknowledge_initial_feedback", "handoff_after_triage", "complete_after_fix", "archive_after_decision"},
 			},
 			"summary": map[string]any{
@@ -3495,6 +3518,7 @@ func commentBriefSchema() map[string]any {
 			"latestComment":           map[string]any{"type": "string"},
 			"latestCommentAuthor":     map[string]any{"type": "string"},
 			"sourceState":             map[string]any{"type": "string"},
+			"suggestedCommands":       arraySchema(commentSuggestedCommandSchema()),
 			"suggestedCommandIntents": arraySchema(map[string]any{"type": "string"}),
 		},
 	}
@@ -4643,6 +4667,7 @@ func commentBriefForThread(thread commentThreadOutput, summary commentActivityBa
 		Status:                  thread.Status,
 		RecommendedAction:       summary.RecommendedAction,
 		AttentionReasons:        summary.AttentionReasons,
+		SuggestedCommands:       summary.SuggestedCommands,
 		SuggestedCommandIntents: suggestedCommandIntents(summary.SuggestedCommands),
 	}
 	if len(thread.Comments) > 0 {
@@ -7423,15 +7448,16 @@ type commentHoldEvent struct {
 }
 
 type commentBriefOutput struct {
-	ThreadID                string   `json:"threadId,omitempty"`
-	Path                    string   `json:"path,omitempty"`
-	Status                  string   `json:"status,omitempty"`
-	RecommendedAction       string   `json:"recommendedAction,omitempty"`
-	AttentionReasons        []string `json:"attentionReasons,omitempty"`
-	LatestComment           string   `json:"latestComment,omitempty"`
-	LatestCommentAuthor     string   `json:"latestCommentAuthor,omitempty"`
-	SourceState             string   `json:"sourceState,omitempty"`
-	SuggestedCommandIntents []string `json:"suggestedCommandIntents,omitempty"`
+	ThreadID                string                    `json:"threadId,omitempty"`
+	Path                    string                    `json:"path,omitempty"`
+	Status                  string                    `json:"status,omitempty"`
+	RecommendedAction       string                    `json:"recommendedAction,omitempty"`
+	AttentionReasons        []string                  `json:"attentionReasons,omitempty"`
+	LatestComment           string                    `json:"latestComment,omitempty"`
+	LatestCommentAuthor     string                    `json:"latestCommentAuthor,omitempty"`
+	SourceState             string                    `json:"sourceState,omitempty"`
+	SuggestedCommands       []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
+	SuggestedCommandIntents []string                  `json:"suggestedCommandIntents,omitempty"`
 }
 
 type commentWorkItemOutput struct {
