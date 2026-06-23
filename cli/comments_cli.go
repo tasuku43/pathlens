@@ -3663,7 +3663,7 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 		if err != nil {
 			return err
 		}
-		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "next", options.URL, options.ReceiptLog)
+		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "next", "", options.URL, options.ReceiptLog)
 	}
 	if options.WithContext {
 		payload["file"] = nil
@@ -4147,7 +4147,7 @@ func latestActivityID(activities []commentActivityOutput) string {
 	return ""
 }
 
-func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, actorKind string, cursor string, serverURL string, receiptLog string) commentOpenWorklistSummary {
+func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, actorKind string, cursor string, pathFilter string, serverURL string, receiptLog string) commentOpenWorklistSummary {
 	summary := commentOpenWorklistSummary{
 		AttentionReasons:  []string{},
 		OpenThreadCount:   len(threads),
@@ -4159,20 +4159,28 @@ func summarizeOpenWorklist(threads []commentThreadOutput, actorID string, actorK
 	summary.RequiresAttention = true
 	summary.AttentionReasons = []string{"open_threads_available"}
 	summary.RecommendedAction = "claim_open_work"
-	summary.SuggestedCommands = suggestedCommandsForOpenWorklist(strings.TrimSpace(actorID), actorKind, cursor, serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForOpenWorklist(strings.TrimSpace(actorID), actorKind, cursor, pathFilter, serverURL, receiptLog)
 	return summary
 }
 
-func suggestedCommandsForOpenWorklist(actorID string, actorKind string, cursor string, serverURL string, receiptLog string) []commentSuggestedCommand {
+func suggestedCommandsForOpenWorklist(actorID string, actorKind string, cursor string, pathFilter string, serverURL string, receiptLog string) []commentSuggestedCommand {
 	if actorID == "" {
 		return []commentSuggestedCommand{
-			suggestedCommentsCommand("inspect_open_worklist", "comments list", withURLArg([]string{"comments", "list", "--status", "open", "--json"}, serverURL), "", "Inspect compact open-thread routing before choosing an actor-specific claim command."),
+			suggestedCommentsCommand("inspect_open_worklist", "comments list", withURLArg(withCommentPathArg([]string{"comments", "list", "--status", "open", "--json"}, pathFilter), serverURL), "", "Inspect compact open-thread routing before choosing an actor-specific claim command."),
 		}
 	}
 	clientEventID := commentSuggestedClientEventID("watch", cursor, "claim")
 	return []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--once", "--full", "--json")), serverURL, receiptLog), "", "Claim the next open thread, emit one self-describing work event, and exit.", clientEventID),
+		suggestedCommentsCommandWithClientEventID("claim_next_open_thread", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--once", "--full", "--json"), pathFilter)), serverURL, receiptLog), "", "Claim the next open thread, emit one self-describing work event, and exit.", clientEventID),
 	}
+}
+
+func withCommentPathArg(args []string, pathFilter string) []string {
+	pathFilter = strings.TrimSpace(pathFilter)
+	if pathFilter == "" {
+		return args
+	}
+	return append(args, "--path", pathFilter)
 }
 
 func isTriageCommentBody(body string) bool {
@@ -4618,7 +4626,7 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 		if err != nil {
 			return nil, false, err
 		}
-		summary := summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "claim", options.URL, options.ReceiptLog)
+		summary := summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "claim", "", options.URL, options.ReceiptLog)
 		payload["summary"] = summary
 		payload["brief"] = commentBriefOutput{
 			RecommendedAction: summary.RecommendedAction,
@@ -4742,7 +4750,7 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		"actor":             actorInput(options),
 		"cursor":            cursor,
 		"count":             len(ordered),
-		"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.URL, options.ReceiptLog),
+		"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.Path, options.URL, options.ReceiptLog),
 		"mine":              outputRouting.Mine,
 		"unclaimed":         outputRouting.Unclaimed,
 		"claimedByOthers":   outputRouting.ClaimedByOthers,
@@ -4751,7 +4759,7 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 	return writeJSON(stdout, payload)
 }
 
-func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, actorKind string, cursor string, clientEventScope string, serverURL string, receiptLog string) commentRoutingSummary {
+func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, actorKind string, cursor string, clientEventScope string, pathFilter string, serverURL string, receiptLog string) commentRoutingSummary {
 	actionableOpenThreadCount := routing.Mine.Count + routing.Unclaimed.Count + routing.ClaimedByOthers.Count
 	summary := commentRoutingSummary{
 		RequiresAttention:      false,
@@ -4776,7 +4784,7 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		summary.RequiresAttention = true
 		summary.AttentionReasons = []string{"unclaimed_open_threads"}
 		summary.RecommendedAction = "claim_open_work"
-		summary.SuggestedCommands = suggestedCommandsForOpenWorklist(actorID, actorKind, cursor, serverURL, receiptLog)
+		summary.SuggestedCommands = suggestedCommandsForOpenWorklist(actorID, actorKind, cursor, pathFilter, serverURL, receiptLog)
 		return summary
 	}
 	if routing.ClaimedByOthers.Count > 0 {
@@ -4784,12 +4792,12 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--cursor", cursor, "--json")), serverURL, receiptLog), "", "Watch compact routing events for a new unclaimed thread or a claim release before trying to claim again."),
+			suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "watch"}, actorID, actorKind, "--cursor", cursor, "--json"), pathFilter)), serverURL, receiptLog), "", "Watch compact routing events for a new unclaimed thread or a claim release before trying to claim again."),
 		}
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--full", "--json")), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--full", "--json"), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item and claim it as owned work."),
 	}
 	return summary
 }
@@ -4877,7 +4885,7 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 		"threads": outputThreads,
 		"open": map[string]any{
 			"count":             len(openThreads),
-			"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "batch", options.URL, options.ReceiptLog),
+			"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "batch", "", options.URL, options.ReceiptLog),
 			"mine":              outputRouting.Mine,
 			"unclaimed":         outputRouting.Unclaimed,
 			"claimedByOthers":   outputRouting.ClaimedByOthers,
@@ -5449,7 +5457,7 @@ func commentsWatch(ctx context.Context, stdout io.Writer, options commentsComman
 					Cursor:             cursor,
 					EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 					Count:              len(threads),
-					Summary:            summarizeOpenWorklist(threads, options.ActorID, options.ActorKind, cursor, options.URL, options.ReceiptLog),
+					Summary:            summarizeOpenWorklist(threads, options.ActorID, options.ActorKind, cursor, options.Path, options.URL, options.ReceiptLog),
 					Threads:            limitCommentThreadsHistory(threads, options.CommentLimit),
 				}
 				if commentsNeedsWorkItem(options) {

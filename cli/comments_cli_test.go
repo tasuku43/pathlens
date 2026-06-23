@@ -823,6 +823,12 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, "--once") {
 		t.Fatalf("inbox summary after release = %#v", inboxPayload.Summary)
 	}
+
+	scopedInbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--path", "README.md", "--json")
+	decodeCLIJSON(t, scopedInbox, &inboxPayload)
+	if len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, "--path") || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, "README.md") || !strings.Contains(inboxPayload.Summary.SuggestedCommands[0].DisplayCommand, " --path README.md") {
+		t.Fatalf("scoped inbox summary suggestion dropped path filter = %#v", inboxPayload.Summary.SuggestedCommands)
+	}
 }
 
 func TestCommentsCLIInboxCanLimitEmittedThreadHistory(t *testing.T) {
