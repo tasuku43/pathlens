@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
 import type { ViviComment } from "../../domain/comments.js";
+import type { FilePayload } from "../../domain/fs-node.js";
 import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
 import {
   commentsForPath,
@@ -54,6 +55,16 @@ const alternateWorkbenchLineComment: ViviComment = {
   status: "open",
   createdAt: "2026-06-20T09:20:00.000Z",
   updatedAt: "2026-06-20T09:20:00.000Z",
+};
+
+const missingReadmeFile: FilePayload = {
+  path: "README.md",
+  viewerKind: "markdown",
+  encoding: "utf8",
+  content: "",
+  etag: "sha256:missing-readme-story",
+  size: 0,
+  mtimeMs: new Date("2026-06-20T09:00:00.000Z").getTime(),
 };
 
 export const EmptyWorkspace: Story = {
@@ -387,6 +398,26 @@ export const ErrorState: Story = {
       ),
     ).toBeInTheDocument();
     await expect(canvas.queryByText("TypeError: Failed to fetch")).toBeNull();
+  },
+};
+
+export const MissingSourceErrorState: Story = {
+  args: {
+    state: "error",
+    file: missingReadmeFile,
+    viewerError:
+      "Error: stat /Users/tasuku/work/github.com/torvalds/linux/README.md: no such file or directory",
+    viewerSourceMissing: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Source missing")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        "README.md is not present in this workspace. The comment is still available so you can resolve, archive, or re-anchor it.",
+      ),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/\/Users\/tasuku/)).toBeNull();
   },
 };
 

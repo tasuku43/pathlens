@@ -657,6 +657,34 @@ it("summarizes pending server work without exposing raw refresh logs", () => {
   );
 });
 
+it("summarizes missing comment sources without reporting them as kept tabs", () => {
+  const summary = summarizeWorkspaceStatus({
+    tree: null,
+    openTabCount: 1,
+    reviewFileCount: 0,
+    openThreadCount: 2,
+    draftCount: 0,
+    connectionStatus: "connected",
+    activeFile: {
+      path: "README.md",
+      sourceMissing: true,
+      isPreview: false,
+      viewerMode: "source",
+    },
+    metrics: {
+      fsEventsReceived: 0,
+      gitRefreshes: 0,
+      diffRefreshes: 0,
+      lastGitRefreshMs: null,
+      lastDiffRefreshMs: null,
+      pendingGitRefresh: false,
+      pendingDiffPaths: 0,
+    },
+  });
+
+  expect(summary.activeFile).toBe("README.md · source missing");
+});
+
 it("summarizes connecting and disconnected workspace event streams", () => {
   const base = {
     tree: null,

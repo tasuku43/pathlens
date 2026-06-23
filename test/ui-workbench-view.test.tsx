@@ -73,3 +73,19 @@ it("turns transient fetch failures into a recoverable viewer error", () => {
   expect(html).toContain("Vivi could not load this preview");
   expect(html).not.toContain("TypeError: Failed to fetch");
 });
+
+it("turns missing source failures into a comment-preserving viewer error", () => {
+  const html = renderToStaticMarkup(
+    <WorkbenchErrorMessage
+      error="Error: stat /Users/tasuku/work/github.com/torvalds/linux/README.md: no such file or directory"
+      path="README.md"
+      sourceMissing
+    />,
+  );
+
+  expect(html).toContain("Source missing");
+  expect(html).toContain("README.md is not present in this workspace");
+  expect(html).toContain("resolve, archive, or re-anchor");
+  expect(html).not.toContain("/Users/tasuku");
+  expect(html).not.toContain("stat ");
+});

@@ -17,6 +17,7 @@ export interface ActiveFileStatusInput {
   diffEnabled?: boolean;
   isPreview?: boolean;
   removed?: boolean;
+  sourceMissing?: boolean;
   viewerMode?: string;
 }
 
@@ -112,6 +113,11 @@ export function summarizeWorkspaceStatus({
 
 function activeFileStatusLabel(activeFile: ActiveFileStatusInput | null): string {
   if (!activeFile) return "No active file";
+  if (activeFile.sourceMissing) {
+    return [basenameForPath(activeFile.path), "source missing"]
+      .filter(Boolean)
+      .join(" · ");
+  }
   return [
     basenameForPath(activeFile.path),
     activeFile.isPreview ? "preview" : "kept",

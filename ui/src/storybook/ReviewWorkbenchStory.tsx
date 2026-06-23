@@ -77,6 +77,7 @@ export interface ReviewWorkbenchStoryProps {
   draftPublishing?: boolean;
   draftPublishError?: string | null;
   viewerError?: string;
+  viewerSourceMissing?: boolean;
   publishedBatchId?: string | null;
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
@@ -109,6 +110,7 @@ export function ReviewWorkbenchStory({
   draftPublishing = false,
   draftPublishError = null,
   viewerError = "Failed to load comments: simulated adapter failure for Storybook.",
+  viewerSourceMissing = false,
   publishedBatchId = null,
   activeCommentId = null,
   inlineComment = null,
@@ -305,7 +307,11 @@ export function ReviewWorkbenchStory({
             />
             <div className="viewer-pane">
               {state === "error" ? (
-                <WorkbenchErrorMessage error={viewerError} />
+                <WorkbenchErrorMessage
+                  error={viewerError}
+                  path={selectedPath}
+                  sourceMissing={viewerSourceMissing}
+                />
               ) : state === "loading" ? (
                 <div className="empty-viewer" aria-live="polite">
                   Loading preview...

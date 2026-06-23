@@ -26,6 +26,7 @@
         "Screens/Workbench/WorkspaceWithFileTreeAndSelectedFile",
         "Screens/Workbench/LoadingState",
         "Screens/Workbench/ErrorState",
+        "Screens/Workbench/MissingSourceErrorState",
         "Screens/Workbench/DisconnectedState",
         "Navigation/Core/SidebarFileTree",
         "Navigation/Core/Tabs",

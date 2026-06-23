@@ -690,6 +690,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     }
     return paths;
   }, [comments, tree]);
+  const selectedPathSourceMissing = selectedPath
+    ? knownMissingCommentPathSet.has(selectedPath)
+    : false;
   const reviewItems = useMemo(
     () =>
       buildReviewQueueItems(
@@ -767,6 +770,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               ),
               isPreview: Boolean(activeTab?.isPreview),
               removed: Boolean(activeTab?.removed),
+              sourceMissing: selectedPathSourceMissing,
               viewerMode: activeViewerMode,
             }
           : null,
@@ -785,6 +789,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       openTabs.length,
       reviewItems.length,
       selectedPath,
+      selectedPathSourceMissing,
       tree,
       workspaceConnectionStatus,
     ],
@@ -2468,7 +2473,11 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           onScroll={() => updateActiveOutlineForPane(pane.id, paneFile)}
         >
           {error && pane.id === layout.activePaneId ? (
-            <WorkbenchErrorMessage error={error} />
+            <WorkbenchErrorMessage
+              error={error}
+              path={pane.activePath}
+              sourceMissing={selectedPathSourceMissing}
+            />
           ) : (
             <>
               {showPaneTextSearch ? (
