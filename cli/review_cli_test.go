@@ -85,6 +85,46 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 	}
 }
 
+func TestReviewCLIQueueOrdersCommentedChangesLikeReviewWorkflow(t *testing.T) {
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		runGitForCLITest(t, root, "init")
+		runGitForCLITest(t, root, "config", "user.email", "vivi@example.test")
+		runGitForCLITest(t, root, "config", "user.name", "Vivi Test")
+		if err := os.WriteFile(filepath.Join(root, "a-first.md"), []byte("# First\n\nBase\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "z-commented.md"), []byte("# Commented\n\nBase\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		runGitForCLITest(t, root, "add", ".")
+		runGitForCLITest(t, root, "commit", "-m", "initial")
+		if err := os.WriteFile(filepath.Join(root, "a-first.md"), []byte("# First\n\nChanged\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "z-commented.md"), []byte("# Commented\n\nChanged\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer server.Close()
+	createCommentThreadForCLIWithBody(t, server.URL, "z-commented.md", "Please start with this commented change")
+
+	queue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--actor", "codex:test", "--json")
+	var queuePayload struct {
+		Changes []reviewChangeOutput `json:"changes"`
+		Summary reviewRoutingSummary `json:"summary"`
+	}
+	decodeReviewCLIJSON(t, queue, &queuePayload)
+	if len(queuePayload.Changes) < 2 {
+		t.Fatalf("review queue changes = %#v", queuePayload.Changes)
+	}
+	if queuePayload.Changes[0].Path != "z-commented.md" {
+		t.Fatalf("commented change was not first in agent review order: %#v", queuePayload.Changes)
+	}
+	if len(queuePayload.Summary.SuggestedCommands) == 0 || !containsString(queuePayload.Summary.SuggestedCommands[0].Args, "z-commented.md") {
+		t.Fatalf("review queue suggestion did not follow commented change order: %#v", queuePayload.Summary.SuggestedCommands)
+	}
+}
+
 func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 	help := reviewHelpText()
 	for _, text := range []string{

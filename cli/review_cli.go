@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -314,16 +315,43 @@ func reviewQueue(ctx context.Context, stdout io.Writer, options reviewCommandOpt
 	}, "diffBases", &bases); err != nil {
 		return err
 	}
+	threads, err := fetchReviewQueueThreads(ctx, options.URL)
+	if err != nil {
+		return err
+	}
+	orderedChanges := orderReviewQueueChangesForAgent(queue.Changes, threads)
+	orderedQueue := queue
+	orderedQueue.Changes = orderedChanges
 	output := map[string]any{
 		"schemaVersion": reviewCLISchemaVersion,
-		"available":     queue.Available,
-		"reason":        queue.Reason,
-		"count":         len(queue.Changes),
-		"changes":       queue.Changes,
+		"available":     orderedQueue.Available,
+		"reason":        orderedQueue.Reason,
+		"count":         len(orderedChanges),
+		"changes":       orderedChanges,
 		"diffBases":     bases,
-		"summary":       summarizeReviewQueue(queue, bases, options.URL, options.Actor),
+		"summary":       summarizeReviewQueue(orderedQueue, bases, options.URL, options.Actor),
 	}
 	return writeJSON(stdout, output)
+}
+
+func fetchReviewQueueThreads(ctx context.Context, serverURL string) ([]commentThreadOutput, error) {
+	var threads []commentThreadOutput
+	if err := postGraphQL(ctx, commentsCommandOptions{URL: serverURL}, graphqlRequest{
+		OperationName: "ReviewQueueCommentContextForCLI",
+		Query: `query ReviewQueueCommentContextForCLI {
+			commentThreads {
+				id
+				path
+				status
+				createdAt
+				updatedAt
+				comments { updatedAt }
+			}
+		}`,
+	}, "commentThreads", &threads); err != nil {
+		return nil, err
+	}
+	return threads, nil
 }
 
 func reviewBases(ctx context.Context, stdout io.Writer, options reviewCommandOptions) error {
@@ -405,6 +433,61 @@ func summarizeReviewQueue(queue reviewQueueOutput, bases reviewDiffBaseSummaryOu
 		reviewQueueCommentsWorkSuggestion(actorID, serverURL, "Keep a resident GUI feedback loop running while reviewing changed files."),
 	}
 	return summary
+}
+
+type reviewQueuePathCommentStats struct {
+	openThreads int
+	latestAt    string
+}
+
+func orderReviewQueueChangesForAgent(changes []reviewChangeOutput, threads []commentThreadOutput) []reviewChangeOutput {
+	ordered := append([]reviewChangeOutput(nil), changes...)
+	changeOrder := make(map[string]int, len(changes))
+	statsByPath := make(map[string]reviewQueuePathCommentStats)
+	for index, change := range changes {
+		changeOrder[change.Path] = index
+	}
+	for _, thread := range threads {
+		if _, ok := changeOrder[thread.Path]; !ok {
+			continue
+		}
+		stats := statsByPath[thread.Path]
+		if thread.Status == "open" {
+			stats.openThreads++
+		}
+		latest := thread.UpdatedAt
+		if latest == "" {
+			latest = thread.CreatedAt
+		}
+		for _, comment := range thread.Comments {
+			if comment.UpdatedAt > latest {
+				latest = comment.UpdatedAt
+			}
+		}
+		if latest > stats.latestAt {
+			stats.latestAt = latest
+		}
+		statsByPath[thread.Path] = stats
+	}
+	sort.SliceStable(ordered, func(i, j int) bool {
+		left := ordered[i]
+		right := ordered[j]
+		leftStats := statsByPath[left.Path]
+		rightStats := statsByPath[right.Path]
+		if (leftStats.openThreads > 0) != (rightStats.openThreads > 0) {
+			return leftStats.openThreads > 0
+		}
+		if leftStats.latestAt != rightStats.latestAt {
+			return leftStats.latestAt > rightStats.latestAt
+		}
+		leftOrder := changeOrder[left.Path]
+		rightOrder := changeOrder[right.Path]
+		if leftOrder != rightOrder {
+			return leftOrder < rightOrder
+		}
+		return left.Path < right.Path
+	})
+	return ordered
 }
 
 func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, description string) commentSuggestedCommand {

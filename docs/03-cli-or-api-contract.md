@@ -213,9 +213,12 @@ only for the matching batch threads.
 
 `vivi review` is the read-only Git working-tree review CLI for coding agents
 that need changed-file context before or alongside human GUI feedback.
-`review queue --actor <actor> --json` returns the cheap changed-file list plus
-available diff bases and `summary.suggestedCommands` for both the first
-`review diff` command and an executable resident
+`review queue --actor <actor> --json` returns the cheap changed-file list,
+ordered for the same review workflow as the GUI: files with open comment
+threads first, then changed files with recent comment history, then the Git
+change order. It also returns available diff bases and
+`summary.suggestedCommands` for both the first `review diff` command and an
+executable resident
 `comments work --actor <actor> --wait --loop --idle-events --full --json`
 feedback loop. Without `--actor`, the queue points agents at
 `comments doctor --json` so the next payload can return the `configure_actor`
