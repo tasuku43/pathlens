@@ -16,6 +16,10 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 		"vivi review <queue|bases|diff> [options]",
 		"vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
 		"vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
+		"Agent quick start:",
+		"Start the local server: vivi <root> --port 0 --ready-json --actor <actor>",
+		"Then run the emitted review/comments commands; they include the resolved --url.",
+		"Inspect deeper command help with: vivi review --help or vivi comments --help",
 		"--ready-json",
 	} {
 		if !strings.Contains(help, command) {

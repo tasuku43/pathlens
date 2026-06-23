@@ -89,6 +89,9 @@ URL, and `suggestedCommands` that already include the resolved `--url`. Add
 `--actor <id>` to include the agent actor in those startup suggestions, so the
 first `comments doctor` call can proceed directly to actor-owned work-loop
 commands instead of returning the `configure_actor` branch.
+The top-level `vivi --help` output includes this startup handoff as the agent
+quick start, so a CLI user can discover the server-first workflow before
+opening the deeper `review` or `comments` help screens.
 
 ### Agent comments CLI
 
