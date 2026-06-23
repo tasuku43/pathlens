@@ -660,12 +660,19 @@ resident adapter has a restart ledger independent of stdout handling. Use
 saved JSONL receipt before resuming a loop; its output summarizes total,
 verified, and failed entries and includes the individual receipt verification
 payloads. Failed receipt and ledger verification responses also keep the same
-`--url` in their recovery `suggestedCommands`. For
-`reconsider_work`, agents should usually acknowledge the human update with the
-suggested `comments triage --triage-file -` command, hand off blocked or
-needs-info work with the suggested `comments release --triage-file -` command,
-then later finish with the suggested `comments done --result-file -` command
-or intentionally archive with the suggested `comments dismiss --result-file -`
+`--url` in their recovery `suggestedCommands`. For `start_work`,
+`reconsider_work`, and source-unavailable handoff branches, stream suggestions
+are live-claim aware when the CLI has the current activity history. If the
+actor still owns the live claim, the batch suggests the guarded write commands.
+If the claim is missing, expired, or owned by someone else, the batch falls
+back to the same preflight-safe claim, show, or follow suggestions returned by
+`comments check` instead of emitting a write that will immediately fail
+`--require-claim`. For `reconsider_work` with an owned live claim, agents
+should usually acknowledge the human update with the suggested
+`comments triage --triage-file -` command, hand off blocked or needs-info work
+with the suggested `comments release --triage-file -` command, then later
+finish with the suggested `comments done --result-file -` command or
+intentionally archive with the suggested `comments dismiss --result-file -`
 command. For
 `inspect_external_activity`, the suggestion is
 `comments show <thread-id> --actor <actor> --json`. Actions such as

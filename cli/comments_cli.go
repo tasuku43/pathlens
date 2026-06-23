@@ -3882,7 +3882,7 @@ func commentsWorkFollow(ctx context.Context, encoder *json.Encoder, options comm
 				Cursor:             cursor,
 				EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 				Count:              len(deliver),
-				Summary:            summarizeActivityBatch(deliver, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
+				Summary:            summarizeActivityBatch(deliver, activeClaim(activities, time.Now().UTC()), true, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
 				Activities:         deliver,
 				Comments:           snapshots.Comments,
 				File:               context.File,
@@ -3999,7 +3999,7 @@ func commentBatchContext(ctx context.Context, options commentsCommandOptions, th
 	return context, nil
 }
 
-func summarizeActivityBatch(activities []commentActivityOutput, actorID string, actorKind string, threadID string, commentBodies map[string]string, serverURL string, receiptLog string) commentActivityBatchSummary {
+func summarizeActivityBatch(activities []commentActivityOutput, liveClaim *commentActivityOutput, knowsLiveClaim bool, actorID string, actorKind string, threadID string, commentBodies map[string]string, serverURL string, receiptLog string) commentActivityBatchSummary {
 	summary := commentActivityBatchSummary{}
 	kinds := map[string]bool{}
 	attentionReasons := map[string]bool{}
@@ -4108,7 +4108,7 @@ func summarizeActivityBatch(activities []commentActivityOutput, actorID string, 
 	sort.Strings(summary.AttentionReasons)
 	summary.RequiresAttention = hasNonTerminalAttentionReason(summary.AttentionReasons)
 	summary.RecommendedAction = recommendedActivityBatchAction(summary)
-	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), actorKind, strings.TrimSpace(threadID), latestActivityID(activities), serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForActivityBatchWithLiveClaim(summary, strings.TrimSpace(actorID), actorKind, strings.TrimSpace(threadID), latestActivityID(activities), serverURL, receiptLog, liveClaim, knowsLiveClaim)
 	return summary
 }
 
@@ -4158,7 +4158,7 @@ func summarizeClaimedWork(thread commentThreadOutput, claim commentActivityOutpu
 	}
 	sort.Strings(summary.Kinds)
 	sort.Strings(summary.AttentionReasons)
-	summary.SuggestedCommands = suggestedCommandsForActivityBatch(summary, strings.TrimSpace(actorID), actorKind, thread.ID, claim.ID, serverURL, receiptLog)
+	summary.SuggestedCommands = suggestedCommandsForActivityBatchWithLiveClaim(summary, strings.TrimSpace(actorID), actorKind, thread.ID, claim.ID, serverURL, receiptLog, &claim, true)
 	return summary
 }
 
@@ -4243,6 +4243,10 @@ func recommendedActivityBatchAction(summary commentActivityBatchSummary) string 
 }
 
 func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, actorID string, actorKind string, threadID string, activitySeed string, serverURL string, receiptLog string) []commentSuggestedCommand {
+	return suggestedCommandsForActivityBatchWithLiveClaim(summary, actorID, actorKind, threadID, activitySeed, serverURL, receiptLog, nil, false)
+}
+
+func suggestedCommandsForActivityBatchWithLiveClaim(summary commentActivityBatchSummary, actorID string, actorKind string, threadID string, activitySeed string, serverURL string, receiptLog string, liveClaim *commentActivityOutput, knowsLiveClaim bool) []commentSuggestedCommand {
 	if threadID == "" {
 		return nil
 	}
@@ -4252,6 +4256,9 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 			return []commentSuggestedCommand{
 				suggestedCommentsCommand("inspect_source_unavailable_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the thread conversation because the referenced source path is unavailable in this workspace."),
 			}
+		}
+		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+			return suggestions
 		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommandWithClientEventID("handoff_after_source_unavailable", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Report that the referenced source path is unavailable, then release the live claim for a better anchor or workspace.", suggestedWriteClientEventID("activity", threadID, "release-source-unavailable", activitySeed)),
@@ -4264,6 +4271,9 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the claimed thread before replying."),
 			}
 		}
+		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+			return suggestions
+		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommandWithClientEventID("acknowledge_initial_feedback", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured acknowledgement that the agent has started the claimed work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
 			suggestedCommentsCommandWithClientEventID("handoff_after_blocked_or_needs_info", "comments release", withRuntimeArgs(actorCommand([]string{"comments", "release", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured blocked or needs-info handoff comment, then release the live claim for another attempt.", suggestedWriteClientEventID("activity", threadID, "release", activitySeed)),
@@ -4275,6 +4285,9 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 			return []commentSuggestedCommand{
 				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, serverURL), "", "Inspect the latest thread before replying."),
 			}
+		}
+		if suggestions := guardedWriteSuggestionsForActivityBatch(threadID, actorID, serverURL, receiptLog, liveClaim, knowsLiveClaim); suggestions != nil {
+			return suggestions
 		}
 		return []commentSuggestedCommand{
 			suggestedCommentsCommandWithClientEventID("acknowledge_follow_up", "comments triage", withRuntimeArgs(actorCommand([]string{"comments", "triage", threadID}, actorID, actorKind, "--triage-file", "-", "--require-claim", "--json"), serverURL, receiptLog), "commentTriageFileInput", "Post a structured non-terminal acknowledgement before continuing work.", suggestedWriteClientEventID("activity", threadID, "triage", activitySeed)),
@@ -4301,6 +4314,20 @@ func suggestedCommandsForActivityBatch(summary commentActivityBatchSummary, acto
 	default:
 		return nil
 	}
+}
+
+func guardedWriteSuggestionsForActivityBatch(threadID string, actorID string, serverURL string, receiptLog string, liveClaim *commentActivityOutput, knowsLiveClaim bool) []commentSuggestedCommand {
+	if !knowsLiveClaim || strings.TrimSpace(actorID) == "" {
+		return nil
+	}
+	thread := commentThreadOutput{ID: threadID, Status: "open"}
+	if liveClaim == nil {
+		return suggestedCommandsForWritePreflight("no_live_claim", thread, nil, actorID, serverURL, receiptLog)
+	}
+	if liveClaim.Actor.ID != strings.TrimSpace(actorID) {
+		return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, liveClaim, actorID, serverURL, receiptLog)
+	}
+	return nil
 }
 
 func suggestedCommentsCommand(intent string, command string, args []string, stdinSchema string, reason string) commentSuggestedCommand {
@@ -5587,7 +5614,7 @@ func commentsFollow(ctx context.Context, stdout io.Writer, options commentsComma
 				Cursor:             cursor,
 				EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 				Count:              len(deliver),
-				Summary:            summarizeActivityBatch(deliver, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
+				Summary:            summarizeActivityBatch(deliver, activeClaim(activities, time.Now().UTC()), true, options.ActorID, options.ActorKind, threadID, commentBodiesByID(snapshots.Comments), options.URL, options.ReceiptLog),
 				Activities:         deliver,
 				Comments:           snapshots.Comments,
 				File:               context.File,

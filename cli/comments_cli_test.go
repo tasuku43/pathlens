@@ -2863,17 +2863,52 @@ func TestCommentsCLIFollowStreamsThreadActivity(t *testing.T) {
 	if !changed.Summary.RequiresAttention || changed.Summary.RecommendedAction != "reconsider_work" || !containsString(changed.Summary.AttentionReasons, "external_human_comment") {
 		t.Fatalf("changed follow attention summary = %#v", changed.Summary)
 	}
-	if len(changed.Summary.SuggestedCommands) != 4 || changed.Summary.SuggestedCommands[0].Intent != "acknowledge_follow_up" || changed.Summary.SuggestedCommands[0].Command != "comments triage" || !containsString(changed.Summary.SuggestedCommands[0].Args, "--triage-file") || !containsString(changed.Summary.SuggestedCommands[0].Args, server.URL) || changed.Summary.SuggestedCommands[0].StdinSchema != "commentTriageFileInput" {
+	if len(changed.Summary.SuggestedCommands) != 1 || changed.Summary.SuggestedCommands[0].Intent != "claim_thread_before_writing" || changed.Summary.SuggestedCommands[0].Command != "comments claim" || !containsString(changed.Summary.SuggestedCommands[0].Args, threadID) || !containsString(changed.Summary.SuggestedCommands[0].Args, "codex:follow-test") || !containsString(changed.Summary.SuggestedCommands[0].Args, server.URL) || changed.Summary.SuggestedCommands[0].StdinRequired {
 		t.Fatalf("changed follow suggested commands = %#v", changed.Summary.SuggestedCommands)
 	}
-	if changed.Summary.SuggestedCommands[1].Intent != "handoff_after_blocked_or_needs_info" || changed.Summary.SuggestedCommands[1].Command != "comments release" || !containsString(changed.Summary.SuggestedCommands[1].Args, "--triage-file") || !containsString(changed.Summary.SuggestedCommands[1].Args, server.URL) || changed.Summary.SuggestedCommands[1].StdinSchema != "commentTriageFileInput" {
-		t.Fatalf("changed follow release command suggestion = %#v", changed.Summary.SuggestedCommands)
+	if err := <-done; err != nil {
+		t.Fatalf("follow returned error: %v", err)
 	}
-	if changed.Summary.SuggestedCommands[2].Intent != "complete_after_verification" || changed.Summary.SuggestedCommands[2].Command != "comments done" || !containsString(changed.Summary.SuggestedCommands[2].Args, "--result-file") || !containsString(changed.Summary.SuggestedCommands[2].Args, server.URL) || changed.Summary.SuggestedCommands[2].StdinSchema != "commentResultFileInput" {
-		t.Fatalf("changed follow terminal command suggestion = %#v", changed.Summary.SuggestedCommands)
+}
+
+func TestCommentsCLIFollowSuggestsClaimAfterExpiredLease(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Feedback with a short lease")
+
+	claimed := runCommentsCLIForTest(t, "claim", threadID, "--url", server.URL, "--actor", "codex:expired-follow", "--actor-kind", "codex", "--client-event-id", "expired-follow-claim", "--lease", "1s", "--json")
+	var claimPayload struct {
+		Claim commentActivityOutput `json:"claim"`
 	}
-	if changed.Summary.SuggestedCommands[3].Intent != "archive_after_decision" || changed.Summary.SuggestedCommands[3].Command != "comments dismiss" || !containsString(changed.Summary.SuggestedCommands[3].Args, "--result-file") || !containsString(changed.Summary.SuggestedCommands[3].Args, server.URL) || changed.Summary.SuggestedCommands[3].StdinSchema != "commentResultFileInput" {
-		t.Fatalf("changed follow archive command suggestion = %#v", changed.Summary.SuggestedCommands)
+	decodeCLIJSON(t, claimed, &claimPayload)
+	if claimPayload.Claim.ID == "" {
+		t.Fatalf("claim payload = %s", claimed.String())
+	}
+	time.Sleep(1100 * time.Millisecond)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsFollowForTest(t, ctx, "follow", threadID, "--url", server.URL, "--actor", "codex:expired-follow", "--actor-kind", "codex", "--cursor", claimPayload.Claim.ID, "--interval", "10ms", "--max-events", "1", "--json")
+	graphqlForCLI(t, server.URL, map[string]any{
+		"operationName": "HumanFollowUp",
+		"query":         `mutation HumanFollowUp($threadId: ID!, $input: AddCommentInput!) { addComment(threadId: $threadId, input: $input) { id } }`,
+		"variables": map[string]any{
+			"threadId": threadID,
+			"input": map[string]any{
+				"body":  "Follow-up after the agent claim expired",
+				"actor": map[string]any{"id": "human:tasuku", "kind": "human", "displayName": "Tasuku"},
+			},
+		},
+	})
+	followed := receiveFollowEvent(t, events)
+	if followed.Summary.RecommendedAction != "reconsider_work" || !containsString(followed.Summary.AttentionReasons, "external_human_comment") {
+		t.Fatalf("expired follow summary = %#v", followed.Summary)
+	}
+	if len(followed.Summary.SuggestedCommands) != 1 || followed.Summary.SuggestedCommands[0].Intent != "claim_thread_before_writing" || followed.Summary.SuggestedCommands[0].Command != "comments claim" {
+		t.Fatalf("expired follow should suggest reclaim before guarded writes = %#v", followed.Summary.SuggestedCommands)
+	}
+	if containsString(followed.Summary.SuggestedCommands[0].Args, "--require-claim") || followed.Summary.SuggestedCommands[0].StdinRequired {
+		t.Fatalf("expired follow reclaim suggestion should be read/write preflight friendly = %#v", followed.Summary.SuggestedCommands[0])
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("follow returned error: %v", err)

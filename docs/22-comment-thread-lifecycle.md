@@ -337,7 +337,11 @@ activity list, for example ignoring an own lease-renewal or own triage batch
 while immediately reacting to an external human follow-up. `recommendedAction`
 provides the shortest branch: `reconsider_work`, `ignore_own_heartbeat`,
 `ignore_own_activity`, `inspect_external_activity`, `finish_current_work`, or
-`observe`. Terminal `finish_current_work` batches also include a read-only
+`observe`. For write-oriented branches such as `start_work` and
+`reconsider_work`, the batch suggestions use the latest live claim from the
+activity history: owned live claims get guarded write suggestions, while
+expired or missing claims suggest claiming or inspecting first. Terminal
+`finish_current_work` batches also include a read-only
 `comments check <thread-id> --full --json` suggestion so an adapter can confirm
 the lifecycle state instead of stopping on an empty command list.
 
