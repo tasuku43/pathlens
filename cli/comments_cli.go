@@ -3088,6 +3088,10 @@ func sourceContextSchema() map[string]any {
 			"encoding":        map[string]any{"type": "string"},
 			"available":       map[string]any{"type": "boolean"},
 			"reason":          map[string]any{"type": "string"},
+			"sourceState":     map[string]any{"type": "string", "enum": []string{"current", "changed", "unknown", "unavailable"}},
+			"sourceChanged":   map[string]any{"type": "boolean"},
+			"fileHash":        map[string]any{"type": "string"},
+			"anchorFileHash":  map[string]any{"type": "string"},
 			"startLine":       map[string]any{"type": "integer"},
 			"endLine":         map[string]any{"type": "integer"},
 			"anchorStartLine": map[string]any{"type": "integer"},
@@ -5704,9 +5708,11 @@ func contextPayloadForThread(ctx context.Context, options commentsCommandOptions
 
 func unavailableContextPayloadForThread(thread commentThreadOutput) commentContextPayload {
 	source := sourceContextOutput{
-		Path:      thread.Path,
-		Available: false,
-		Reason:    "source_unavailable",
+		Path:           thread.Path,
+		Available:      false,
+		Reason:         "source_unavailable",
+		SourceState:    "unavailable",
+		AnchorFileHash: anchorCanonicalString(thread.Anchor, "fileHash"),
 	}
 	if anchorStart, anchorEnd, ok := anchorLineRange(thread.Anchor); ok {
 		source.AnchorStartLine = anchorStart
@@ -5797,11 +5803,17 @@ func matchingCompletionComment(thread commentThreadOutput, body, actorID string)
 }
 
 func sourceContextForThread(file filePayloadOutput, thread commentThreadOutput, contextLines int) sourceContextOutput {
+	anchorFileHash := anchorCanonicalString(thread.Anchor, "fileHash")
+	sourceState := sourceFreshnessState(file.Etag, anchorFileHash)
 	source := sourceContextOutput{
-		Path:       file.Path,
-		ViewerKind: file.ViewerKind,
-		Encoding:   file.Encoding,
-		Available:  false,
+		Path:           file.Path,
+		ViewerKind:     file.ViewerKind,
+		Encoding:       file.Encoding,
+		Available:      false,
+		SourceState:    sourceState,
+		SourceChanged:  sourceState == "changed",
+		FileHash:       file.Etag,
+		AnchorFileHash: anchorFileHash,
 	}
 	anchorStart, anchorEnd, ok := anchorLineRange(thread.Anchor)
 	if ok {
@@ -5853,6 +5865,16 @@ func sourceContextForThread(file filePayloadOutput, thread commentThreadOutput, 
 	return source
 }
 
+func sourceFreshnessState(fileHash, anchorFileHash string) string {
+	if fileHash == "" || anchorFileHash == "" {
+		return "unknown"
+	}
+	if fileHash == anchorFileHash {
+		return "current"
+	}
+	return "changed"
+}
+
 func anchorLineRange(raw json.RawMessage) (int, int, bool) {
 	if len(raw) == 0 {
 		return 0, 0, false
@@ -5874,6 +5896,22 @@ func anchorLineRange(raw json.RawMessage) (int, int, bool) {
 		end = start
 	}
 	return start, end, true
+}
+
+func anchorCanonicalString(raw json.RawMessage, key string) string {
+	if len(raw) == 0 || key == "" {
+		return ""
+	}
+	var anchor map[string]any
+	if err := json.Unmarshal(raw, &anchor); err != nil {
+		return ""
+	}
+	canonical, _ := anchor["canonical"].(map[string]any)
+	if canonical == nil {
+		canonical = anchor
+	}
+	value, _ := canonical[key].(string)
+	return value
 }
 
 func jsonInt(value any) (int, bool) {
@@ -6953,6 +6991,10 @@ type sourceContextOutput struct {
 	Encoding        string             `json:"encoding"`
 	Available       bool               `json:"available"`
 	Reason          string             `json:"reason,omitempty"`
+	SourceState     string             `json:"sourceState,omitempty"`
+	SourceChanged   bool               `json:"sourceChanged"`
+	FileHash        string             `json:"fileHash,omitempty"`
+	AnchorFileHash  string             `json:"anchorFileHash,omitempty"`
 	StartLine       int                `json:"startLine,omitempty"`
 	EndLine         int                `json:"endLine,omitempty"`
 	AnchorStartLine int                `json:"anchorStartLine,omitempty"`

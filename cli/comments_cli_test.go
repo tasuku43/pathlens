@@ -646,6 +646,9 @@ func TestCommentsCLIWorkTailorsSuggestionsForSourceUnavailableThread(t *testing.
 	if claimed.Source == nil || claimed.Source.Available || claimed.Source.Reason != "source_unavailable" {
 		t.Fatalf("work source-unavailable source = %#v", claimed.Source)
 	}
+	if claimed.Source.SourceState != "unavailable" {
+		t.Fatalf("work source-unavailable source state = %#v", claimed.Source)
+	}
 	if claimed.Diff == nil || claimed.Diff.Status != "unavailable" || claimed.Diff.Reason != "source_unavailable" {
 		t.Fatalf("work source-unavailable diff = %#v", claimed.Diff)
 	}
@@ -668,6 +671,70 @@ func TestCommentsCLIWorkTailorsSuggestionsForSourceUnavailableThread(t *testing.
 	}
 	if err := <-done; err != nil {
 		t.Fatalf("work source-unavailable returned error: %v", err)
+	}
+}
+
+func TestCommentsCLIWorkMarksChangedSourceAnchors(t *testing.T) {
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		if err := os.WriteFile(filepath.Join(root, "stale.md"), []byte("# Stale\nold line\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
+	defer server.Close()
+
+	const anchorFileHash = "sha256:anchor-before-edit"
+	data := graphqlForCLI(t, server.URL, map[string]any{
+		"operationName": "CreateThread",
+		"query": `mutation CreateThread($input: CommentInput!) {
+			createThread(input: $input) { id }
+		}`,
+		"variables": map[string]any{"input": map[string]any{
+			"path": "stale.md",
+			"body": "Feedback on a line before the file changed",
+			"actor": map[string]any{
+				"id":          "human:tasuku",
+				"kind":        "human",
+				"displayName": "Tasuku",
+			},
+			"anchor": map[string]any{
+				"surface": "source",
+				"canonical": map[string]any{
+					"path":      "stale.md",
+					"lineStart": float64(1),
+					"lineEnd":   float64(1),
+					"quote":     "# Stale",
+					"fileHash":  anchorFileHash,
+				},
+			},
+		}},
+	})
+	created := data["createThread"].(map[string]any)
+	threadID := created["id"].(string)
+	if err := os.WriteFile(filepath.Join(server.Root, "stale.md"), []byte("# Stale\nnew line\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	events, done := startCommentsWorkForTest(t, ctx, "work", threadID, "--url", server.URL, "--actor", "codex:changed-source", "--actor-kind", "codex", "--client-event-id", "work-changed-source-1", "--lease", "30s", "--full", "--interval", "10ms", "--max-events", "1", "--json")
+	claimed := receiveWorkEvent(t, events)
+	if claimed.Type != "comment_work_claimed" || claimed.Thread.ID != threadID || claimed.Claim.Type != "thread_claimed" {
+		t.Fatalf("work changed-source payload = %#v", claimed)
+	}
+	if claimed.Source == nil || !claimed.Source.Available {
+		t.Fatalf("work changed-source source = %#v", claimed.Source)
+	}
+	if claimed.Source.SourceState != "changed" || !claimed.Source.SourceChanged {
+		t.Fatalf("work changed-source state = %#v", claimed.Source)
+	}
+	if claimed.Source.AnchorFileHash != anchorFileHash || claimed.Source.FileHash == "" || claimed.Source.FileHash == anchorFileHash {
+		t.Fatalf("work changed-source hashes = %#v", claimed.Source)
+	}
+	if len(claimed.Source.Lines) == 0 || claimed.Source.Lines[0].Text != "# Stale" {
+		t.Fatalf("work changed-source lines = %#v", claimed.Source.Lines)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("work changed-source returned error: %v", err)
 	}
 }
 

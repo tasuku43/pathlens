@@ -1047,6 +1047,10 @@ bounded source snippet:
     "viewerKind": "markdown",
     "encoding": "utf8",
     "available": true,
+    "sourceState": "current",
+    "sourceChanged": false,
+    "fileHash": "sha256:current-file",
+    "anchorFileHash": "sha256:comment-anchor",
     "startLine": 1,
     "endLine": 3,
     "anchorStartLine": 2,
@@ -1062,6 +1066,10 @@ bounded source snippet:
 `--context-lines <count>` controls the number of source lines before and after
 the anchor. Non-UTF-8 or missing-anchor cases return `source.available: false`
 with a machine-readable `reason` instead of guessing at a snippet.
+`source.sourceState` is `current`, `changed`, `unknown`, or `unavailable`.
+`changed` means the comment anchor carries a file hash that no longer matches
+the currently loaded file hash; agents should treat it like the GUI's Source
+changed indicator and verify the anchor before editing.
 
 Pass `--full` to `context` for the same rich triage shape on a known thread id.
 Pass `--with-diff` to add only the `TextDiff` payload for the thread path, and
