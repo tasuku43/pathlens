@@ -388,6 +388,7 @@ export function SourceCommentSurface({
               onPointerEnter={() => extendLineDrag(lineNumber)}
               onClick={(event) => {
                 if (containingThread) {
+                  event.stopPropagation();
                   openCommentThread(containingThread, event.currentTarget);
                   return;
                 }

@@ -79,6 +79,7 @@ export function CommentedSourceLines({
             role="listitem"
             onClick={(event) => {
               if (!firstComment) return;
+              event.stopPropagation();
               onOpenComment?.(
                 firstComment.id,
                 rectLikeFromElement(event.currentTarget),

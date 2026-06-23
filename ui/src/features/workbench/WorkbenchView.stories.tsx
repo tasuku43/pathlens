@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
+import type { ViviComment } from "../../domain/comments.js";
 import { ReviewWorkbenchStory } from "../../storybook/ReviewWorkbenchStory.js";
 import {
   commentsForPath,
@@ -31,6 +32,29 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+const alternateWorkbenchLineComment: ViviComment = {
+  id: "comment-workbench-row-target",
+  threadId: "thread-workbench-row-target",
+  path: sampleFiles.code.path,
+  viewerKind: "text",
+  anchor: {
+    surface: "source",
+    canonical: {
+      path: sampleFiles.code.path,
+      lineStart: 5,
+      lineEnd: 5,
+      quote:
+        "const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);",
+      fileHash: "sha256:workbench-story-row-target",
+    },
+  },
+  body: "Row clicks should switch open threads without the outside-dismiss listener immediately closing the new thread.",
+  source: "human",
+  status: "open",
+  createdAt: "2026-06-20T09:20:00.000Z",
+  updatedAt: "2026-06-20T09:20:00.000Z",
+};
 
 export const EmptyWorkspace: Story = {
   args: {
@@ -339,6 +363,7 @@ export const CommentsPanelOpensInlineThread: Story = {
   tags: ["interaction"],
   args: {
     file: sampleFiles.code,
+    comments: [...sampleComments, alternateWorkbenchLineComment],
     commentsPanelOpen: true,
     commentsPanelStatus: "attention",
   },
@@ -359,6 +384,18 @@ export const CommentsPanelOpensInlineThread: Story = {
     await expect(
       canvas.getByRole("textbox", { name: "Reply to thread" }),
     ).toBeInTheDocument();
+
+    const rowTarget = canvasElement.querySelector<HTMLElement>(
+      '.code-line.has-comment[data-line="5"]',
+    );
+    expect(rowTarget).not.toBeNull();
+    if (rowTarget) {
+      await userEvent.click(rowTarget);
+    }
+    await expect(
+      canvas.getByLabelText(/Comment thread for line 5/i),
+    ).toBeInTheDocument();
+
     await userEvent.click(
       canvas.getByRole("button", { name: "Open command palette" }),
     );

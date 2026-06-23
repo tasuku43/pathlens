@@ -110,6 +110,10 @@ export function ReviewWorkbenchStory({
     useState(activeCommentId);
   const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
     useState(commentsPanelOpen);
+  const [storyCommandPaletteOpen, setStoryCommandPaletteOpen] =
+    useState(commandPaletteOpen);
+  const [storyShortcutHelpOpen, setStoryShortcutHelpOpen] =
+    useState(shortcutHelpOpen);
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
 
   function focusCompactReviewQueue() {
@@ -132,6 +136,14 @@ export function ReviewWorkbenchStory({
   useEffect(() => {
     setStoryCommentsPanelOpen(commentsPanelOpen);
   }, [commentsPanelOpen]);
+
+  useEffect(() => {
+    setStoryCommandPaletteOpen(commandPaletteOpen);
+  }, [commandPaletteOpen]);
+
+  useEffect(() => {
+    setStoryShortcutHelpOpen(shortcutHelpOpen);
+  }, [shortcutHelpOpen]);
 
   useEffect(() => {
     setCompactInspectorOpen(false);
@@ -192,10 +204,10 @@ export function ReviewWorkbenchStory({
           ).length
         }
         onThemeCycle={noop}
-        onQuickOpen={noop}
-        onSearchText={noop}
-        onOpenComments={noop}
-        onOpenShortcuts={noop}
+        onQuickOpen={() => setStoryCommandPaletteOpen(true)}
+        onSearchText={() => setStoryCommandPaletteOpen(true)}
+        onOpenComments={() => setStoryCommentsPanelOpen(true)}
+        onOpenShortcuts={() => setStoryShortcutHelpOpen(true)}
       />
       <div
         className={[
@@ -384,7 +396,7 @@ export function ReviewWorkbenchStory({
         <div className="story-state-note">{inspectorTitle}</div>
       ) : null}
       <CommandPalette
-        open={commandPaletteOpen}
+        open={storyCommandPaletteOpen}
         mode="file"
         query="review"
         fileResults={[
@@ -422,10 +434,13 @@ export function ReviewWorkbenchStory({
         textLoading={false}
         onQueryChange={noop}
         onModeChange={noop}
-        onClose={noop}
+        onClose={() => setStoryCommandPaletteOpen(false)}
         onOpenPath={noop}
       />
-      <ShortcutHelp open={shortcutHelpOpen} onClose={noop} />
+      <ShortcutHelp
+        open={storyShortcutHelpOpen}
+        onClose={() => setStoryShortcutHelpOpen(false)}
+      />
       <CommentsPanel
         open={storyCommentsPanelOpen}
         comments={comments}
