@@ -36,6 +36,13 @@ interface NextCommentPayload {
   thread: { id: string; path: string; status: string } | null;
   count: number;
   remaining: number;
+  summary?: {
+    recommendedAction: string;
+    openThreadCount: number;
+    unclaimedCount: number;
+    claimedByOthersCount: number;
+    suggestedCommands?: Array<{ command: string; args: string[] }>;
+  };
   file?: { path: string; viewerKind: string; encoding: string } | null;
   source?: {
     path: string;
@@ -44,6 +51,21 @@ interface NextCommentPayload {
     lines?: Array<{ number: number; text: string; anchor: boolean }>;
   } | null;
   diff?: { path: string; status: string; reason?: string } | null;
+}
+
+interface ClaimCommentPayload {
+  thread: { id: string; path: string; status: string } | null;
+  claim: { type: string; actor: { id: string }; clientEventId?: string } | null;
+  count: number;
+  remaining: number;
+  summary: {
+    recommendedAction: string;
+    openThreadCount: number;
+    mineCount: number;
+    unclaimedCount: number;
+    claimedByOthersCount: number;
+    suggestedCommands?: Array<{ command: string; args: string[] }>;
+  };
 }
 
 interface InboxCommentPayload {
@@ -272,6 +294,69 @@ it("skips stale threads whose files no longer exist when selecting next full wor
   });
 });
 
+it("explains claim contention when all open threads are leased by another actor", async () => {
+  server = await startGoViviServer({
+    rootDir: fixture.rootDir,
+    dataDir: path.join(fixture.outsideDir, "claim-contention-cli-data"),
+  });
+  const created = await graphql<{ createThread: { id: string } }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
+      createThread(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        path: "README.md",
+        body: "Please review before the next pass",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "README.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Vivi Fixture",
+          },
+        },
+      },
+    },
+  });
+
+  const firstClaim = await runGoCommentsClaim(server.url, "claude-code:e2e");
+  expect(firstClaim.thread).toMatchObject({
+    id: created.createThread.id,
+    path: "README.md",
+    status: "open",
+  });
+  expect(firstClaim.claim).toMatchObject({
+    type: "thread_claimed",
+    actor: { id: "claude-code:e2e" },
+  });
+
+  const contended = await runGoCommentsClaim(server.url, "codex:e2e");
+  expect(contended).toMatchObject({
+    thread: null,
+    claim: null,
+    count: 1,
+    remaining: 0,
+    summary: {
+      recommendedAction: "wait_for_claim_release",
+      openThreadCount: 1,
+      mineCount: 0,
+      unclaimedCount: 0,
+      claimedByOthersCount: 1,
+    },
+  });
+  expect(contended.summary.suggestedCommands).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        command: "comments watch",
+        args: expect.arrayContaining(["comments", "watch", "--cursor"]),
+      }),
+    ]),
+  );
+});
+
 it("excludes stale source-unavailable threads from inbox work routing", async () => {
   server = await startGoViviServer({
     rootDir: fixture.rootDir,
@@ -413,6 +498,46 @@ async function runGoCommentsNext(baseUrl: string): Promise<NextCommentPayload> {
     );
   }
   return JSON.parse(stdout) as NextCommentPayload;
+}
+
+async function runGoCommentsClaim(
+  baseUrl: string,
+  actor: string,
+): Promise<ClaimCommentPayload> {
+  const invocation = goCliInvocation([
+    "comments",
+    "claim",
+    "--url",
+    baseUrl,
+    "--actor",
+    actor,
+    "--client-event-id",
+    `claim-${actor}`,
+    "--full",
+    "--json",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv(),
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdout += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+  });
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once("exit", resolve);
+    child.once("error", reject);
+  });
+  if (code !== 0) {
+    throw new Error(
+      `comments claim exited ${code}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    );
+  }
+  return JSON.parse(stdout) as ClaimCommentPayload;
 }
 
 async function runGoCommentsInbox(

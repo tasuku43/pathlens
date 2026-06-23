@@ -224,6 +224,11 @@ control the lease duration. The payload is described by `commentClaimOutput`;
 successful claims include `summary.recommendedAction: "start_work"` and
 structured suggestions for the initial acknowledgement, handoff, completion, or
 archive decision on the newly owned thread.
+If no thread can be claimed, the command still returns a `summary` with routing
+counts and `recommendedAction`; for example, `wait_for_claim_release` means open
+threads exist but are currently leased by other actors, and the suggested
+commands point the adapter toward `comments watch` or the resident work loop
+instead of blindly retrying the same claim.
 With `--wait`, it becomes the blocking resident-agent intake: the CLI polls
 until a claimable open thread appears, then returns the normal claimed work
 payload. Use this when an agent should sleep until GUI feedback is ready to

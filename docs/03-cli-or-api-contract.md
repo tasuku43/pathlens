@@ -248,6 +248,12 @@ as `next --full`; the returned activity history includes the claim. The output
 is described by `commentClaimOutput` and, on a successful claim, includes
 `summary.recommendedAction: "start_work"` plus suggested structured
 `triage`, `release`, `done`, and `dismiss` commands for the newly owned thread.
+When no thread can be claimed, the payload still includes `summary` with
+routing counts and a next action. In particular,
+`summary.recommendedAction: "wait_for_claim_release"` means open threads exist
+but are currently leased by other actors; use the suggested `comments watch`,
+`comments inbox`, or resident work-loop recipe instead of immediately retrying
+the same claim.
 
 `claim --wait` is the blocking intake command for a resident background agent.
 It polls the open worklist using `--interval`, skips threads currently claimed

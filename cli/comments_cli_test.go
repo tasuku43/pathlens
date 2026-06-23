@@ -276,10 +276,11 @@ func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 
 	next := runCommentsCLIForTest(t, "next", "--url", server.URL, "--actor", "codex:next-test", "--actor-kind", "codex", "--client-event-id", "next-open-1", "--json")
 	var nextPayload struct {
-		Thread    *commentThreadOutput `json:"thread"`
-		Cursor    string               `json:"cursor"`
-		Count     int                  `json:"count"`
-		Remaining int                  `json:"remaining"`
+		Thread    *commentThreadOutput  `json:"thread"`
+		Cursor    string                `json:"cursor"`
+		Count     int                   `json:"count"`
+		Remaining int                   `json:"remaining"`
+		Summary   commentRoutingSummary `json:"summary"`
 	}
 	decodeCLIJSON(t, next, &nextPayload)
 	if nextPayload.Thread == nil || nextPayload.Thread.ID != firstID {
@@ -337,6 +338,12 @@ func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 	decodeCLIJSON(t, empty, &nextPayload)
 	if nextPayload.Thread != nil || nextPayload.Count != 0 || nextPayload.Remaining != 0 {
 		t.Fatalf("empty next = %s", empty.String())
+	}
+	if nextPayload.Summary.RequiresAttention || nextPayload.Summary.RecommendedAction != "wait_for_gui_feedback" || nextPayload.Summary.OpenThreadCount != 0 || nextPayload.Summary.UnclaimedCount != 0 || nextPayload.Summary.ClaimedByOthersCount != 0 {
+		t.Fatalf("empty next summary = %#v", nextPayload.Summary)
+	}
+	if len(nextPayload.Summary.SuggestedCommands) != 1 || nextPayload.Summary.SuggestedCommands[0].Command != "comments work" || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--loop") {
+		t.Fatalf("empty next suggestions = %#v", nextPayload.Summary.SuggestedCommands)
 	}
 }
 
@@ -412,6 +419,26 @@ func TestCommentsCLIClaimLeasesNextOpenThreadForAgentWork(t *testing.T) {
 	decodeCLIJSON(t, secondClaim, &secondPayload)
 	if secondPayload.Thread == nil || secondPayload.Thread.ID != secondID || secondPayload.Claim == nil || secondPayload.Claim.Type != "thread_claimed" {
 		t.Fatalf("second claim skipped leased thread incorrectly = %s", secondClaim.String())
+	}
+
+	contended := runCommentsCLIForTest(t, "claim", "--url", server.URL, "--actor", "codex:claim-contender", "--actor-kind", "codex", "--client-event-id", "claim-contended-1", "--lease", "30s", "--full", "--json")
+	var contendedPayload struct {
+		Thread    *commentThreadOutput   `json:"thread"`
+		Claim     *commentActivityOutput `json:"claim"`
+		Summary   commentRoutingSummary  `json:"summary"`
+		Cursor    string                 `json:"cursor"`
+		Count     int                    `json:"count"`
+		Remaining int                    `json:"remaining"`
+	}
+	decodeCLIJSON(t, contended, &contendedPayload)
+	if contendedPayload.Thread != nil || contendedPayload.Claim != nil || contendedPayload.Count != 2 || contendedPayload.Remaining != 0 {
+		t.Fatalf("contended claim payload = %s", contended.String())
+	}
+	if !contendedPayload.Summary.RequiresAttention || contendedPayload.Summary.RecommendedAction != "wait_for_claim_release" || contendedPayload.Summary.OpenThreadCount != 2 || contendedPayload.Summary.MineCount != 0 || contendedPayload.Summary.UnclaimedCount != 0 || contendedPayload.Summary.ClaimedByOthersCount != 2 || !containsString(contendedPayload.Summary.AttentionReasons, "open_threads_claimed_by_others") {
+		t.Fatalf("contended claim summary = %#v", contendedPayload.Summary)
+	}
+	if len(contendedPayload.Summary.SuggestedCommands) != 1 || contendedPayload.Summary.SuggestedCommands[0].Command != "comments watch" || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--cursor") || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, contendedPayload.Cursor) {
+		t.Fatalf("contended claim suggestions = %#v", contendedPayload.Summary.SuggestedCommands)
 	}
 
 	mine := runCommentsCLIForTest(t, "mine", "--url", server.URL, "--actor", "codex:claim-1", "--actor-kind", "codex", "--with-activities", "--json")

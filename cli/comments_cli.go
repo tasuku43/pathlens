@@ -1452,14 +1452,14 @@ func commentClaimOutputSchema() commentSchemaOutput {
 			"title":                "commentClaimOutput",
 			"type":                 "object",
 			"additionalProperties": true,
-			"required":             []string{"thread", "claim", "cursor", "count", "remaining"},
+			"required":             []string{"thread", "claim", "cursor", "count", "remaining", "summary"},
 			"properties": map[string]any{
 				"thread":     nullableSchema(commentThreadSchema()),
 				"claim":      nullableSchema(commentActivitySchema()),
 				"cursor":     map[string]any{"type": "string"},
 				"count":      map[string]any{"type": "integer", "minimum": 0},
 				"remaining":  map[string]any{"type": "integer", "minimum": 0},
-				"summary":    commentActivityBatchSummarySchema(),
+				"summary":    commentClaimSummarySchema(),
 				"file":       map[string]any{"type": "object"},
 				"source":     sourceContextSchema(),
 				"diff":       textDiffSchema(),
@@ -2742,6 +2742,42 @@ func commentRoutingSummarySchema() map[string]any {
 	}
 }
 
+func commentClaimSummarySchema() map[string]any {
+	integerCount := map[string]any{"type": "integer", "minimum": 0}
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": true,
+		"required":             []string{"requiresAttention", "attentionReasons", "recommendedAction"},
+		"properties": map[string]any{
+			"kinds":                      arraySchema(map[string]any{"type": "string"}),
+			"requiresAttention":          map[string]any{"type": "boolean"},
+			"attentionReasons":           arraySchema(map[string]any{"type": "string"}),
+			"recommendedAction":          map[string]any{"type": "string", "enum": []string{"start_work", "reconsider_work", "inspect_external_activity", "ignore_own_heartbeat", "ignore_own_activity", "finish_current_work", "observe", "resume_owned_work", "claim_open_work", "wait_for_claim_release", "wait_for_gui_feedback"}},
+			"suggestedCommands":          arraySchema(commentSuggestedCommandSchema()),
+			"ownActivityCount":           integerCount,
+			"externalActivityCount":      integerCount,
+			"humanCommentCount":          integerCount,
+			"agentCommentCount":          integerCount,
+			"triageCommentCount":         integerCount,
+			"ownCommentCount":            integerCount,
+			"externalCommentCount":       integerCount,
+			"externalAgentCommentCount":  integerCount,
+			"ownTriageCommentCount":      integerCount,
+			"externalTriageCommentCount": integerCount,
+			"commentUpdateCount":         integerCount,
+			"claimCount":                 integerCount,
+			"ownClaimCount":              integerCount,
+			"releaseCount":               integerCount,
+			"doneCount":                  integerCount,
+			"dismissCount":               integerCount,
+			"openThreadCount":            integerCount,
+			"mineCount":                  integerCount,
+			"unclaimedCount":             integerCount,
+			"claimedByOthersCount":       integerCount,
+		},
+	}
+}
+
 func commentInboxGroupSchema() map[string]any {
 	return map[string]any{
 		"type":                 "object",
@@ -3142,6 +3178,13 @@ func commentsNext(ctx context.Context, stdout io.Writer, options commentsCommand
 		"cursor":    cursor,
 		"count":     len(ordered),
 		"remaining": remaining,
+	}
+	if thread == nil {
+		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
+		if err != nil {
+			return err
+		}
+		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "next", options.URL, options.ReceiptLog)
 	}
 	if options.WithContext {
 		payload["file"] = nil
@@ -4028,6 +4071,13 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 	}
 	if selected != nil && claim != nil {
 		payload["summary"] = summarizeClaimedWork(*selected, *claim, options.ActorID, options.URL, options.ReceiptLog)
+	}
+	if selected == nil {
+		routing, err := commentOpenRouting(ctx, withoutReadHeaders(options), ordered, options.ActorID)
+		if err != nil {
+			return nil, false, err
+		}
+		payload["summary"] = summarizeOpenRouting(routing, options.ActorID, cursor, "claim", options.URL, options.ReceiptLog)
 	}
 	if options.WithContext {
 		payload["file"] = nil
