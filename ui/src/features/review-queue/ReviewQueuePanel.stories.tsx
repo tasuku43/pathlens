@@ -22,6 +22,12 @@ const staleThreadOnlyComment = {
   body: "Old note for a file that is no longer in the workspace.",
   status: "open" as const,
 };
+const resolvedHandoffComment = sampleComments.find(
+  (comment) => comment.id === "comment-resolved",
+)!;
+const resolvedHandoffChange = sampleReviewChanges.find(
+  (change) => change.path === resolvedHandoffComment.path,
+)!;
 const baseArgs = {
   file: sampleFiles.code,
   reviewChanges: sampleReviewChanges,
@@ -86,6 +92,30 @@ export const ReviewQueueItemWithOpenThreads: Story = {
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
   args: {
     unreadReviewPaths: new Set([sampleFiles.code.path]),
+  },
+};
+
+export const ResolvedThreadActivityIsHistory: Story = {
+  args: {
+    file: sampleFiles.queue,
+    activePath: resolvedHandoffComment.path,
+    reviewChanges: [resolvedHandoffChange],
+    reviewItems: buildReviewQueueItems(
+      [resolvedHandoffChange],
+      [resolvedHandoffComment],
+      sampleThreadActivities,
+      new Set(),
+    ),
+    comments: [],
+    reviewComments: [resolvedHandoffComment],
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("No open threads")).toBeInTheDocument();
+    await expect(canvas.getByText("Codex marked resolved")).toBeInTheDocument();
+    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Next stop")).not.toBeInTheDocument();
   },
 };
 

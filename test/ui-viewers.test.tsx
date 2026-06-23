@@ -3190,6 +3190,57 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   expect(html).toContain("1 open thread");
 });
 
+it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
+  const resolvedComment: ViviComment = {
+    ...codeLineComment,
+    id: "resolved-comment-1",
+    threadId: "thread-resolved",
+    status: "resolved",
+    body: "Resolved after the DSCP paths were checked.",
+    updatedAt: "2026-01-01T00:02:00.000Z",
+    resolvedAt: "2026-01-01T00:02:00.000Z",
+  };
+  const html = renderToStaticMarkup(
+    <Inspector
+      file={codeFile}
+      reviewChanges={[
+        { path: "src/app.ts", status: "modified", source: "git" },
+      ]}
+      reviewItems={[
+        {
+          path: "src/app.ts",
+          change: { path: "src/app.ts", status: "modified", source: "git" },
+          threadCounts: { open: 0, resolved: 1, archived: 0 },
+          commentCount: 1,
+          unread: false,
+        },
+      ]}
+      reviewDiffStats={{}}
+      loadingReviewDiffs={{}}
+      unreadReviewPaths={new Set()}
+      comments={[resolvedComment]}
+      reviewComments={[resolvedComment]}
+      threadActivities={{}}
+      selectedCodeRange={null}
+      activePath="src/app.ts"
+      activePaneId="main"
+      onOpenEventPath={() => undefined}
+      onConfirmEventPath={() => undefined}
+      onOpenNextChanged={() => undefined}
+      onOpenPreviousChanged={() => undefined}
+      onOpenAllChanged={() => undefined}
+      onRevealInTree={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("No open threads · 1 message");
+  expect(html).toContain("Resolved after the DSCP paths were checked.");
+  expect(html).not.toContain('class="review-stop-summary"');
+  expect(html).not.toContain("Current stop");
+  expect(html).not.toContain("Next stop");
+  expect(html).toContain("seen, 1 message, from HEAD diff");
+});
+
 it("opens Review Queue rows as preview on click and stable tabs on double click", () => {
   const calls: string[] = [];
   const inspector = Inspector({

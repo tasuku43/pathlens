@@ -848,11 +848,10 @@ function reviewQueueStopForPath(
   comments: ViviComment[],
 ): ReviewQueueStop | null {
   const thread = buildCommentThreads(comments)
-    .filter((candidate) => candidate.path === path)
+    .filter(
+      (candidate) => candidate.path === path && candidate.status === "open",
+    )
     .sort((a, b) => {
-      const statusDelta =
-        commentStatusRank(a.status) - commentStatusRank(b.status);
-      if (statusDelta) return statusDelta;
       return b.updatedAt.localeCompare(a.updatedAt);
     })[0];
   const primary = thread?.comments[0];
