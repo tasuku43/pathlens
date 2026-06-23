@@ -46,6 +46,20 @@ interface NextCommentPayload {
   diff?: { path: string; status: string; reason?: string } | null;
 }
 
+interface InboxCommentPayload {
+  count: number;
+  summary: {
+    recommendedAction: string;
+    openThreadCount: number;
+    unclaimedCount: number;
+    suggestedCommands?: Array<{ command: string; args: string[] }>;
+  };
+  unclaimed: {
+    count: number;
+    threads: Array<{ id: string; path: string; status: string }>;
+  };
+}
+
 let fixture: ContractFixture;
 let server: GoProcessServer | null = null;
 
@@ -59,130 +73,126 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
-it(
-  "lets an agent watch the open comments worklist through the CLI",
-  async () => {
-    server = await startGoViviServer({
-      rootDir: fixture.rootDir,
-      dataDir: path.join(fixture.outsideDir, "watch-cli-data"),
-    });
-    const watch = startGoCommentsWatch(server.url);
+it("lets an agent watch the open comments worklist through the CLI", async () => {
+  server = await startGoViviServer({
+    rootDir: fixture.rootDir,
+    dataDir: path.join(fixture.outsideDir, "watch-cli-data"),
+  });
+  const watch = startGoCommentsWatch(server.url);
 
-    const initial = await watch.nextEvent();
-    expect(initial).toMatchObject({
-      type: "comments_open_worklist",
-      reason: "initial",
-      count: 0,
-      threads: [],
-    });
+  const initial = await watch.nextEvent();
+  expect(initial).toMatchObject({
+    type: "comments_open_worklist",
+    reason: "initial",
+    count: 0,
+    threads: [],
+  });
 
-    const created = await graphql<{
-      createThread: { id: string };
-    }>(server.url, {
-      operationName: "CreateThread",
-      query: `mutation CreateThread($input: CommentInput!) {
+  const created = await graphql<{
+    createThread: { id: string };
+  }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
         createThread(input: $input) { id }
       }`,
-      variables: {
-        input: {
-          path: "README.md",
-          body: "Please review the fixture intro",
-          actor: {
-            id: "human:tasuku",
-            kind: "human",
-            displayName: "Tasuku",
-          },
-          anchor: {
-            surface: "source",
-            canonical: {
-              path: "README.md",
-              lineStart: 1,
-              lineEnd: 1,
-              quote: "# Vivi Fixture",
-            },
+    variables: {
+      input: {
+        path: "README.md",
+        body: "Please review the fixture intro",
+        actor: {
+          id: "human:tasuku",
+          kind: "human",
+          displayName: "Tasuku",
+        },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "README.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Vivi Fixture",
           },
         },
       },
-    });
+    },
+  });
 
-    const changed = await watch.nextEvent();
-    expect(changed.count).toBe(1);
-    expect(changed.changes).toContain("open_thread_added");
-    expect(changed).toMatchObject({
-      schemaVersion: 1,
-      eventSchema: "commentOpenWorklistEvent",
-      eventSchemaCommand: expect.arrayContaining([
-        "comments",
-        "schema",
-        "commentOpenWorklistEvent",
+  const changed = await watch.nextEvent();
+  expect(changed.count).toBe(1);
+  expect(changed.changes).toContain("open_thread_added");
+  expect(changed).toMatchObject({
+    schemaVersion: 1,
+    eventSchema: "commentOpenWorklistEvent",
+    eventSchemaCommand: expect.arrayContaining([
+      "comments",
+      "schema",
+      "commentOpenWorklistEvent",
+    ]),
+    summary: expect.objectContaining({
+      recommendedAction: "claim_open_work",
+      openThreadCount: 1,
+      suggestedCommands: expect.arrayContaining([
+        expect.objectContaining({
+          intent: "claim_next_open_thread",
+          command: "comments work",
+          clientEventId: expect.stringContaining("watch:"),
+          args: expect.arrayContaining([
+            "comments",
+            "work",
+            "--client-event-id",
+            "--full",
+          ]),
+        }),
       ]),
-      summary: expect.objectContaining({
-        recommendedAction: "claim_open_work",
-        openThreadCount: 1,
-        suggestedCommands: expect.arrayContaining([
-          expect.objectContaining({
-            intent: "claim_next_open_thread",
-            command: "comments work",
-            clientEventId: expect.stringContaining("watch:"),
-            args: expect.arrayContaining([
-              "comments",
-              "work",
-              "--client-event-id",
-              "--full",
-            ]),
-          }),
-        ]),
-      }),
-    });
-    expect(changed.threads[0]).toMatchObject({
+    }),
+  });
+  expect(changed.threads[0]).toMatchObject({
+    id: created.createThread.id,
+    path: "README.md",
+    status: "open",
+    comments: [
+      expect.objectContaining({ body: "Please review the fixture intro" }),
+    ],
+  });
+  expect(changed.items).toHaveLength(1);
+  expect(changed.items?.[0]).toMatchObject({
+    thread: {
       id: created.createThread.id,
       path: "README.md",
       status: "open",
-      comments: [
-        expect.objectContaining({ body: "Please review the fixture intro" }),
-      ],
-    });
-    expect(changed.items).toHaveLength(1);
-    expect(changed.items?.[0]).toMatchObject({
-      thread: {
-        id: created.createThread.id,
-        path: "README.md",
-        status: "open",
-      },
-      file: {
-        path: "README.md",
-        viewerKind: "markdown",
-        encoding: "utf8",
-      },
-      source: {
-        path: "README.md",
-        available: true,
-      },
-      diff: {
-        path: "README.md",
-        status: "available",
-      },
-    });
-    expect(changed.items?.[0]?.source?.lines?.some((line) => line.anchor)).toBe(
-      true,
-    );
-    expect(changed.items?.[0]?.diff?.content).toContain(
-      "Contract workspace changed",
-    );
-    expect(changed.items?.[0]?.activities).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: "thread_read",
-          clientEventId: `comments-watch:${changed.cursor}`,
-        }),
-      ]),
-    );
-    expect(changed.cursor).not.toBe(initial.cursor);
+    },
+    file: {
+      path: "README.md",
+      viewerKind: "markdown",
+      encoding: "utf8",
+    },
+    source: {
+      path: "README.md",
+      available: true,
+    },
+    diff: {
+      path: "README.md",
+      status: "available",
+    },
+  });
+  expect(changed.items?.[0]?.source?.lines?.some((line) => line.anchor)).toBe(
+    true,
+  );
+  expect(changed.items?.[0]?.diff?.content).toContain(
+    "Contract workspace changed",
+  );
+  expect(changed.items?.[0]?.activities).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: "thread_read",
+        clientEventId: `comments-watch:${changed.cursor}`,
+      }),
+    ]),
+  );
+  expect(changed.cursor).not.toBe(initial.cursor);
 
-    await expect(watch.done).resolves.toBe(0);
-  },
-  20_000,
-);
+  await expect(watch.done).resolves.toBe(0);
+}, 20_000);
 
 it("skips stale threads whose files no longer exist when selecting next full work", async () => {
   server = await startGoViviServer({
@@ -262,6 +272,86 @@ it("skips stale threads whose files no longer exist when selecting next full wor
   });
 });
 
+it("excludes stale source-unavailable threads from inbox work routing", async () => {
+  server = await startGoViviServer({
+    rootDir: fixture.rootDir,
+    dataDir: path.join(fixture.outsideDir, "inbox-cli-data"),
+  });
+  const stalePath = path.join(fixture.rootDir, "stale.md");
+  await writeFile(stalePath, "# Stale\n\nTemporary review target\n");
+  const stale = await graphql<{ createThread: { id: string } }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
+      createThread(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        path: "stale.md",
+        body: "This old thread should not be offered as active work",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "stale.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Stale",
+          },
+        },
+      },
+    },
+  });
+  await unlink(stalePath);
+
+  const live = await graphql<{ createThread: { id: string } }>(server.url, {
+    operationName: "CreateThread",
+    query: `mutation CreateThread($input: CommentInput!) {
+      createThread(input: $input) { id }
+    }`,
+    variables: {
+      input: {
+        path: "README.md",
+        body: "Please review the live file",
+        actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "README.md",
+            lineStart: 1,
+            lineEnd: 1,
+            quote: "# Vivi Fixture",
+          },
+        },
+      },
+    },
+  });
+
+  const inbox = await runGoCommentsInbox(server.url);
+  expect(inbox.count).toBe(2);
+  expect(inbox.summary).toMatchObject({
+    recommendedAction: "claim_open_work",
+    openThreadCount: 1,
+    unclaimedCount: 1,
+  });
+  expect(inbox.unclaimed.count).toBe(1);
+  expect(inbox.unclaimed.threads).toEqual([
+    expect.objectContaining({
+      id: live.createThread.id,
+      path: "README.md",
+      status: "open",
+    }),
+  ]);
+  expect(inbox.unclaimed.threads[0]?.id).not.toBe(stale.createThread.id);
+  expect(inbox.summary.suggestedCommands).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        command: "comments work",
+        args: expect.arrayContaining(["--full", "--json"]),
+      }),
+    ]),
+  );
+});
+
 async function graphql<T>(
   baseUrl: string,
   payload: {
@@ -323,6 +413,42 @@ async function runGoCommentsNext(baseUrl: string): Promise<NextCommentPayload> {
     );
   }
   return JSON.parse(stdout) as NextCommentPayload;
+}
+
+async function runGoCommentsInbox(
+  baseUrl: string,
+): Promise<InboxCommentPayload> {
+  const invocation = goCliInvocation([
+    "comments",
+    "inbox",
+    "--url",
+    baseUrl,
+    "--actor",
+    "codex:e2e",
+    "--json",
+  ]);
+  const child = spawn(invocation.command, invocation.args, {
+    cwd: process.cwd(),
+    env: goEnv(),
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdout += chunk.toString("utf8");
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString("utf8");
+  });
+  const code = await new Promise<number | null>((resolve, reject) => {
+    child.once("exit", resolve);
+    child.once("error", reject);
+  });
+  if (code !== 0) {
+    throw new Error(
+      `comments inbox exited ${code}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+    );
+  }
+  return JSON.parse(stdout) as InboxCommentPayload;
 }
 
 interface GoProcessServer {

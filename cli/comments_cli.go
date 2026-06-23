@@ -4280,12 +4280,26 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 		}
 		claim := activeClaim(activities, now)
 		if claim == nil {
+			available, err := commentThreadSourceAvailable(ctx, options, thread)
+			if err != nil {
+				return commentOpenRoutingOutput{}, err
+			}
+			if !available {
+				continue
+			}
 			routing.Unclaimed.Threads = append(routing.Unclaimed.Threads, thread)
 			continue
 		}
 		if claim.Actor.ID == strings.TrimSpace(actorID) {
 			routing.Mine.Threads = append(routing.Mine.Threads, thread)
 			routing.Mine.Claims = append(routing.Mine.Claims, *claim)
+			continue
+		}
+		available, err := commentThreadSourceAvailable(ctx, options, thread)
+		if err != nil {
+			return commentOpenRoutingOutput{}, err
+		}
+		if !available {
 			continue
 		}
 		routing.ClaimedByOthers.Threads = append(routing.ClaimedByOthers.Threads, thread)
@@ -4295,6 +4309,18 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 	routing.Unclaimed.Count = len(routing.Unclaimed.Threads)
 	routing.ClaimedByOthers.Count = len(routing.ClaimedByOthers.Threads)
 	return routing, nil
+}
+
+func commentThreadSourceAvailable(ctx context.Context, options commentsCommandOptions, thread commentThreadOutput) (bool, error) {
+	probeOptions := withoutReadHeaders(options)
+	probeOptions.WithContext = true
+	probeOptions.WithDiff = false
+	probeOptions.WithActivities = false
+	item, err := commentWorkItemForThread(ctx, probeOptions, thread)
+	if err != nil {
+		return false, err
+	}
+	return !sourceContextUnavailable(item), nil
 }
 
 func commentStatusCounts(threads []commentThreadOutput) map[string]int {
