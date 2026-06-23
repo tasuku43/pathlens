@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
+import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import {
   gitReviewTimeoutGuidance,
   gitTimeoutReason,
@@ -14,6 +15,8 @@ import {
   sampleReviewQueueItems,
   sampleThreadActivities,
   sampleUnreadReviewPaths,
+  storyNow,
+  unknownCodingAgent,
 } from "../../storybook/fixtures/review-lab.js";
 import { Inspector } from "./Inspector.js";
 
@@ -143,6 +146,45 @@ export const ResolvedThreadActivityIsHistory: Story = {
     await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Next stop")).not.toBeInTheDocument();
   },
+};
+
+export const ResolvedThreadActivityFromUnknownActor: Story = {
+	args: {
+		file: sampleFiles.queue,
+		activePath: resolvedHandoffComment.path,
+		reviewChanges: [resolvedHandoffChange],
+		reviewItems: buildReviewQueueItems(
+			[resolvedHandoffChange],
+			[resolvedHandoffComment],
+			{
+				"thread-resolved": summarizeThreadActivity(
+					[
+						{
+							id: "activity-unknown-coding-agent",
+							threadId: "thread-resolved",
+							type: "thread_status_changed",
+							actor: unknownCodingAgent,
+							previousStatus: "open",
+							status: "resolved",
+							createdAt: "2026-06-20T09:05:00.000Z",
+						},
+					],
+					storyNow,
+				),
+			},
+			new Set(),
+		),
+		comments: [],
+		reviewComments: [resolvedHandoffComment],
+		unreadReviewPaths: new Set(),
+	},
+	play: async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			canvas.getByText("coding-agent marked resolved"),
+		).toBeInTheDocument();
+		await expect(canvas.queryByText("Unknown agent")).not.toBeInTheDocument();
+	},
 };
 
 export const ActiveFileSourceChangedAnchor: Story = {

@@ -39,9 +39,14 @@ export const codexAgent: CommentActor = {
 };
 
 export const claudeAgent: CommentActor = {
-  id: "claude-code:run-7",
-  kind: "claude-code",
-  displayName: "Claude Code",
+	id: "claude-code:run-7",
+	kind: "claude-code",
+	displayName: "Claude Code",
+};
+
+export const unknownCodingAgent: CommentActor = {
+	id: "coding-agent",
+	kind: "unknown",
 };
 
 export const sampleWorkspaceTree: TreeSnapshot = {

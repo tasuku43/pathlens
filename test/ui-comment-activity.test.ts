@@ -1,11 +1,12 @@
 import { expect, it } from "vitest";
 import type { CommentThreadActivityEvent } from "../ui/src/domain/comments.js";
 import {
-  addCommentActivities,
-  commentActivityRefreshTarget,
-  commentActivityThreadPath,
-  emptyCommentActivityState,
-  summarizeThreadActivity,
+	addCommentActivities,
+	activityLabel,
+	commentActivityRefreshTarget,
+	commentActivityThreadPath,
+	emptyCommentActivityState,
+	summarizeThreadActivity,
 } from "../ui/src/state/comment-activity.js";
 
 const baseEvent = {
@@ -106,6 +107,22 @@ it("summarizes the newest two activity events inline and keeps the rest in the t
     "activity-4",
     "activity-5",
   ]);
+});
+
+it("uses an unknown actor id instead of hiding it behind a generic label", () => {
+	expect(
+		activityLabel(
+			event({
+				id: "activity-unknown-actor",
+				type: "thread_status_changed",
+				status: "resolved",
+				previousStatus: "open",
+				actor: { id: "coding-agent", kind: "unknown" },
+				createdAt: "2026-06-20T00:00:30.000Z",
+			}),
+			new Date("2026-06-20T00:01:00.000Z").getTime(),
+		),
+	).toBe("coding-agent marked resolved 30s ago");
 });
 
 it("targets authoritative comment refreshes without inferring thread status from activity", () => {
