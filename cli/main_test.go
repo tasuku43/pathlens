@@ -150,6 +150,9 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 			t.Fatalf("comments help text did not include %q\n%s", text, help)
 		}
 	}
+	if count := strings.Count(help, "vivi comments watch --actor claude-code --json"); count != 1 {
+		t.Fatalf("comments help text should list watch once, got %d\n%s", count, help)
+	}
 }
 
 func TestNestedHelpFlagsPrintHumanHelp(t *testing.T) {

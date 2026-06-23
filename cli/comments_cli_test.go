@@ -1607,15 +1607,15 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 		t.Fatalf("doctor guidance = %#v %#v", payload.RecommendedAction, payload.SuggestedCommands)
 	}
 	mine := payload.SuggestedCommands[0]
-	if mine.Intent != "recover_owned_live_claims" || mine.Command != "comments mine" || !containsString(mine.Args, "codex:doctor") || containsString(mine.Args, "--full") || !containsString(mine.Args, server.URL) {
+	if mine.Intent != "recover_owned_live_claims" || mine.Command != "comments mine" || !containsString(mine.Args, "codex:doctor") || !containsString(mine.Args, "--actor-kind") || !containsString(mine.Args, "codex") || containsString(mine.Args, "--full") || !containsString(mine.Args, server.URL) {
 		t.Fatalf("doctor recovery suggestion = %#v", mine)
 	}
 	work := payload.SuggestedCommands[1]
-	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
 		t.Fatalf("doctor resident work suggestion = %#v", work)
 	}
 	inbox := payload.SuggestedCommands[2]
-	if inbox.Intent != "snapshot_agent_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "codex:doctor") || containsString(inbox.Args, "--full") || !containsString(inbox.Args, server.URL) {
+	if inbox.Intent != "snapshot_agent_inbox" || inbox.Command != "comments inbox" || !containsString(inbox.Args, "codex:doctor") || !containsString(inbox.Args, "--actor-kind") || !containsString(inbox.Args, "codex") || containsString(inbox.Args, "--full") || !containsString(inbox.Args, server.URL) {
 		t.Fatalf("doctor inbox suggestion = %#v", inbox)
 	}
 
@@ -1626,6 +1626,25 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 	})["commentThreadActivities"].([]any)
 	if len(activities) != 1 || activities[0].(map[string]any)["type"] != "thread_created" {
 		t.Fatalf("doctor should not create read/claim activity: %#v", activities)
+	}
+}
+
+func TestCommentsCLIDoctorPreservesActorKindInWaitSuggestion(t *testing.T) {
+	server := newCommentsCLITestServer(t)
+	defer server.Close()
+
+	out := runCommentsCLIForTest(t, "doctor", "--url", server.URL, "--actor", "coding-agent:dogfood", "--actor-kind", "codex", "--json")
+	var payload struct {
+		RecommendedAction string                    `json:"recommendedAction"`
+		SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands"`
+	}
+	decodeCLIJSON(t, out, &payload)
+	if payload.RecommendedAction != "wait_for_gui_feedback" || len(payload.SuggestedCommands) != 4 {
+		t.Fatalf("doctor wait guidance = %#v", payload)
+	}
+	watch := payload.SuggestedCommands[3]
+	if watch.Intent != "watch_open_worklist" || watch.Command != "comments watch" || !containsString(watch.Args, "--actor-kind") || !containsString(watch.Args, "codex") {
+		t.Fatalf("doctor watch suggestion = %#v", watch)
 	}
 }
 

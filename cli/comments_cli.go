@@ -5334,12 +5334,12 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
 	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs([]string{"comments", "mine", "--actor", actorID, "--json"}), options.URL), "", "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand."),
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "work", "--actor", actorID, "--wait", "--loop", "--idle-events", "--full", "--json"}), options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
-		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "inbox", "--actor", actorID, "--json"}), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
+		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL), "", "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand."),
+		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, options.ActorKind, "--wait", "--loop", "--idle-events", "--full", "--json")), options.URL, options.ReceiptLog), "", "Enter the preferred resident agent loop for GUI feedback.", clientSeed+":work"),
+		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
 	if openThreadCount == 0 {
-		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs([]string{"comments", "watch", "--actor", actorID, "--json"}), options.URL, options.ReceiptLog), "", "Wait for compact GUI feedback routing without claiming work immediately."))
+		suggestions = append(suggestions, suggestedCommentsCommand("watch_open_worklist", "comments watch", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "watch"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Wait for compact GUI feedback routing without claiming work immediately."))
 	}
 	return suggestions
 }
@@ -7126,7 +7126,6 @@ func commentsHelpText() string {
 		"  vivi comments release <thread-id> --actor claude-code --json",
 		"  vivi comments release <thread-id> --body-file /tmp/vivi-handoff.md --actor claude-code --json",
 		"  vivi comments release <thread-id> --triage-file - --actor claude-code --require-claim --json",
-		"  vivi comments watch --actor claude-code --json",
 		"  vivi comments watch --actor claude-code --json",
 		"  vivi comments follow <thread-id> --no-initial --json",
 		"  vivi comments list --status open --json",
