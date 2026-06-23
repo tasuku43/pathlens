@@ -648,13 +648,14 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 
 	inbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--with-activities", "--json")
 	var inboxPayload struct {
-		Actor           actorOutput             `json:"actor"`
-		Cursor          string                  `json:"cursor"`
-		Count           int                     `json:"count"`
-		Summary         commentRoutingSummary   `json:"summary"`
-		Mine            commentInboxGroupOutput `json:"mine"`
-		Unclaimed       commentInboxGroupOutput `json:"unclaimed"`
-		ClaimedByOthers commentInboxGroupOutput `json:"claimedByOthers"`
+		Actor             actorOutput             `json:"actor"`
+		Cursor            string                  `json:"cursor"`
+		Count             int                     `json:"count"`
+		Summary           commentRoutingSummary   `json:"summary"`
+		Mine              commentInboxGroupOutput `json:"mine"`
+		Unclaimed         commentInboxGroupOutput `json:"unclaimed"`
+		ClaimedByOthers   commentInboxGroupOutput `json:"claimedByOthers"`
+		SourceUnavailable commentInboxGroupOutput `json:"sourceUnavailable"`
 	}
 	decodeCLIJSON(t, inbox, &inboxPayload)
 	if inboxPayload.Actor.ID != "codex:inbox-1" || inboxPayload.Actor.Kind != "codex" {
@@ -686,6 +687,9 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	}
 	if len(inboxPayload.ClaimedByOthers.Claims) != 1 || inboxPayload.ClaimedByOthers.Claims[0].Actor.ID != "claude-code:inbox-2" {
 		t.Fatalf("claimed-by-others claims = %#v", inboxPayload.ClaimedByOthers.Claims)
+	}
+	if inboxPayload.SourceUnavailable.Count != 1 || len(inboxPayload.SourceUnavailable.Threads) != 1 || inboxPayload.SourceUnavailable.Threads[0].Path != "stale.md" {
+		t.Fatalf("source-unavailable group = %#v", inboxPayload.SourceUnavailable)
 	}
 
 	runCommentsCLIForTest(t, "release", mineID, "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--client-event-id", "inbox-release-mine", "--json")
@@ -1561,8 +1565,11 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if inboxSummaryProperties["recommendedAction"].(map[string]any)["type"] != "string" || inboxSummaryProperties["totalOpenThreadCount"].(map[string]any)["minimum"] != float64(0) || inboxSummaryProperties["sourceUnavailableCount"].(map[string]any)["minimum"] != float64(0) || inboxSummaryProperties["mineCount"].(map[string]any)["minimum"] != float64(0) || len(inboxPayload.AcceptedBy) != 2 {
 		t.Fatalf("inbox schema properties = %#v", inboxPayload)
 	}
+	if inboxProperties["sourceUnavailable"].(map[string]any)["type"] != "object" {
+		t.Fatalf("inbox sourceUnavailable schema = %#v", inboxPayload)
+	}
 	inboxExampleSummary := inboxPayload.Example["summary"].(map[string]any)
-	if inboxExampleSummary["recommendedAction"] != "resume_owned_work" || inboxPayload.Example["mine"].(map[string]any)["count"] != float64(1) && inboxPayload.Example["mine"].(map[string]any)["count"] != 1 {
+	if inboxExampleSummary["recommendedAction"] != "resume_owned_work" || inboxPayload.Example["mine"].(map[string]any)["count"] != float64(1) && inboxPayload.Example["mine"].(map[string]any)["count"] != 1 || inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != float64(0) && inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != 0 {
 		t.Fatalf("inbox schema example = %#v", inboxPayload.Example)
 	}
 

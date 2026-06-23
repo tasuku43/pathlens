@@ -80,6 +80,10 @@ interface InboxCommentPayload {
     count: number;
     threads: Array<{ id: string; path: string; status: string }>;
   };
+  sourceUnavailable: {
+    count: number;
+    threads: Array<{ id: string; path: string; status: string }>;
+  };
 }
 
 let fixture: ContractFixture;
@@ -427,6 +431,16 @@ it("excludes stale source-unavailable threads from inbox work routing", async ()
     }),
   ]);
   expect(inbox.unclaimed.threads[0]?.id).not.toBe(stale.createThread.id);
+  expect(inbox.sourceUnavailable).toMatchObject({
+    count: 1,
+    threads: [
+      {
+        id: stale.createThread.id,
+        path: "stale.md",
+        status: "open",
+      },
+    ],
+  });
   expect(inbox.summary.suggestedCommands).toEqual(
     expect.arrayContaining([
       expect.objectContaining({

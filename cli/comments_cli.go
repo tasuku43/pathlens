@@ -1458,15 +1458,16 @@ func commentInboxOutputSchema() commentSchemaOutput {
 			"title":                "commentInboxOutput",
 			"type":                 "object",
 			"additionalProperties": true,
-			"required":             []string{"actor", "cursor", "count", "summary", "mine", "unclaimed", "claimedByOthers"},
+			"required":             []string{"actor", "cursor", "count", "summary", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
 			"properties": map[string]any{
-				"actor":           commentActorSchema(),
-				"cursor":          map[string]any{"type": "string"},
-				"count":           map[string]any{"type": "integer", "minimum": 0},
-				"summary":         commentRoutingSummarySchema(),
-				"mine":            commentInboxGroupSchema(),
-				"unclaimed":       commentInboxGroupSchema(),
-				"claimedByOthers": commentInboxGroupSchema(),
+				"actor":             commentActorSchema(),
+				"cursor":            map[string]any{"type": "string"},
+				"count":             map[string]any{"type": "integer", "minimum": 0},
+				"summary":           commentRoutingSummarySchema(),
+				"mine":              commentInboxGroupSchema(),
+				"unclaimed":         commentInboxGroupSchema(),
+				"claimedByOthers":   commentInboxGroupSchema(),
+				"sourceUnavailable": commentInboxGroupSchema(),
 			},
 		},
 		AcceptedBy: []commentSchemaCommand{
@@ -1561,13 +1562,14 @@ func commentBatchOutputSchema() commentSchemaOutput {
 				"open": map[string]any{
 					"type":                 "object",
 					"additionalProperties": true,
-					"required":             []string{"count", "summary", "mine", "unclaimed", "claimedByOthers"},
+					"required":             []string{"count", "summary", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
 					"properties": map[string]any{
-						"count":           map[string]any{"type": "integer", "minimum": 0},
-						"summary":         commentRoutingSummarySchema(),
-						"mine":            commentInboxGroupSchema(),
-						"unclaimed":       commentInboxGroupSchema(),
-						"claimedByOthers": commentInboxGroupSchema(),
+						"count":             map[string]any{"type": "integer", "minimum": 0},
+						"summary":           commentRoutingSummarySchema(),
+						"mine":              commentInboxGroupSchema(),
+						"unclaimed":         commentInboxGroupSchema(),
+						"claimedByOthers":   commentInboxGroupSchema(),
+						"sourceUnavailable": commentInboxGroupSchema(),
 					},
 				},
 				"items": arraySchema(commentWorkItemSchema()),
@@ -1915,6 +1917,11 @@ func commentInboxOutputExample() map[string]any {
 			"claims":  []map[string]any{},
 			"count":   0,
 		},
+		"sourceUnavailable": map[string]any{
+			"threads": []map[string]any{},
+			"claims":  []map[string]any{},
+			"count":   0,
+		},
 	}
 }
 
@@ -2043,6 +2050,11 @@ func commentBatchOutputExample() map[string]any {
 				"count":   0,
 			},
 			"claimedByOthers": map[string]any{
+				"threads": []map[string]any{},
+				"claims":  []map[string]any{},
+				"count":   0,
+			},
+			"sourceUnavailable": map[string]any{
 				"threads": []map[string]any{},
 				"claims":  []map[string]any{},
 				"count":   0,
@@ -4213,13 +4225,14 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		}
 	}
 	payload := map[string]any{
-		"actor":           actorInput(options),
-		"cursor":          cursor,
-		"count":           len(ordered),
-		"summary":         summarizeOpenRouting(routing, options.ActorID, cursor, "inbox", options.URL, options.ReceiptLog),
-		"mine":            routing.Mine,
-		"unclaimed":       routing.Unclaimed,
-		"claimedByOthers": routing.ClaimedByOthers,
+		"actor":             actorInput(options),
+		"cursor":            cursor,
+		"count":             len(ordered),
+		"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "inbox", options.URL, options.ReceiptLog),
+		"mine":              routing.Mine,
+		"unclaimed":         routing.Unclaimed,
+		"claimedByOthers":   routing.ClaimedByOthers,
+		"sourceUnavailable": routing.SourceUnavailable,
 	}
 	return writeJSON(stdout, payload)
 }
@@ -4230,9 +4243,9 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, curs
 		RequiresAttention:      false,
 		AttentionReasons:       []string{},
 		RecommendedAction:      "wait_for_gui_feedback",
-		TotalOpenThreadCount:   actionableOpenThreadCount + routing.SourceUnavailableCount,
+		TotalOpenThreadCount:   actionableOpenThreadCount + routing.SourceUnavailable.Count,
 		OpenThreadCount:        actionableOpenThreadCount,
-		SourceUnavailableCount: routing.SourceUnavailableCount,
+		SourceUnavailableCount: routing.SourceUnavailable.Count,
 		MineCount:              routing.Mine.Count,
 		UnclaimedCount:         routing.Unclaimed.Count,
 		ClaimedByOthersCount:   routing.ClaimedByOthers.Count,
@@ -4347,11 +4360,12 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 		},
 		"threads": ordered,
 		"open": map[string]any{
-			"count":           len(openThreads),
-			"summary":         summarizeOpenRouting(routing, options.ActorID, cursor, "batch", options.URL, options.ReceiptLog),
-			"mine":            routing.Mine,
-			"unclaimed":       routing.Unclaimed,
-			"claimedByOthers": routing.ClaimedByOthers,
+			"count":             len(openThreads),
+			"summary":           summarizeOpenRouting(routing, options.ActorID, cursor, "batch", options.URL, options.ReceiptLog),
+			"mine":              routing.Mine,
+			"unclaimed":         routing.Unclaimed,
+			"claimedByOthers":   routing.ClaimedByOthers,
+			"sourceUnavailable": routing.SourceUnavailable,
 		},
 	}
 	if commentsNeedsWorkItem(options) {
@@ -4367,9 +4381,10 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ordered []commentThreadOutput, actorID string) (commentOpenRoutingOutput, error) {
 	now := time.Now().UTC()
 	routing := commentOpenRoutingOutput{
-		Mine:            commentInboxGroupOutput{Threads: []commentThreadOutput{}, Claims: []commentActivityOutput{}},
-		Unclaimed:       commentInboxGroupOutput{Threads: []commentThreadOutput{}},
-		ClaimedByOthers: commentInboxGroupOutput{Threads: []commentThreadOutput{}, Claims: []commentActivityOutput{}},
+		Mine:              commentInboxGroupOutput{Threads: []commentThreadOutput{}, Claims: []commentActivityOutput{}},
+		Unclaimed:         commentInboxGroupOutput{Threads: []commentThreadOutput{}},
+		ClaimedByOthers:   commentInboxGroupOutput{Threads: []commentThreadOutput{}, Claims: []commentActivityOutput{}},
+		SourceUnavailable: commentInboxGroupOutput{Threads: []commentThreadOutput{}, Claims: []commentActivityOutput{}},
 	}
 	for _, thread := range ordered {
 		activities, err := fetchCommentThreadActivities(ctx, withoutReadHeaders(options), thread.ID)
@@ -4383,7 +4398,7 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 				return commentOpenRoutingOutput{}, err
 			}
 			if !available {
-				routing.SourceUnavailableCount++
+				routing.SourceUnavailable.Threads = append(routing.SourceUnavailable.Threads, thread)
 				continue
 			}
 			routing.Unclaimed.Threads = append(routing.Unclaimed.Threads, thread)
@@ -4399,7 +4414,8 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 			return commentOpenRoutingOutput{}, err
 		}
 		if !available {
-			routing.SourceUnavailableCount++
+			routing.SourceUnavailable.Threads = append(routing.SourceUnavailable.Threads, thread)
+			routing.SourceUnavailable.Claims = append(routing.SourceUnavailable.Claims, *claim)
 			continue
 		}
 		routing.ClaimedByOthers.Threads = append(routing.ClaimedByOthers.Threads, thread)
@@ -4408,6 +4424,7 @@ func commentOpenRouting(ctx context.Context, options commentsCommandOptions, ord
 	routing.Mine.Count = len(routing.Mine.Threads)
 	routing.Unclaimed.Count = len(routing.Unclaimed.Threads)
 	routing.ClaimedByOthers.Count = len(routing.ClaimedByOthers.Threads)
+	routing.SourceUnavailable.Count = len(routing.SourceUnavailable.Threads)
 	return routing, nil
 }
 
@@ -6761,10 +6778,10 @@ type commentRoutingSummary struct {
 }
 
 type commentOpenRoutingOutput struct {
-	Mine                   commentInboxGroupOutput
-	Unclaimed              commentInboxGroupOutput
-	ClaimedByOthers        commentInboxGroupOutput
-	SourceUnavailableCount int
+	Mine              commentInboxGroupOutput
+	Unclaimed         commentInboxGroupOutput
+	ClaimedByOthers   commentInboxGroupOutput
+	SourceUnavailable commentInboxGroupOutput
 }
 
 type commentClaimOutput struct {
