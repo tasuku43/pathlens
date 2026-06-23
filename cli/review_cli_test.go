@@ -52,6 +52,25 @@ func TestReviewCLIQueueAndDiffGuideAgentReview(t *testing.T) {
 		t.Fatalf("review queue suggestions = %#v", queuePayload.Summary.SuggestedCommands)
 	}
 
+	humanQueue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--actor", "codex:test")
+	humanText := humanQueue.String()
+	for _, text := range []string{
+		"Review queue: 1 changed file",
+		"Recommended action: review_changed_files",
+		"Changed files:",
+		"1. modified README.md",
+		"Suggested next commands:",
+		"vivi review diff README.md --base HEAD --url " + server.URL + " --json",
+		"vivi comments work --actor codex:test --wait --loop --idle-events --full --url " + server.URL,
+	} {
+		if !strings.Contains(humanText, text) {
+			t.Fatalf("human review queue output did not include %q\n%s", text, humanText)
+		}
+	}
+	if strings.HasPrefix(strings.TrimSpace(humanText), "{") {
+		t.Fatalf("human review queue output should not be raw JSON:\n%s", humanText)
+	}
+
 	queueWithoutActor := runReviewCLIForTest(t, "queue", "--url", server.URL, "--json")
 	var queueWithoutActorPayload struct {
 		Summary reviewRoutingSummary `json:"summary"`
@@ -125,6 +144,49 @@ func TestReviewCLIQueueOrdersCommentedChangesLikeReviewWorkflow(t *testing.T) {
 	}
 }
 
+func TestReviewCLIQueueUsesGUIFileTypeOrder(t *testing.T) {
+	server := newCommentsCLITestServerWithSetup(t, func(root string) {
+		runGitForCLITest(t, root, "init")
+		runGitForCLITest(t, root, "config", "user.email", "vivi@example.test")
+		runGitForCLITest(t, root, "config", "user.name", "Vivi Test")
+		files := map[string]string{
+			"docs/review.md":      "# Review\n\nBase\n",
+			"include/review.h":    "#define REVIEW_BASE 1\n",
+			"net/review_worker.c": "int review_worker(void) { return 1; }\n",
+		}
+		for path, content := range files {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, path), []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		runGitForCLITest(t, root, "add", ".")
+		runGitForCLITest(t, root, "commit", "-m", "initial")
+		for path, content := range files {
+			if err := os.WriteFile(filepath.Join(root, path), []byte(content+"\nchanged\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+	defer server.Close()
+
+	queue := runReviewCLIForTest(t, "queue", "--url", server.URL, "--json")
+	var queuePayload struct {
+		Changes []reviewChangeOutput `json:"changes"`
+	}
+	decodeReviewCLIJSON(t, queue, &queuePayload)
+	paths := []string{}
+	for _, change := range queuePayload.Changes {
+		paths = append(paths, change.Path)
+	}
+	want := []string{"net/review_worker.c", "include/review.h", "docs/review.md"}
+	if strings.Join(paths, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("review queue order = %#v, want %#v", paths, want)
+	}
+}
+
 func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 	help := reviewHelpText()
 	for _, text := range []string{
@@ -134,6 +196,7 @@ func TestReviewHelpTextSurfacesAgentQuickPath(t *testing.T) {
 		"vivi review bases --url",
 		"vivi review diff <path> --base HEAD",
 		"vivi comments work --actor <actor> --wait --loop --idle-events --full --json",
+		"Without --json, review queue prints a short human summary.",
 		"JSON shape:",
 		"queue: { schemaVersion, available, count, changes[], diffBases, summary }",
 		"queue.summary: { recommendedAction, changedFileCount, suggestedCommands[] }",

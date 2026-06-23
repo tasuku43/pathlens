@@ -54,6 +54,16 @@ type reviewRoutingSummary struct {
 	SuggestedCommands []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
 }
 
+type reviewQueueCLIOutput struct {
+	SchemaVersion int                         `json:"schemaVersion"`
+	Available     bool                        `json:"available"`
+	Reason        string                      `json:"reason"`
+	Count         int                         `json:"count"`
+	Changes       []reviewChangeOutput        `json:"changes"`
+	DiffBases     reviewDiffBaseSummaryOutput `json:"diffBases"`
+	Summary       reviewRoutingSummary        `json:"summary"`
+}
+
 type reviewCommandError struct {
 	cause   error
 	payload reviewErrorEnvelope
@@ -221,7 +231,6 @@ func runReviewCommand(ctx context.Context, args []string, stdout io.Writer) erro
 func parseReviewFlags(command string, args []string) (reviewCommandOptions, []string, error) {
 	options := reviewCommandOptions{
 		URL:  strings.TrimRight(os.Getenv("VIVI_URL"), "/"),
-		JSON: true,
 		Base: "HEAD",
 	}
 	if options.URL == "" {
@@ -230,7 +239,7 @@ func parseReviewFlags(command string, args []string) (reviewCommandOptions, []st
 	flags := flag.NewFlagSet("vivi review "+command, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&options.URL, "url", options.URL, "Vivi server URL")
-	flags.BoolVar(&options.JSON, "json", true, "write JSON output")
+	flags.BoolVar(&options.JSON, "json", false, "write JSON output")
 	flags.StringVar(&options.Base, "base", options.Base, "Git diff base ref")
 	flags.StringVar(&options.Actor, "actor", options.Actor, "Actor id for comments work suggestions")
 	flagArgs, positional := splitReviewFlagsAndPositionals(args)
@@ -322,16 +331,98 @@ func reviewQueue(ctx context.Context, stdout io.Writer, options reviewCommandOpt
 	orderedChanges := orderReviewQueueChangesForAgent(queue.Changes, threads)
 	orderedQueue := queue
 	orderedQueue.Changes = orderedChanges
-	output := map[string]any{
-		"schemaVersion": reviewCLISchemaVersion,
-		"available":     orderedQueue.Available,
-		"reason":        orderedQueue.Reason,
-		"count":         len(orderedChanges),
-		"changes":       orderedChanges,
-		"diffBases":     bases,
-		"summary":       summarizeReviewQueue(orderedQueue, bases, options.URL, options.Actor),
+	output := reviewQueueCLIOutput{
+		SchemaVersion: reviewCLISchemaVersion,
+		Available:     orderedQueue.Available,
+		Reason:        orderedQueue.Reason,
+		Count:         len(orderedChanges),
+		Changes:       orderedChanges,
+		DiffBases:     bases,
+		Summary:       summarizeReviewQueue(orderedQueue, bases, options.URL, options.Actor),
+	}
+	if !options.JSON {
+		writeReviewQueueText(stdout, output)
+		return nil
 	}
 	return writeJSON(stdout, output)
+}
+
+func writeReviewQueueText(stdout io.Writer, output reviewQueueCLIOutput) {
+	if !output.Available {
+		fmt.Fprintln(stdout, "Review queue unavailable")
+		if output.Reason != "" {
+			fmt.Fprintf(stdout, "Reason: %s\n", output.Reason)
+		}
+		fmt.Fprintf(stdout, "Recommended action: %s\n", output.Summary.RecommendedAction)
+		return
+	}
+
+	fmt.Fprintf(stdout, "Review queue: %d changed %s\n", output.Count, pluralize("file", output.Count))
+	fmt.Fprintf(stdout, "Recommended action: %s\n", output.Summary.RecommendedAction)
+	if len(output.DiffBases.Options) > 0 {
+		base := output.DiffBases.Options[0]
+		fmt.Fprintf(stdout, "Default diff base: %s (%s)\n", base.Label, base.Ref)
+	}
+	if output.Count > 0 {
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "Changed files:")
+		limit := output.Count
+		if limit > 10 {
+			limit = 10
+		}
+		for index, change := range output.Changes[:limit] {
+			path := change.Path
+			if change.OriginalPath != "" && change.OriginalPath != change.Path {
+				path = change.OriginalPath + " -> " + change.Path
+			}
+			status := change.Status
+			if change.Kind != "" && change.Kind != "file" {
+				status += " " + change.Kind
+			}
+			fmt.Fprintf(stdout, "  %d. %s %s\n", index+1, status, path)
+		}
+		if output.Count > limit {
+			fmt.Fprintf(stdout, "  ... %d more\n", output.Count-limit)
+		}
+	}
+	if len(output.Summary.SuggestedCommands) > 0 {
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "Suggested next commands:")
+		for _, command := range output.Summary.SuggestedCommands {
+			fmt.Fprintf(stdout, "  - %s: %s\n", command.Intent, formatViviCommand(command.Args))
+		}
+	}
+}
+
+func pluralize(word string, count int) string {
+	if count == 1 {
+		return word
+	}
+	return word + "s"
+}
+
+func formatViviCommand(args []string) string {
+	parts := make([]string, 0, len(args)+1)
+	parts = append(parts, "vivi")
+	for _, arg := range args {
+		parts = append(parts, shellQuoteCLIArg(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+func shellQuoteCLIArg(arg string) string {
+	if arg == "" {
+		return "''"
+	}
+	if strings.IndexFunc(arg, func(r rune) bool {
+		return !(r == '-' || r == '_' || r == '.' || r == '/' || r == ':' || r == '=' || r == '+' || r == '@' || r == '%' || r == ',' ||
+			(r >= '0' && r <= '9') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= 'a' && r <= 'z'))
+	}) < 0 {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func fetchReviewQueueThreads(ctx context.Context, serverURL string) ([]commentThreadOutput, error) {
@@ -442,9 +533,12 @@ type reviewQueuePathCommentStats struct {
 
 func orderReviewQueueChangesForAgent(changes []reviewChangeOutput, threads []commentThreadOutput) []reviewChangeOutput {
 	ordered := append([]reviewChangeOutput(nil), changes...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return compareReviewChangeOutputs(ordered[i], ordered[j]) < 0
+	})
 	changeOrder := make(map[string]int, len(changes))
 	statsByPath := make(map[string]reviewQueuePathCommentStats)
-	for index, change := range changes {
+	for index, change := range ordered {
 		changeOrder[change.Path] = index
 	}
 	for _, thread := range threads {
@@ -490,6 +584,30 @@ func orderReviewQueueChangesForAgent(changes []reviewChangeOutput, threads []com
 	return ordered
 }
 
+func compareReviewChangeOutputs(a reviewChangeOutput, b reviewChangeOutput) int {
+	typeCompare := strings.Compare(reviewChangeFileTypeKey(a.Path), reviewChangeFileTypeKey(b.Path))
+	if typeCompare != 0 {
+		return typeCompare
+	}
+	pathCompare := strings.Compare(strings.ToLower(a.Path), strings.ToLower(b.Path))
+	if pathCompare != 0 {
+		return pathCompare
+	}
+	return strings.Compare(a.Path, b.Path)
+}
+
+func reviewChangeFileTypeKey(path string) string {
+	lower := strings.ToLower(path)
+	basename := lower
+	if index := strings.LastIndex(basename, "/"); index >= 0 {
+		basename = basename[index+1:]
+	}
+	if !strings.Contains(basename, ".") {
+		return basename
+	}
+	return basename[strings.LastIndex(basename, ".")+1:]
+}
+
 func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, description string) commentSuggestedCommand {
 	if actorID == "" {
 		return suggestedCommentsCommand("choose_agent_actor", "comments doctor", withURLArg([]string{"comments", "doctor", "--json"}, serverURL), "", "Run startup readiness without an actor to get the configure_actor branch before starting a resident GUI feedback loop.")
@@ -505,6 +623,7 @@ func reviewHelpText() string {
 		"  1. List the Git working-tree review queue: vivi review queue --actor <actor> --json",
 		"  2. Inspect a changed file: vivi review diff <path> --base HEAD --json",
 		"  3. Use vivi comments work --actor <actor> --wait --loop --idle-events --full --json for human GUI feedback",
+		"  Without --json, review queue prints a short human summary.",
 		"",
 		"Usage:",
 		"  vivi review queue --actor codex --url http://127.0.0.1:4317 --json",
@@ -521,6 +640,6 @@ func reviewHelpText() string {
 		"  --url <server>            Vivi server URL (default: VIVI_URL or http://127.0.0.1:4317)",
 		"  --base <ref>              Git diff base for review diff (default: HEAD)",
 		"  --actor <id>              Actor id used in comments work suggestions",
-		"  --json                    Write JSON output",
+		"  --json                    Write JSON output instead of the human queue summary",
 	}, "\n")
 }
