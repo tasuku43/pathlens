@@ -2020,9 +2020,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   useEffect(() => {
     const runTopbarFallbackAction = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const button = target.closest<HTMLElement>("[data-topbar-action]");
+      const button = topbarActionButtonFromEventTarget(event.target);
       if (!button) return;
 
       event.preventDefault();
@@ -2816,6 +2814,16 @@ function readViewportWidth(): number {
   if (typeof window === "undefined") return 1280;
   return window.innerWidth;
 }
+
+export function topbarActionButtonFromEventTarget(
+  target: EventTarget | null,
+): HTMLElement | null {
+  if (typeof Element === "undefined") return null;
+  if (!(target instanceof Element)) return null;
+  return target.closest<HTMLElement>(topbarActionSelector);
+}
+
+export const topbarActionSelector = ".topbar [data-topbar-action]";
 
 function mergeComments(
   current: ViviComment[],

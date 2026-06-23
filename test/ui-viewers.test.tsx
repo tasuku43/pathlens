@@ -66,7 +66,11 @@ import {
   MermaidViewer,
 } from "../ui/src/features/file-context/viewers/MermaidViewer.js";
 import { TextViewer } from "../ui/src/features/file-context/viewers/TextViewer.js";
-import { TextSearchNavigationBar } from "../ui/src/features/workbench/WorkbenchContainer.js";
+import {
+  TextSearchNavigationBar,
+  topbarActionSelector,
+  topbarActionButtonFromEventTarget,
+} from "../ui/src/features/workbench/WorkbenchContainer.js";
 import type { CommentDraft } from "../ui/src/state/comments.js";
 import { summarizeThreadActivity } from "../ui/src/state/comment-activity.js";
 
@@ -267,6 +271,11 @@ it("marks overlay topbar buttons for native click fallback routing", () => {
     });
     expect(button).toBeTruthy();
   }
+});
+
+it("routes fallback topbar actions only from the real topbar", () => {
+  expect(topbarActionSelector).toBe(".topbar [data-topbar-action]");
+  expect(topbarActionButtonFromEventTarget(null)).toBeNull();
 });
 
 it("prioritizes attention-needed comments in the topbar entry point", () => {
@@ -2002,6 +2011,37 @@ it("renders comment activity in inline thread headers without changing lifecycle
   expect(html).toContain("Codex replied 1m ago");
   expect(html).toContain('class="comment-status open">Open</span>');
   expect(html).not.toContain("read</span></span>");
+});
+
+it("autofocuses new inline comments without focusing existing reply threads", () => {
+  const html = renderToStaticMarkup(
+    <CodeCommentThread
+      thread={{
+        key: "src/app.ts:4-4",
+        path: "src/app.ts",
+        lineStart: 4,
+        lineEnd: 4,
+        status: "open",
+        comments: [],
+      }}
+      draft={{
+        path: "src/app.ts",
+        viewerKind: "text",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: "src/app.ts",
+            lineStart: 4,
+            lineEnd: 4,
+          },
+        },
+      }}
+      onClose={() => undefined}
+    />,
+  );
+
+  expect(html).toContain('aria-label="New line comment"');
+  expect(html).toContain("autofocus");
 });
 
 it("renders inline thread actions from the latest published thread status", () => {

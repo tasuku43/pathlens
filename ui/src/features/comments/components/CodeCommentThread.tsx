@@ -208,6 +208,7 @@ export function CodeCommentThread({
         }}
       >
         <textarea
+          autoFocus={!thread.comments.length}
           rows={2}
           value={body}
           placeholder={
