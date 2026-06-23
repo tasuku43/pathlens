@@ -86,6 +86,13 @@ export const ReviewQueueItemWithOpenThreads: Story = {
     await expect(
       canvasElement.querySelector(`#${descriptionId}`),
     ).toHaveTextContent("open thread");
+    const commentsPanelAction = canvas.getByTestId(
+      "review-open-comments-panel",
+    );
+    await expect(commentsPanelAction).toHaveTextContent(
+      "Open 2 messages in Comments panel",
+    );
+    await expect(commentsPanelAction).toHaveClass("review-focus-action");
   },
 };
 

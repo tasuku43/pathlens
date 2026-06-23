@@ -109,6 +109,10 @@ export function Inspector({
     file && (file.viewerKind === "code" || file.viewerKind === "json")
       ? buildCodeMetadata(file, selectedCodeRange)
       : null;
+  const fileKindLabel = file ? viewerKindLabel(file.viewerKind) : "No file";
+  const activeChange = file
+    ? reviewChanges.find((change) => change.path === file.path)
+    : null;
   const activeThreads = summarizeActiveThreads(comments);
   const activeThreadCounts = countThreadsByStatus(activeThreads);
   const queueItems: ReviewQueueItem[] =
@@ -402,6 +406,38 @@ export function Inspector({
           </div>
         ) : null}
 
+        <p className="active-file-line">
+          {file ? (
+            <>
+              <span>{file.path}</span> · {fileKindLabel}
+              {fileRemoved ? " · removed from disk" : ""}
+              {activeChange ? " · in review queue" : ""}
+            </>
+          ) : (
+            "No file selected"
+          )}
+        </p>
+        <div className="active-file-actions" aria-label="Active file actions">
+          <button
+            className="secondary-action inline-action"
+            disabled={!file}
+            onClick={() => onRevealInTree()}
+            type="button"
+          >
+            Show in Explorer
+          </button>
+          <button
+            aria-label={commentsPanelAction.description}
+            className="review-focus-action comments-panel-action"
+            data-testid="review-open-comments-panel"
+            disabled={commentsPanelAction.disabled}
+            title={commentsPanelAction.description}
+            type="button"
+            onClick={onOpenComments}
+          >
+            {commentsPanelAction.label}
+          </button>
+        </div>
         {file ? (
           <div className="review-focus-card" aria-label="Active file review">
             <div className="review-focus-head">
@@ -437,18 +473,6 @@ export function Inspector({
                 feedback.
               </p>
             )}
-            {comments.length && onOpenComments ? (
-              <button
-                className="review-focus-action"
-                data-testid="review-open-comment-history"
-                type="button"
-                onClick={onOpenComments}
-              >
-                {activeThreadCounts.open
-                  ? "Open active threads"
-                  : "Open comment history"}
-              </button>
-            ) : null}
           </div>
         ) : null}
 
@@ -482,16 +506,6 @@ export function Inspector({
                 ))}
               </div>
             ) : null}
-            <button
-              aria-label={commentsPanelAction.description}
-              data-testid="review-open-comments-panel"
-              disabled={commentsPanelAction.disabled}
-              title={commentsPanelAction.description}
-              type="button"
-              onClick={onOpenComments}
-            >
-              {commentsPanelAction.label}
-            </button>
             {activeThreads.length ? (
               <div className="active-comment-threads" aria-label="Active file comment threads">
                 {activeThreads.slice(0, 4).map((thread) => {
@@ -960,7 +974,7 @@ function commentsPanelActionState({
   return {
     description: `Open ${messageCount} ${messageCount === 1 ? "message" : "messages"} in Comments panel`,
     disabled: false,
-    label: "Open in Comments panel",
+    label: `Open ${messageCount} ${messageCount === 1 ? "message" : "messages"} in Comments panel`,
   };
 }
 
@@ -1168,4 +1182,15 @@ function formatBytes(size: number): string {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function viewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {
+  if (viewerKind === "markdown") return "Markdown";
+  if (viewerKind === "html") return "HTML";
+  if (viewerKind === "json") return "JSON";
+  if (viewerKind === "image") return "Image";
+  if (viewerKind === "code") return "Code";
+  if (viewerKind === "mermaid") return "Mermaid";
+  if (viewerKind === "unsupported") return "Unsupported";
+  return "Text";
 }

@@ -2770,6 +2770,12 @@ body.resizing-workbench-pane {
 .draft-comment-summary {
   color: var(--comment-text);
 }
+.active-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
 .review-focus-card {
   display: grid;
   gap: 9px;
@@ -2833,6 +2839,12 @@ body.resizing-workbench-pane {
   outline: none;
   background: var(--accent-faint);
   color: var(--accent);
+}
+.review-focus-action:disabled {
+  border-color: var(--soft-line);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: default;
 }
 .published-batch-summary {
   display: flex;

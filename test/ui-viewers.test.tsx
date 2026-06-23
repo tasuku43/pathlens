@@ -1738,13 +1738,16 @@ it("summarizes active-file review focus without mixing drafts into open threads"
   );
   expect(html).toContain("source");
   expect(html).toContain("L2");
+  expect(html).toContain(
+    '<div class="active-file-actions" aria-label="Active file actions">',
+  );
   expect(html).toContain("Open 3 messages in Comments panel");
-  expect(html).toContain('data-testid="review-open-comment-history"');
+  expect(html).toContain(
+    'class="review-focus-action comments-panel-action"',
+  );
   expect(html).toContain('data-testid="review-open-comments-panel"');
   expect(html).toContain('data-testid="review-comment-thread"');
   expect(html).toContain('data-comment-thread-id="thread-1"');
-  expect(html).toContain("Open active threads");
-  expect(html).toContain('class="review-focus-action"');
   expect(html).toContain(
     'aria-label="Thread actions for src/app.ts, L2"',
   );
@@ -1917,11 +1920,13 @@ it("disables the inspector comments panel action when the panel is unavailable",
   });
   const props = button.props as {
     "aria-label"?: string;
+    className?: string;
     disabled?: boolean;
     title?: string;
   };
 
   expect(props.disabled).toBe(true);
+  expect(props.className).toBe("review-focus-action comments-panel-action");
   expect(props.title).toBe("Comments panel is not available in this view");
   expect(props["aria-label"]).toBe(
     "Comments panel is not available in this view",
