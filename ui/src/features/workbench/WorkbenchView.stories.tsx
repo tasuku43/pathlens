@@ -85,8 +85,14 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     const expandInspector = canvas.getByRole("button", {
       name: "Expand inspector",
     });
+    const expandRect = expandInspector.getBoundingClientRect();
+    const expandHit = canvasElement.ownerDocument.elementFromPoint(
+      expandRect.left + expandRect.width / 2,
+      expandRect.top + expandRect.height / 2,
+    );
 
     await expect(expandInspector).toBeVisible();
+    expect(expandHit).toBe(expandInspector);
     await expect(
       canvas.queryByRole("button", { name: "Collapse inspector" }),
     ).not.toBeInTheDocument();
@@ -97,6 +103,19 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
       canvas.getByRole("button", { name: "Collapse inspector" }),
     ).toBeVisible();
     await expect(canvas.getByText("Review Queue")).toBeVisible();
+
+    const firstReviewItem =
+      canvasElement.querySelector<HTMLElement>(".review-queue .change-open");
+    expect(firstReviewItem).not.toBeNull();
+    if (firstReviewItem) {
+      const itemRect = firstReviewItem.getBoundingClientRect();
+      const itemHit = canvasElement.ownerDocument.elementFromPoint(
+        itemRect.left + itemRect.width / 2,
+        itemRect.top + itemRect.height / 2,
+      );
+
+      expect(itemHit).toBe(firstReviewItem);
+    }
   },
 };
 

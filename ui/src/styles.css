@@ -482,6 +482,10 @@ body.resizing-workbench-pane {
   color: var(--text);
   opacity: 1;
 }
+.rail-toggle > *,
+.change-open > * {
+  pointer-events: none;
+}
 .sidebar-rail-toggle {
   left: calc(var(--sidebar-width, 280px) - 12px);
 }
