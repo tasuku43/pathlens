@@ -274,6 +274,37 @@ it("marks overlay topbar buttons for native click fallback routing", () => {
 });
 
 it("routes fallback topbar actions only from the real topbar", () => {
+  const originalElement = globalThis.Element;
+  class FakeElement {
+    constructor(private readonly match: unknown) {}
+    closest(selector: string) {
+      return selector === topbarActionSelector ? this.match : null;
+    }
+  }
+  const topbarButton = {};
+  const injectedButton = null;
+
+  Object.defineProperty(globalThis, "Element", {
+    configurable: true,
+    value: FakeElement,
+  });
+  try {
+    expect(
+      topbarActionButtonFromEventTarget(
+        new FakeElement(topbarButton) as unknown as EventTarget,
+      ),
+    ).toBe(topbarButton);
+    expect(
+      topbarActionButtonFromEventTarget(
+        new FakeElement(injectedButton) as unknown as EventTarget,
+      ),
+    ).toBeNull();
+  } finally {
+    Object.defineProperty(globalThis, "Element", {
+      configurable: true,
+      value: originalElement,
+    });
+  }
   expect(topbarActionSelector).toBe(".topbar [data-topbar-action]");
   expect(topbarActionButtonFromEventTarget(null)).toBeNull();
 });

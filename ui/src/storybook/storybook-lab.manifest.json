@@ -57,6 +57,7 @@
       "intent": "Represent open, resolved, archived, draft, published, failure, and agent-read/reply states without requiring a backend.",
       "requiredStories": [
         "Review/Comments/Inline Thread/Open",
+        "Review/Comments/Inline Thread/NewLineComment",
         "Review/Comments/Inline Thread/Resolved",
         "Review/Comments/Inline Thread/Archived",
         "Review/Comments/Inline Thread/AgentHasReadThread",
@@ -67,6 +68,7 @@
       ],
       "interactionStories": [
         "Review/Comments/Inline Thread/Open",
+        "Review/Comments/Inline Thread/NewLineComment",
         "Review/Drafts/Draft Review Tray/PublishCtaEnabled"
       ]
     },

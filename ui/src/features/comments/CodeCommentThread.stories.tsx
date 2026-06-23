@@ -84,6 +84,7 @@ export const Open: Story = {
     await expect(
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Reply to thread")).not.toHaveFocus();
     await userEvent.type(canvas.getByLabelText("Reply to thread"), "Looks good");
     await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
     await expect(args.onCreateComment).toHaveBeenCalled();
@@ -98,6 +99,38 @@ export const Open: Story = {
 };
 export const Resolved: Story = { args: args("resolved") };
 export const Archived: Story = { args: args("archived") };
+
+export const NewLineComment: Story = {
+  tags: ["interaction"],
+  args: {
+    thread: {
+      key: "new-line-comment",
+      path: sampleFiles.code.path,
+      lineStart: 14,
+      lineEnd: 14,
+      status: "open",
+      comments: [],
+    },
+    draft: {
+      path: sampleFiles.code.path,
+      viewerKind: "text",
+      anchor: {
+        surface: "source",
+        canonical: {
+          path: sampleFiles.code.path,
+          lineStart: 14,
+          lineEnd: 14,
+          quote: "setError(String(err));",
+          fileHash: sampleFiles.code.etag,
+        },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+  },
+};
 
 export const UserWritesOneDraftComment: Story = {
   args: {
