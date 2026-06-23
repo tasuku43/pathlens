@@ -34,6 +34,7 @@ import {
   summarizeReviewQueue,
   type ReviewQueueItem,
 } from "../../state/review-queue.js";
+import { gitReviewUnavailableGuidance } from "../../state/git-review-refresh.js";
 import type { OutlineHeading } from "../../state/outline.js";
 
 interface Props {
@@ -153,6 +154,9 @@ export function Inspector({
     canOpen: Boolean(onOpenComments),
     messageCount: comments.length,
   });
+  const gitReviewGuidance = gitReviewUnavailableGuidance(
+    reviewUnavailableReason,
+  );
   return (
     <aside className="inspector" aria-label="Review inspector">
       <div className="panel-title">
@@ -383,6 +387,7 @@ export function Inspector({
         {queueItems.length && reviewUnavailableReason ? (
           <p className="muted compact-empty">
             Git review warning: {reviewUnavailableReason}
+            {gitReviewGuidance ? ` ${gitReviewGuidance}` : ""}
           </p>
         ) : null}
         {reviewLoading ? (
@@ -392,9 +397,15 @@ export function Inspector({
           </p>
         ) : null}
         {!queueItems.length && reviewUnavailableReason ? (
-          <p className="muted compact-empty">
-            Git review unavailable: {reviewUnavailableReason}
-          </p>
+          <div
+            className="review-empty-state"
+            role="status"
+            aria-label="Git review unavailable"
+          >
+            <strong>Git review unavailable</strong>
+            <span>{reviewUnavailableReason}</span>
+            {gitReviewGuidance ? <span>{gitReviewGuidance}</span> : null}
+          </div>
         ) : null}
         {!queueItems.length && !reviewUnavailableReason && !reviewLoading ? (
           <div className="review-empty-state" aria-label="Review queue empty">

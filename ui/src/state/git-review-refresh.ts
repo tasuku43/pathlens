@@ -6,6 +6,8 @@ export const gitTimeoutReason =
   "Git command timed out while reading this workspace.";
 export const gitPartialTimeoutReason =
   "Git untracked scan timed out; showing tracked changes only.";
+export const gitReviewTimeoutGuidance =
+  "Vivi will retry; for large workspaces, restart with --git-review-timeout 10s.";
 
 export interface GitReviewPollTimer {
   setInterval(handler: () => void, timeout: number): number;
@@ -32,6 +34,13 @@ export function shouldPollGitReview(
     return nowMs - options.lastAttemptMs >= retryAfterMs;
   }
   return gitReview?.available !== false;
+}
+
+export function gitReviewUnavailableGuidance(
+  reason: string | null | undefined,
+): string | null {
+  if (reason === gitTimeoutReason) return gitReviewTimeoutGuidance;
+  return null;
 }
 
 export function shouldStartGitReviewPolling(

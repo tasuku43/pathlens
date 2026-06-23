@@ -1,5 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, userEvent, within } from "storybook/test";
+import {
+  gitReviewTimeoutGuidance,
+  gitTimeoutReason,
+} from "../../state/git-review-refresh.js";
 import { buildReviewQueueItems } from "../../state/review-queue.js";
 import {
   manyReviewComments,
@@ -245,6 +249,25 @@ export const GitReviewUnavailable: Story = {
     reviewItems: [],
     reviewUnavailableReason: "No git repository found under the selected root.",
     unreadReviewPaths: new Set(),
+  },
+};
+
+export const GitReviewTimeoutUnavailable: Story = {
+  args: {
+    reviewChanges: [],
+    reviewItems: [],
+    reviewUnavailableReason: gitTimeoutReason,
+    unreadReviewPaths: new Set(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("status", { name: "Git review unavailable" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText(gitTimeoutReason)).toBeInTheDocument();
+    await expect(
+      canvas.getByText(gitReviewTimeoutGuidance),
+    ).toBeInTheDocument();
   },
 };
 
