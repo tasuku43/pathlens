@@ -30,8 +30,11 @@ func TestHTMLPreviewCSPIncludesSandbox(t *testing.T) {
 	if !strings.Contains(defaultPolicy, "sandbox allow-same-origin") {
 		t.Fatalf("default CSP = %q, want sandbox", defaultPolicy)
 	}
-	if strings.Contains(defaultPolicy, "allow-scripts") {
-		t.Fatalf("default CSP = %q, should not allow scripts", defaultPolicy)
+	if !strings.Contains(defaultPolicy, "sandbox allow-same-origin allow-scripts") {
+		t.Fatalf("default CSP = %q, want Vivi runtime scripts in sandbox", defaultPolicy)
+	}
+	if strings.Contains(defaultPolicy, "script-src 'self' 'unsafe-inline'") {
+		t.Fatalf("default CSP = %q, should not allow user scripts", defaultPolicy)
 	}
 
 	scriptPolicy := htmlPreviewCSP(true, "nonce")
@@ -147,16 +150,22 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`vivi-html-thread-layout`,
 		`drafting-rendered-comment`,
 		`rendered-comment-marker`,
-		`--rendered-comment-block-left:-12px`,
+		`--rendered-comment-block-left:0px`,
 		`.vivi-rendered-comment-block:not(tr)::before`,
+		`.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:0;`,
+		`.vivi-rendered-comment-block:not(tr)>*{position:relative;z-index:1;}`,
+		`.vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before`,
 		`rendered-comment-range-join-after:not(tr)::after`,
 		`--rendered-comment-join-after`,
 		`block.style.setProperty("--rendered-comment-block-left"`,
 		`block.style.setProperty("--rendered-comment-block-right"`,
 		`blockquote.vivi-rendered-comment-block.has-rendered-comment`,
-		`li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}`,
+		`li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em);}`,
 		`Open comment thread with `,
-		`const preferredBlockSelectors = ["button","a","tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p","section","article","main","nav","header","footer"];`,
+		`shouldProjectSourceRange`,
+		`const layoutContainerBlockTags = new Set(["main", "section", "article", "nav", "aside", "header", "footer", "figure"]);`,
+		`const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter(isCommentableBlock);`,
+		`document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));`,
 		`const interactiveSelector = "input,select,textarea,[contenteditable]";`,
 		`event.preventDefault();`,
 	} {
@@ -165,6 +174,8 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		}
 	}
 	for _, unwanted := range []string{
+		`z-index:-1`,
+		`.vivi-rendered-comment-block:not(tr):hover::before`,
 		`rendered-comment-range-join-after:not(tr)::after{content:"";position:absolute;z-index:1;left:var(--rendered-comment-block-left);right:var(--rendered-comment-block-right);top:100%;height:var(--rendered-comment-join-after,0);pointer-events:none;background:linear-gradient(90deg,var(--comment-tint-active),color-mix(in srgb,var(--comment-tint) 56%,transparent) 68%,transparent);box-shadow`,
 		`active-rendered-comment.rendered-comment-range-join-after:not(tr)::after{background:linear-gradient(90deg,color-mix(in srgb,var(--comment-tint-active) 86%,white),var(--comment-tint) 72%,transparent);box-shadow`,
 	} {

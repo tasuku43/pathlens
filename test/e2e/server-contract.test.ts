@@ -1,6 +1,7 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { chromium, type Page } from "playwright";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { ViewerService } from "../../server/typescript/application/viewer-service.js";
 import type {
@@ -118,7 +119,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
     "script-src 'nonce-",
   );
   expect(preview.headers.get("content-security-policy")).toContain(
-    "sandbox allow-same-origin",
+    "sandbox allow-same-origin allow-scripts",
   );
   expect(preview.headers.get("content-security-policy")).not.toContain(
     "script-src 'self' 'unsafe-inline'",
@@ -149,6 +150,171 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(css.status).toBe(200);
   expect(css.headers.get("content-type")).toContain("text/css");
   expect(await css.text()).toContain("rgb(255, 0, 0)");
+}, 10000);
+
+it("targets the nearest rendered HTML block in the UI mock index cards", async () => {
+  const indexHtml = await readFile("docs/ui-mocks/index.html", "utf8");
+  await writeFile(path.join(dir, "index.html"), indexHtml);
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const titleLine = lineNumberFor(
+    indexHtml,
+    "<h2>01 Classic explorer</h2>",
+  );
+  const cardLine = lineNumberFor(
+    indexHtml,
+    '<a class="mock-card" href="01-classic-explorer.html"',
+  );
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=index.html`);
+
+    const titleTargetPromise = nextHtmlBlockTarget(page);
+    await page.getByRole("heading", { name: "01 Classic explorer" }).click();
+    const titleTarget = await titleTargetPromise;
+    expect(titleTarget).toMatchObject({
+      type: "vivi-html-block-target",
+      text: "01 Classic explorer",
+      sourceLineStart: titleLine,
+      sourceLineEnd: titleLine,
+    });
+
+    const cardTargetPromise = nextHtmlBlockTarget(page);
+    await page
+      .locator('a.mock-card[href="01-classic-explorer.html"] .tag')
+      .click();
+    const cardTarget = await cardTargetPromise;
+    expect(cardTarget.type).toBe("vivi-html-block-target");
+    expect(cardTarget.text).toContain("01 Classic explorer");
+    expect(cardTarget.text).toContain("Open mock");
+    expect(cardTarget.sourceLineStart).toBe(cardLine);
+    expect(cardTarget.sourceLineEnd).toBeGreaterThan(cardLine);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
+it("shows hover feedback only on the nearest rendered HTML block", async () => {
+  const readerHtml = await readFile("docs/ui-mocks/02-doc-reader.html", "utf8");
+  await writeFile(path.join(dir, "index.html"), readerHtml);
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=index.html`);
+    await page
+      .getByText("This layout treats Markdown as the primary surface.")
+      .hover();
+
+    const paragraphHover = await renderedHtmlHoverState(page);
+    expect(paragraphHover).toEqual([
+      expect.objectContaining({
+        tagName: "p",
+        beforeLeft: "0px",
+        beforeRight: "0px",
+      }),
+    ]);
+    expect(paragraphHover[0]?.text).toContain(
+      "This layout treats Markdown as the primary surface.",
+    );
+
+    await page.locator(".toolbar .btn.active").hover();
+    const buttonHover = await renderedHtmlHoverState(page);
+    expect(buttonHover).toEqual([
+      expect.objectContaining({
+        tagName: "button",
+        text: "Rendered",
+        beforeLeft: "0px",
+        beforeRight: "0px",
+      }),
+    ]);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
+it("does not dim broad layout containers during a complex rendered HTML draft flow", async () => {
+  const readerHtml = await readFile("docs/ui-mocks/02-doc-reader.html", "utf8");
+  await writeFile(path.join(dir, "index.html"), readerHtml);
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const paragraphLine = lineNumberFor(
+    readerHtml,
+    "<p>\n                  This layout treats Markdown as the primary surface.",
+  );
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=index.html`);
+
+    const targetPromise = nextHtmlBlockTarget(page);
+    await page
+      .getByText("This layout treats Markdown as the primary surface.")
+      .click();
+    const target = await targetPromise;
+    expect(target).toMatchObject({
+      type: "vivi-html-block-target",
+      sourceLineStart: paragraphLine,
+      sourceLineEnd: paragraphLine + 4,
+    });
+    expect(target.text).toContain(
+      "This layout treats Markdown as the primary surface.",
+    );
+
+    await page.evaluate((messageTarget) => {
+      const blockIds = Array.isArray(messageTarget.blockIds)
+        ? messageTarget.blockIds
+        : [messageTarget.blockId].filter(Boolean);
+      window.postMessage(
+        {
+          type: "vivi-html-comments",
+          path: "index.html",
+          activeCommentId: null,
+          comments: [],
+          draftingBlockIds: blockIds,
+          openBlockIds: blockIds,
+          openBlockIdGroups: [blockIds],
+        },
+        "*",
+      );
+    }, target);
+
+    const point = await page.evaluate(() => {
+      const viewer = document.querySelector(".viewer")!.getBoundingClientRect();
+      return { x: viewer.left + 8, y: viewer.top + 8 };
+    });
+    await page.mouse.move(point.x, point.y);
+
+    const state = await renderedHtmlCommentClassState(page);
+    expect(state.hover).toEqual([]);
+    expect(state.drafting).toEqual([
+      expect.objectContaining({
+        tagName: "p",
+        text: expect.stringContaining(
+          "This layout treats Markdown as the primary surface.",
+        ),
+      }),
+    ]);
+    expect(state.drafting.map((item) => item.tagName)).not.toEqual(
+      expect.arrayContaining(["main", "section", "article"]),
+    );
+  } finally {
+    await browser.close();
+  }
 }, 10000);
 
 it("serves HTML preview with sanitized generated ids and escaped Mermaid source", async () => {
@@ -479,6 +645,74 @@ async function readUntil(
     received += decoder.decode(result.value, { stream: true });
   }
   return received;
+}
+
+function lineNumberFor(source: string, needle: string): number {
+  const index = source.indexOf(needle);
+  if (index < 0) throw new Error(`missing fixture text: ${needle}`);
+  return source.slice(0, index).split("\n").length;
+}
+
+async function nextHtmlBlockTarget(
+  page: Page,
+): Promise<Record<string, unknown>> {
+  return await page.evaluate(
+    () =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        const onMessage = (event: MessageEvent) => {
+          if (event.data?.type !== "vivi-html-block-target") return;
+          window.removeEventListener("message", onMessage);
+          resolve(event.data as Record<string, unknown>);
+        };
+        window.addEventListener("message", onMessage);
+      }),
+  );
+}
+
+async function renderedHtmlHoverState(page: Page): Promise<
+  Array<{
+    tagName: string;
+    text: string;
+    beforeLeft: string;
+    beforeRight: string;
+  }>
+> {
+  return await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll<HTMLElement>(".hover-rendered-comment-block"),
+    ).map((element) => {
+      const before = getComputedStyle(element, "::before");
+      return {
+        tagName: element.localName,
+        text: (element.innerText || element.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim(),
+        beforeLeft: before.left,
+        beforeRight: before.right,
+      };
+    }),
+  );
+}
+
+async function renderedHtmlCommentClassState(page: Page): Promise<{
+  hover: Array<{ tagName: string; text: string }>;
+  drafting: Array<{ tagName: string; text: string }>;
+}> {
+  return await page.evaluate(() => {
+    const read = (selector: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>(selector)).map(
+        (element) => ({
+          tagName: element.localName,
+          text: (element.innerText || element.textContent || "")
+            .replace(/\s+/g, " ")
+            .trim(),
+        }),
+      );
+    return {
+      hover: read(".hover-rendered-comment-block"),
+      drafting: read(".drafting-rendered-comment"),
+    };
+  });
 }
 
 class ManualWatcher implements WatcherPort {

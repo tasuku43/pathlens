@@ -1195,11 +1195,7 @@ function htmlPreviewCsp(allowHtmlScripts: boolean, nonce: string): string {
       ? "script-src 'self' 'unsafe-inline'"
       : `script-src 'nonce-${nonce}'`,
   );
-  base.push(
-    allowHtmlScripts
-      ? "sandbox allow-same-origin allow-scripts"
-      : "sandbox allow-same-origin",
-  );
+  base.push("sandbox allow-same-origin allow-scripts");
   return base.join("; ");
 }
 
@@ -1545,10 +1541,11 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 .markdown-mermaid-source summary{cursor:pointer;}
 .markdown-mermaid-source pre{overflow:auto;border:1px solid ${palette.line};border-radius:8px;background:${palette.codeBackground};color:${palette.codeText};padding:10px;}
 .html-mermaid.unsupported{border:1px solid ${palette.line};border-radius:8px;background:${palette.panel};padding:12px;}
-	.vivi-rendered-comment-block{--rendered-comment-block-left:-12px;--rendered-comment-block-right:-12px;--soft-line:${palette.softLine};--panel:${palette.panel};--palette:${palette.background};--comment-tint:${palette.commentTint};--comment-tint-active:${palette.commentTintActive};--comment-line:${palette.commentLine};--comment-text:${palette.commentText};isolation:isolate;position:relative;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
-	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em - 12px);}
-	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:-1;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
-	.vivi-rendered-comment-block:not(tr):hover::before,tr.vivi-rendered-comment-block:hover{background:var(--soft-line);}
+	.vivi-rendered-comment-block{--rendered-comment-block-left:0px;--rendered-comment-block-right:0px;--soft-line:${palette.softLine};--panel:${palette.panel};--palette:${palette.background};--comment-tint:${palette.commentTint};--comment-tint-active:${palette.commentTintActive};--comment-line:${palette.commentLine};--comment-text:${palette.commentText};isolation:isolate;position:relative;z-index:0;border-radius:8px;transition:background 140ms ease,box-shadow 140ms ease;}
+	li.vivi-rendered-comment-block{--rendered-comment-block-left:calc(-1.45em);}
+	.vivi-rendered-comment-block:not(tr)::before{content:"";position:absolute;z-index:0;top:0;right:var(--rendered-comment-block-right);bottom:0;left:var(--rendered-comment-block-left);border-radius:inherit;pointer-events:none;transition:background 140ms ease,box-shadow 140ms ease;}
+	.vivi-rendered-comment-block:not(tr)>*{position:relative;z-index:1;}
+	.vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before,tr.vivi-rendered-comment-block.hover-rendered-comment-block{background:var(--soft-line);}
 		.vivi-rendered-comment-block.has-rendered-comment,.vivi-rendered-comment-block.drafting-rendered-comment{border-radius:8px;}
 		.vivi-rendered-comment-block.has-rendered-comment:not(tr),.vivi-rendered-comment-block.drafting-rendered-comment:not(tr){background:transparent;box-shadow:none;}
 		blockquote.vivi-rendered-comment-block.has-rendered-comment,blockquote.vivi-rendered-comment-block.drafting-rendered-comment,blockquote.vivi-rendered-comment-block.active-rendered-comment{border-left-color:transparent!important;}
@@ -1571,13 +1568,14 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
 (() => {
   const path = ${JSON.stringify(options.path)};
   const blockSelector = "[data-vivi-comment-block-id]";
-  const preferredBlockSelectors = ["button","a","tr","li","pre","figure","aside","blockquote","h1","h2","h3","h4","h5","h6","p","section","article","main","nav","header","footer"];
   const interactiveSelector = "input,select,textarea,[contenteditable]";
+  const layoutContainerBlockTags = new Set(["main", "section", "article", "nav", "aside", "header", "footer", "figure"]);
   let renderedComments = [];
   let activeCommentId = null;
   let draftingBlockIds = [];
   let openBlockIds = [];
   let openBlockIdGroups = [];
+  let hoveredBlock = null;
   const post = (message) => parent.postMessage({ path, ...message }, "*");
   const cssPath = (element) => {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return undefined;
@@ -1610,15 +1608,30 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     const bottom = Math.max(first.bottom, last.bottom);
     return { left, top, width: right - left, height: bottom - top };
   };
+  const isLayoutContainerBlock = (element) =>
+    element?.matches?.(blockSelector) &&
+    layoutContainerBlockTags.has(element.localName) &&
+    Boolean(element.querySelector(blockSelector));
+  const isCommentableBlock = (element) =>
+    element?.matches?.(blockSelector) && !isLayoutContainerBlock(element);
+  const renderedThreadOpen = () => openBlockIds.length > 0 || draftingBlockIds.length > 0;
   const closestBlock = (target) => {
     if (!target || target.nodeType !== Node.ELEMENT_NODE) return null;
-    for (const selector of preferredBlockSelectors) {
-      const block = target.closest(\`\${selector}\${blockSelector}\`);
-      if (block) return block;
+    let element = target;
+    while (element && element.nodeType === Node.ELEMENT_NODE && element !== document.documentElement) {
+      if (isCommentableBlock(element)) return element;
+      element = element.parentElement;
     }
-    return target.closest(blockSelector);
+    return null;
   };
-  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter((block) => closestBlock(block) === block);
+  const commentableBlocks = () => Array.from(document.querySelectorAll(blockSelector)).filter(isCommentableBlock);
+  const setHoveredBlock = (block) => {
+    if (hoveredBlock === block) return;
+    hoveredBlock?.classList.remove("hover-rendered-comment-block");
+    hoveredBlock = block;
+    hoveredBlock?.classList.add("hover-rendered-comment-block");
+  };
+  const shouldProjectSourceRange = (closest, blocks) => blocks.length > 1 && blocks.includes(closest) && blocks.some((block) => block !== closest && !closest.contains(block));
   const sourceRange = (blocks) => {
     const starts = blocks.map((block) => Number(block.dataset.viviSourceLineStart)).filter(Number.isInteger);
     const ends = blocks.map((block) => Number(block.dataset.viviSourceLineEnd || block.dataset.viviSourceLineStart)).filter(Number.isInteger);
@@ -1653,7 +1666,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
       const closest = byBlock ? closestBlock(byBlock) : null;
       if (closest) {
         const spansMultipleLines = Number.isInteger(comment.sourceLineStart) && Number.isInteger(comment.sourceLineEnd) && comment.sourceLineEnd > comment.sourceLineStart;
-        if (spansMultipleLines && byRange.length > 1 && byRange.includes(closest)) return byRange;
+        if (spansMultipleLines && shouldProjectSourceRange(closest, byRange)) return byRange;
         return [closest];
       }
     }
@@ -1738,7 +1751,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     blocks.forEach((block) => {
       bindBlockAction(block);
       block.classList.add("vivi-rendered-comment-block");
-	      block.classList.remove("has-rendered-comment", "active-rendered-comment", "drafting-rendered-comment", "rendered-comment-range-start", "rendered-comment-range-middle", "rendered-comment-range-end", "rendered-comment-range-join-after");
+	      block.classList.remove("has-rendered-comment", "active-rendered-comment", "drafting-rendered-comment", "hover-rendered-comment-block", "rendered-comment-range-start", "rendered-comment-range-middle", "rendered-comment-range-end", "rendered-comment-range-join-after");
 	      block.style.removeProperty("--rendered-comment-block-left");
 	      block.style.removeProperty("--rendered-comment-block-right");
 	      block.style.removeProperty("--rendered-comment-join-after");
@@ -1814,6 +1827,7 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     draftingBlockIds = Array.isArray(data.draftingBlockIds) ? data.draftingBlockIds : [];
     openBlockIds = Array.isArray(data.openBlockIds) ? data.openBlockIds : [];
     openBlockIdGroups = Array.isArray(data.openBlockIdGroups) ? data.openBlockIdGroups.filter((group) => Array.isArray(group)) : [];
+    if (renderedThreadOpen()) setHoveredBlock(null);
     applyHighlights();
   });
   document.addEventListener("click", (event) => {
@@ -1838,6 +1852,8 @@ th,td{border:1px solid ${palette.line};padding:6px 8px;}
     const commentId = block.dataset.viviCommentId;
     postTarget(target, commentId ? "vivi-html-comment-open" : "vivi-html-block-target", commentId);
   });
+  document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));
+  document.addEventListener("pointerleave", () => setHoveredBlock(null));
   document.addEventListener("mouseup", publishSoon);
   document.addEventListener("keyup", publishSoon);
   window.addEventListener("scroll", () => window.requestAnimationFrame(postThreadLayout), true);
