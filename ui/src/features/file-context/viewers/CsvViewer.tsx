@@ -77,33 +77,34 @@ export function CsvViewer({
   return (
     <section className="csv-viewer">
       <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
         <span className="sandbox-status">
           {parsed.rows.length} rows · {parsed.headers.length} columns
           {parsed.truncated ? " · preview limited" : ""}
         </span>
-        <DiffToggleButton
-          enabled={diffEnabled}
-          path={file.path}
-          onToggle={onDiffToggle}
-        />
-        <div className="segmented-control" aria-label="CSV view mode">
-          <ViewerModeButton
-            active={mode === "table"}
-            mode="table"
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="CSV view mode">
+            <ViewerModeButton
+              active={mode === "table"}
+              mode="table"
+              path={file.path}
+              onClick={() => setMode("table")}
+            >
+              Table
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={mode === "source"}
+              mode="source"
+              path={file.path}
+              onClick={() => setMode("source")}
+            >
+              Source
+            </ViewerModeButton>
+          </div>
+          <DiffToggleButton
+            enabled={diffEnabled}
             path={file.path}
-            onClick={() => setMode("table")}
-          >
-            Table
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={mode === "source"}
-            mode="source"
-            path={file.path}
-            onClick={() => setMode("source")}
-          >
-            Source
-          </ViewerModeButton>
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

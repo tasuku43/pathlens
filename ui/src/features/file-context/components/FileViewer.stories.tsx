@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { expect, waitFor } from "storybook/test";
 import {
   commentsForPath,
   sampleFiles,
@@ -148,5 +149,80 @@ export const LargeTextLimitedPreview: Story = {
 export const LargeBinaryMetadata: Story = {
   args: {
     file: sampleFiles.largeBinary,
+  },
+};
+
+export const ViewerToolbarChromeConsistency: Story = {
+  tags: ["interaction"],
+  render: (args) => {
+    const files = [
+      sampleFiles.markdown,
+      sampleFiles.html,
+      sampleFiles.code,
+      sampleFiles.unknownText,
+      sampleFiles.json,
+    ];
+    return (
+      <div
+        style={{
+          display: "grid",
+          gap: 16,
+          padding: 16,
+          background: "#090d15",
+        }}
+      >
+        {files.map((file) => (
+          <div
+            key={file.path}
+            style={{
+              height: 220,
+              overflow: "auto",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <FileViewer
+              {...args}
+              file={file}
+              viewerMode={
+                file.viewerKind === "html" ? "preview" : args.viewerMode
+              }
+              selectedCodeRange={
+                file.viewerKind === "code" ? { start: 4, end: 4 } : null
+              }
+              theme={file.viewerKind === "code" ? "dark" : args.theme}
+              comments={commentsForPath(file.path)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => {
+      expect(
+        canvasElement.querySelectorAll(
+          ".file-viewer-frame > section > .viewer-toolbar",
+        ),
+      ).toHaveLength(5);
+    });
+
+    const toolbars = Array.from(
+      canvasElement.querySelectorAll<HTMLElement>(
+        ".file-viewer-frame > section > .viewer-toolbar",
+      ),
+    );
+    const firstHeight = toolbars[0]?.getBoundingClientRect().height ?? 0;
+    expect(firstHeight).toBeGreaterThan(0);
+
+    for (const toolbar of toolbars) {
+      const actions = toolbar.querySelector<HTMLElement>(
+        ":scope > .viewer-toolbar-actions",
+      );
+      expect(actions).toBeTruthy();
+      expect(
+        Math.abs(toolbar.getBoundingClientRect().height - firstHeight),
+      ).toBeLessThanOrEqual(2);
+      expect(toolbar.lastElementChild).toBe(actions);
+    }
   },
 };

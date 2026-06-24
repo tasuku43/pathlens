@@ -32,12 +32,9 @@ it("keeps viewer headers sticky while file content scrolls", () => {
   expect(css).toMatch(
     /\.viewer-toolbar\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/s,
   );
-  expect(css).toMatch(
-    /\.text-toolbar,\s*\n\.code-pro-header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;/s,
-  );
-  expect(css).toMatch(
-    /\.diff-viewer-status\s*\{[^}]*position:\s*sticky;/s,
-  );
+  expect(css).toMatch(/\.text-viewer > :not\(\.viewer-toolbar\)/);
+  expect(css).not.toMatch(/\.text-toolbar,\s*\n\.code-pro-header/);
+  expect(css).toMatch(/\.diff-viewer-status\s*\{[^}]*position:\s*sticky;/s);
 });
 
 it("keeps inspector header focused on status instead of duplicate collapse controls", () => {

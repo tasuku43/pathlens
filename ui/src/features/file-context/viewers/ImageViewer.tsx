@@ -49,35 +49,36 @@ export function ImageViewer({
   return (
     <section className="image-viewer">
       <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
-        <span>
+        <span className="sandbox-status">
           {formatBytes(file.size)}
           {file.mimeType === "image/svg+xml"
             ? " · SVG as image, scripts inactive"
             : ""}
         </span>
-        <DiffToggleButton
-          enabled={diffEnabled}
-          path={file.path}
-          onToggle={onDiffToggle}
-        />
-        <div className="segmented-control" aria-label="Image size mode">
-          <ViewerModeButton
-            active={fit === "fit"}
-            mode="fit"
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="Image size mode">
+            <ViewerModeButton
+              active={fit === "fit"}
+              mode="fit"
+              path={file.path}
+              onClick={() => setFit("fit")}
+            >
+              Fit
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={fit === "actual"}
+              mode="actual"
+              path={file.path}
+              onClick={() => setFit("actual")}
+            >
+              Actual
+            </ViewerModeButton>
+          </div>
+          <DiffToggleButton
+            enabled={diffEnabled}
             path={file.path}
-            onClick={() => setFit("fit")}
-          >
-            Fit
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={fit === "actual"}
-            mode="actual"
-            path={file.path}
-            onClick={() => setFit("actual")}
-          >
-            Actual
-          </ViewerModeButton>
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

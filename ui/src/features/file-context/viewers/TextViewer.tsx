@@ -66,16 +66,21 @@ export function TextViewer({
   };
   return (
     <section className="text-viewer">
-      <div className="text-toolbar">
-        <strong>{file.path}</strong>
-        <DiffToggleButton
-          enabled={diffEnabled}
-          path={file.path}
-          onToggle={onDiffToggle}
-        />
-        <button type="button" onClick={() => setWrap((value) => !value)}>
-          {wrap ? "No wrap" : "Wrap"}
-        </button>
+      <div
+        className="viewer-toolbar"
+        aria-label={`Text viewer controls for ${file.path}`}
+      >
+        <span className="sandbox-status">Plain text</span>
+        <div className="viewer-toolbar-actions">
+          <DiffToggleButton
+            enabled={diffEnabled}
+            path={file.path}
+            onToggle={onDiffToggle}
+          />
+          <button type="button" onClick={() => setWrap((value) => !value)}>
+            {wrap ? "No wrap" : "Wrap"}
+          </button>
+        </div>
       </div>
       {diffEnabled ? (
         <DiffViewer

@@ -126,15 +126,24 @@ export function CodeViewer({
   return (
     <section className="code-pro" aria-label={`Code viewer for ${file.path}`}>
       <div
-        className="code-pro-header code-pro-header-actions-only"
+        className="viewer-toolbar"
         aria-label={`Code viewer controls for ${file.path}`}
       >
-        <div className="code-pro-actions">
+        <span className="sandbox-status">
           {refreshedAt ? (
             <span className="refresh-pill">
               refreshed {new Date(refreshedAt).toLocaleTimeString()}
             </span>
+          ) : selected ? (
+            `Lines ${selected.start}-${selected.end} selected`
+          ) : (
+            "Read-only"
+          )}
+          {copyStatus ? (
+            <span className="copy-status">{copyStatus}</span>
           ) : null}
+        </span>
+        <div className="viewer-toolbar-actions code-pro-actions">
           {selected ? (
             <>
               <button
@@ -173,11 +182,6 @@ export function CodeViewer({
                 Clear
               </button>
             </>
-          ) : (
-            <span className="muted">Read-only</span>
-          )}
-          {copyStatus ? (
-            <span className="copy-status">{copyStatus}</span>
           ) : null}
           {toolbarAction}
           <DiffToggleButton

@@ -71,32 +71,33 @@ export function JsonViewer({
   return (
     <section className="json-viewer">
       <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
         <span className="sandbox-status">
           {parsed.ok ? "JSON tree" : "Invalid JSON, source shown"}
         </span>
-        <DiffToggleButton
-          enabled={diffEnabled}
-          path={file.path}
-          onToggle={onDiffToggle}
-        />
-        <div className="segmented-control" aria-label="JSON view mode">
-          <ViewerModeButton
-            active={mode === "tree"}
-            mode="tree"
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="JSON view mode">
+            <ViewerModeButton
+              active={mode === "tree"}
+              mode="tree"
+              path={file.path}
+              onClick={() => setMode("tree")}
+            >
+              Tree
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={mode === "source"}
+              mode="source"
+              path={file.path}
+              onClick={() => setMode("source")}
+            >
+              Source
+            </ViewerModeButton>
+          </div>
+          <DiffToggleButton
+            enabled={diffEnabled}
             path={file.path}
-            onClick={() => setMode("tree")}
-          >
-            Tree
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={mode === "source"}
-            mode="source"
-            path={file.path}
-            onClick={() => setMode("source")}
-          >
-            Source
-          </ViewerModeButton>
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

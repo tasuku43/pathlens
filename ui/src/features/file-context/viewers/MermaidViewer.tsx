@@ -85,32 +85,33 @@ export function MermaidViewer({
   return (
     <section className="mermaid-viewer">
       <div className="viewer-toolbar">
-        <strong>{file.path}</strong>
         <span className="sandbox-status">
           Mermaid preview · strict security
         </span>
-        <DiffToggleButton
-          enabled={diffEnabled}
-          path={file.path}
-          onToggle={onDiffToggle}
-        />
-        <div className="segmented-control" aria-label="Mermaid view mode">
-          <ViewerModeButton
-            active={mode === "preview"}
-            mode="preview"
+        <div className="viewer-toolbar-actions">
+          <div className="segmented-control" aria-label="Mermaid view mode">
+            <ViewerModeButton
+              active={mode === "preview"}
+              mode="preview"
+              path={file.path}
+              onClick={() => setMode("preview")}
+            >
+              Preview
+            </ViewerModeButton>
+            <ViewerModeButton
+              active={mode === "source"}
+              mode="source"
+              path={file.path}
+              onClick={() => setMode("source")}
+            >
+              Source
+            </ViewerModeButton>
+          </div>
+          <DiffToggleButton
+            enabled={diffEnabled}
             path={file.path}
-            onClick={() => setMode("preview")}
-          >
-            Preview
-          </ViewerModeButton>
-          <ViewerModeButton
-            active={mode === "source"}
-            mode="source"
-            path={file.path}
-            onClick={() => setMode("source")}
-          >
-            Source
-          </ViewerModeButton>
+            onToggle={onDiffToggle}
+          />
         </div>
       </div>
       {diffEnabled ? (

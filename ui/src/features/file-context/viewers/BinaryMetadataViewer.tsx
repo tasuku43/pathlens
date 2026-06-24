@@ -32,10 +32,7 @@ export function BinaryMetadataViewer({
   return (
     <section className="binary-metadata-viewer">
       <div className="viewer-toolbar">
-        <div>
-          <strong>{file.path}</strong>
-          <small>{metadataSummary(file)}</small>
-        </div>
+        <span className="sandbox-status">{metadataSummary(file)}</span>
         <div className="viewer-toolbar-actions">
           <DiffToggleButton
             enabled={diffEnabled}
