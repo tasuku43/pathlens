@@ -8,9 +8,6 @@ import type { CommentActivitySummary } from "../../../state/comment-activity.js"
 import {
   lineRangeForQuote,
   renderedCommentDraft,
-  scheduleSelectionCommentUpdate,
-  selectionCommentTargetInElement,
-  sourceCommentDraft,
   sourceTextForLineRange,
   type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
@@ -25,8 +22,7 @@ import {
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
 import { CodeCommentThread } from "../../comments/components/CodeCommentThread.js";
-import { CommentedSourceLines } from "../../comments/components/CommentedSourceLines.js";
-import { SelectionCommentComposer } from "../../comments/components/SelectionCommentComposer.js";
+import { SourceCommentSurface } from "../../comments/components/SourceCommentSurface.js";
 import {
   DiffToggleButton,
   ViewerToolbar,
@@ -85,10 +81,8 @@ export function HtmlViewer({
   previewSrcDoc?: string;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("preview");
-  const [sourceSelectionComment, setSourceSelectionComment] = useState<{
-    draft: CommentDraft;
-    rect: DOMRectLike;
-  } | null>(null);
+  const [sourceSelectedRange, setSourceSelectedRange] =
+    useState<LineRange | null>(null);
   const [renderedThreadTargets, setRenderedThreadTargets] = useState<
     HtmlRenderedThreadTarget[]
   >([]);
@@ -96,21 +90,20 @@ export function HtmlViewer({
     Record<string, HtmlRenderedThreadPosition>
   >({});
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const sourceRef = useRef<HTMLDivElement | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
       : localMode;
   const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
   const setMode = (nextMode: ViewerMode) => {
-    setSourceSelectionComment(null);
+    setSourceSelectedRange(null);
     setRenderedThreadTargets([]);
     setLocalMode(nextMode);
     onModeChange?.(nextMode);
   };
 
   useEffect(() => {
-    setSourceSelectionComment(null);
+    setSourceSelectedRange(null);
     setRenderedThreadTargets([]);
   }, [file.content, file.path]);
 
@@ -271,22 +264,6 @@ export function HtmlViewer({
     onCloseComment?.();
   };
 
-  const updateSourceSelectionComment = () => {
-    const selection = selectionCommentTargetInElement(sourceRef.current);
-    if (!selection) {
-      setSourceSelectionComment(null);
-      return;
-    }
-    setSourceSelectionComment({
-      draft: sourceCommentDraft(
-        file,
-        lineRangeForQuote(file.content, selection.text),
-        selection.text,
-      ),
-      rect: selection.rect,
-    });
-  };
-
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
     const threadComments = commentsForRenderedHtmlTarget(target, comments);
     const thread = renderedThreadModel(file.path, target.draft, threadComments);
@@ -367,27 +344,22 @@ export function HtmlViewer({
           />
         </div>
       ) : (
-        <CommentedSourceLines
-          content={file.content}
+        <SourceCommentSurface
+          file={file}
           className="markdown-source"
-          containerRef={sourceRef}
+          selectedRange={sourceSelectedRange}
           focusLineNumber={focusLineNumber}
           focusRevision={focusRevision}
           comments={comments}
           activeCommentId={activeCommentId}
+          onSelectionChange={setSourceSelectedRange}
+          onCreateComment={onCreateComment}
           onOpenComment={onOpenComment}
-          onMouseUp={() =>
-            scheduleSelectionCommentUpdate(updateSourceSelectionComment)
-          }
-          onKeyUp={updateSourceSelectionComment}
+          onCloseComment={onCloseComment}
+          onCommentStatusChange={onCommentStatusChange}
+          threadActivities={threadActivities}
         />
       )}
-      <SelectionCommentComposer
-        draft={sourceSelectionComment?.draft ?? null}
-        rect={sourceSelectionComment?.rect ?? null}
-        onSave={onCreateComment}
-        onDismiss={() => setSourceSelectionComment(null)}
-      />
       {renderedThreadEntries.map((entry) =>
         entry.position ? (
           <div

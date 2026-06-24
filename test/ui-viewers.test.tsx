@@ -818,7 +818,7 @@ it("marks text search landing lines across source viewers", () => {
 
   expect(codeHtml).toContain('class="code-line search-focus"');
   expect(markdownHtml).toContain('class="code-line search-focus"');
-  expect(htmlSource).toContain('class="commented-source-line search-focus"');
+  expect(htmlSource).toContain('class="code-line search-focus"');
   expect(textHtml).toContain('class="commented-source-line search-focus"');
 });
 
@@ -1456,6 +1456,51 @@ it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
   expect(html).toContain('sandbox="allow-scripts"');
   expect(html).toContain("/preview/html?path=index.html");
   expect(html).toContain("theme=dark");
+});
+
+it("uses the inline source thread experience for HTML source mode", () => {
+  const comment: ViviComment = {
+    ...codeLineComment,
+    id: "html-source-comment",
+    path: "index.html",
+    viewerKind: "html",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: "index.html",
+        lineStart: 2,
+        lineEnd: 2,
+        quote: "<p>Body</p>",
+      },
+    },
+  };
+  const html = renderToStaticMarkup(
+    <HtmlViewer
+      file={{
+        ...codeFile,
+        path: "index.html",
+        viewerKind: "html",
+        content: "<h1>Title</h1>\n<p>Body</p>\n",
+      }}
+      allowHtmlScripts={false}
+      mode="source"
+      comments={[comment]}
+      activeCommentId={comment.id}
+      onCreateComment={() => undefined}
+      onOpenComment={() => undefined}
+      onCommentStatusChange={() => undefined}
+    />,
+  );
+
+  expect(html).toContain("source-comment-surface markdown-source");
+  expect(html).toContain('aria-label="HTML view mode"');
+  expect(html).toContain(
+    'aria-label="Open comment thread on line 2 with 1 message; open to reply"',
+  );
+  expect(html).toContain('aria-label="Comment thread for line 2"');
+  expect(html).toContain("Check this return");
+  expect(html).not.toContain('aria-label="New comment"');
+  expect(html).not.toContain("Draft a review comment");
 });
 
 it("dispatches JSON files through a tree view with source fallback", () => {

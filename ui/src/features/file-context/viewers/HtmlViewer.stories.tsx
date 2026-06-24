@@ -63,11 +63,27 @@ export const SourceHtmlComment: Story = {
   tags: ["interaction"],
   args: {
     mode: "source",
-    activeCommentId: "comment-html-rendered",
+    comments: [],
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("list")).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".source-comment-surface"),
+    ).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".selection-comment-composer"),
+    ).not.toBeInTheDocument();
+    const lineAction = canvasElement.querySelector<HTMLButtonElement>(
+      `[data-testid="line-comment-action"][data-comment-surface="source"][data-line="7"][data-path="${sampleFiles.html.path}"]`,
+    );
+    await expect(lineAction).toBeInTheDocument();
+    await userEvent.click(lineAction!);
+    await expect(canvas.getByLabelText("New line comment")).toBeVisible();
+    await expect(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    ).toBeDisabled();
+    await expect(canvas.queryByText("Draft a review comment")).toBeNull();
     const previewMode = canvasElement.querySelector<HTMLButtonElement>(
       `[data-testid="viewer-mode-option"][data-viewer-mode="preview"][data-viewer-path="${sampleFiles.html.path}"]`,
     );
