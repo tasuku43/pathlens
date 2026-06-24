@@ -1,5 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { useState } from "react";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import type { FsNode } from "../../domain/fs-node.js";
+import { replaceDirectoryChildren } from "../../state/files.js";
 import {
   sampleTabs,
   sampleWorkspaceTree,
@@ -23,6 +26,7 @@ type Story = StoryObj<typeof meta>;
 
 const activateTab = fn();
 const openStaleCommentRouting = fn();
+const lazyRevealLoadCalls: string[] = [];
 
 export const TopbarStory: Story = {
   name: "Topbar",
@@ -97,6 +101,144 @@ export const SidebarFileTree: Story = {
     </aside>
   ),
 };
+
+const lazyBreadcrumbRevealTree: FsNode[] = [
+  {
+    id: "docs",
+    path: "docs",
+    name: "docs",
+    kind: "directory",
+    parentPath: null,
+    childrenLoaded: false,
+  },
+  {
+    id: "README.md",
+    path: "README.md",
+    name: "README.md",
+    kind: "file",
+    parentPath: null,
+    viewerKind: "markdown",
+    size: 1200,
+  },
+];
+
+const lazyDocsChildren: FsNode[] = [
+  ...Array.from({ length: 28 }, (_, index) =>
+    lazyFileNode(
+      `docs/${String(index + 1).padStart(2, "0")}-reference.md`,
+      "markdown",
+    ),
+  ),
+  {
+    id: "docs/ui-mocks",
+    path: "docs/ui-mocks",
+    name: "ui-mocks",
+    kind: "directory",
+    parentPath: "docs",
+    childrenLoaded: false,
+  },
+];
+
+const lazyUiMockChildren: FsNode[] = [
+  lazyFileNode("docs/ui-mocks/01-classic-explorer.html", "html"),
+  lazyFileNode("docs/ui-mocks/02-doc-reader.html", "html"),
+  lazyFileNode("docs/ui-mocks/index.html", "html"),
+];
+
+function SidebarLazyBreadcrumbRevealDemo() {
+  const [nodes, setNodes] = useState(lazyBreadcrumbRevealTree);
+  const [loadingDirectoryPaths, setLoadingDirectoryPaths] = useState<
+    Set<string>
+  >(new Set());
+
+  async function loadDirectory(path: string) {
+    lazyRevealLoadCalls.push(path);
+    setLoadingDirectoryPaths((items) => new Set(items).add(path));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    const children =
+      path === "docs"
+        ? lazyDocsChildren
+        : path === "docs/ui-mocks"
+          ? lazyUiMockChildren
+          : [];
+    setNodes((current) => replaceDirectoryChildren(current, path, children));
+    setLoadingDirectoryPaths((items) => {
+      const next = new Set(items);
+      next.delete(path);
+      return next;
+    });
+  }
+
+  return (
+    <aside
+      className="sidebar"
+      aria-label="File explorer"
+      style={{ width: 320, height: 240 }}
+    >
+      <div className="panel-title">
+        <span>Explorer</span>
+        <span className="pill">live</span>
+      </div>
+      <TreeSidebar
+        nodes={nodes}
+        selectedPath="docs/ui-mocks/02-doc-reader.html"
+        revealPath="docs/ui-mocks/02-doc-reader.html"
+        loadingDirectoryPaths={loadingDirectoryPaths}
+        onLoadDirectory={loadDirectory}
+        onSelect={() => undefined}
+        onOpen={() => undefined}
+      />
+    </aside>
+  );
+}
+
+export const SidebarRevealsLazyBreadcrumbTarget: Story = {
+  tags: ["interaction"],
+  render: () => {
+    lazyRevealLoadCalls.length = 0;
+    return <SidebarLazyBreadcrumbRevealDemo />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("treeitem", { name: /docs, folder, expanded/i }),
+    ).toBeVisible();
+    await waitFor(() => {
+      expect(lazyRevealLoadCalls).toContain("docs");
+      expect(lazyRevealLoadCalls).toContain("docs/ui-mocks");
+      expect(lazyRevealLoadCalls.indexOf("docs")).toBeLessThan(
+        lazyRevealLoadCalls.indexOf("docs/ui-mocks"),
+      );
+    });
+    const target = canvasElement.querySelector<HTMLElement>(
+      '[data-tree-path="docs/ui-mocks/02-doc-reader.html"]',
+    );
+    const sidebar = canvasElement.querySelector<HTMLElement>(".sidebar");
+    expect(target).not.toBeNull();
+    expect(sidebar).not.toBeNull();
+    await waitFor(() => {
+      const targetRect = target!.getBoundingClientRect();
+      const sidebarRect = sidebar!.getBoundingClientRect();
+      expect(targetRect.top).toBeGreaterThanOrEqual(sidebarRect.top);
+      expect(targetRect.bottom).toBeLessThanOrEqual(sidebarRect.bottom);
+    });
+  },
+};
+
+function lazyFileNode(
+  path: string,
+  viewerKind: FsNode["viewerKind"],
+): FsNode {
+  return {
+    id: path,
+    path,
+    name: path.split("/").at(-1) ?? path,
+    kind: "file",
+    parentPath: path.split("/").slice(0, -1).join("/") || null,
+    viewerKind,
+    size: 1200,
+  };
+}
 
 export const Tabs: Story = {
   render: () => (

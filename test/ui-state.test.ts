@@ -1210,7 +1210,7 @@ it("does not auto-expand unloaded lazy directories", () => {
   expect(expanded.has("src")).toBe(false);
 });
 
-it("finds the next unloaded ancestor needed to reveal lazy paths", () => {
+it("finds unloaded ancestors needed to reveal lazy paths", () => {
   const nodes: FsNode[] = [
     {
       id: "net",
@@ -1242,6 +1242,25 @@ it("finds the next unloaded ancestor needed to reveal lazy paths", () => {
       new Set(["net/sched"]),
     ),
   ).toEqual([]);
+});
+
+it("finds nested unloaded ancestors for a single lazy path reveal", () => {
+  const nodes: FsNode[] = [
+    {
+      id: "docs",
+      path: "docs",
+      name: "docs",
+      kind: "directory",
+      parentPath: null,
+      childrenLoaded: false,
+    },
+  ];
+
+  expect(
+    unloadedAncestorDirectoryPaths(nodes, [
+      "docs/ui-mocks/02-doc-reader.html",
+    ]),
+  ).toEqual(["docs", "docs/ui-mocks"]);
 });
 
 it("moves command palette selection with keyboard wrapping", () => {

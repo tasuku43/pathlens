@@ -73,17 +73,26 @@ export function TreeSidebar({
         .find((element) => element.dataset.treePath === revealPath)
         ?.scrollIntoView({ block: "center", behavior: "smooth" });
     });
-  }, [revealPath, revealRevision, expandedPaths]);
+  }, [revealPath, revealRevision, expandedPaths, nodes]);
 
   useEffect(() => {
     if (!onLoadDirectory || !revealPath) return;
-    for (const path of unloadedAncestorDirectoryPaths(
+    const pathsToLoad = unloadedAncestorDirectoryPaths(
       nodes,
       forceVisiblePaths,
       loadingDirectoryPaths,
-    )) {
-      void onLoadDirectory(path);
-    }
+    );
+    if (!pathsToLoad.length) return;
+    let cancelled = false;
+    void (async () => {
+      for (const path of pathsToLoad) {
+        if (cancelled) return;
+        await onLoadDirectory(path);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [
     forceVisiblePaths,
     loadingDirectoryPaths,

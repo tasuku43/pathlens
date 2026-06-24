@@ -44,16 +44,17 @@ export function unloadedAncestorDirectoryPaths(
   const needed: string[] = [];
   for (const path of paths) {
     const segments = path.split("/").filter(Boolean);
+    let waitingForUnloadedAncestor = false;
     for (let index = 1; index < segments.length; index += 1) {
       const ancestor = segments.slice(0, index).join("/");
+      if (loadingPaths.has(ancestor)) break;
       const node = directories.get(ancestor);
       if (
-        node?.childrenLoaded === false &&
-        !loadingPaths.has(ancestor) &&
+        (waitingForUnloadedAncestor || node?.childrenLoaded === false) &&
         !needed.includes(ancestor)
       ) {
         needed.push(ancestor);
-        break;
+        waitingForUnloadedAncestor = true;
       }
     }
   }
