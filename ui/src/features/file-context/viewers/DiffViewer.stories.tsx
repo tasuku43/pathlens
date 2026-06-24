@@ -34,9 +34,6 @@ type Story = StoryObj<typeof meta>;
 
 export const DiffCommentOnAddedLine: Story = {
   tags: ["interaction"],
-  args: {
-    activeCommentId: "comment-diff-added",
-  },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
@@ -59,15 +56,39 @@ export const DiffCommentOnAddedLine: Story = {
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);
-    await expect(args.onOpenComment).toHaveBeenCalledWith(
-      "comment-diff-added",
-      expect.objectContaining({
-        height: expect.any(Number),
-        left: expect.any(Number),
-        top: expect.any(Number),
-        width: expect.any(Number),
-      }),
-    );
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 10" }),
+    ).toBeVisible();
+    await expect(args.onOpenComment).not.toHaveBeenCalled();
+    await userEvent.click(marker);
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 10" }),
+    ).not.toBeInTheDocument();
+    await expect(args.onOpenComment).not.toHaveBeenCalled();
+  },
+};
+
+export const ActiveDiffCommentStaysInline: Story = {
+  args: {
+    activeCommentId: "comment-diff-added",
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("article", { name: "Comment thread for line 10" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Diff comments should anchor to changed lines."),
+    ).toBeVisible();
+    await expect(args.onOpenComment).not.toHaveBeenCalled();
+    const marker = canvas.getByRole("button", {
+      name: "Open comment thread on line 10 with 1 message; open to reply",
+    });
+    await userEvent.click(marker);
+    await expect(
+      canvas.queryByRole("article", { name: "Comment thread for line 10" }),
+    ).not.toBeInTheDocument();
+    await expect(args.onOpenComment).not.toHaveBeenCalled();
   },
 };
 
@@ -106,15 +127,7 @@ export const ResolvedDiffThreadMarker: Story = {
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);
-    await expect(args.onOpenComment).toHaveBeenCalledWith(
-      "comment-diff-resolved-root",
-      expect.objectContaining({
-        height: expect.any(Number),
-        left: expect.any(Number),
-        top: expect.any(Number),
-        width: expect.any(Number),
-      }),
-    );
+    await expect(args.onOpenComment).not.toHaveBeenCalled();
     const thread = canvas.getByRole("article", {
       name: "Comment thread for line 10",
     });
