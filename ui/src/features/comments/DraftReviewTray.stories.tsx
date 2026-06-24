@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { DraftReviewTray } from "./components/DraftReviewTray.js";
 import {
   manyDraftReviewComments,
@@ -122,7 +122,33 @@ export const HtmlRenderedDraft: Story = {
 };
 
 export const ManyDrafts: Story = {
+  tags: ["interaction"],
   args: {
     drafts: manyDraftReviewComments,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole("complementary", { name: "Draft review tray" }),
+    ).toBeInTheDocument();
+    const list = canvasElement.querySelector<HTMLElement>(
+      ".draft-review-list",
+    );
+    const panel = canvasElement.querySelector<HTMLElement>(
+      ".draft-review-panel",
+    );
+    await expect(list).toBeInTheDocument();
+    await expect(panel).toBeInTheDocument();
+    expect(list!.scrollHeight).toBeGreaterThan(list!.clientHeight);
+    expect(panel!.clientHeight).toBeLessThanOrEqual(
+      Math.min(520, window.innerHeight - 128),
+    );
+
+    const initialScrollTop = list!.scrollTop;
+    list!.scrollTop = 96;
+    list!.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await waitFor(() => {
+      expect(list!.scrollTop).toBeGreaterThan(initialScrollTop);
+    });
   },
 };

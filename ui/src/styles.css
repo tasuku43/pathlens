@@ -3547,7 +3547,8 @@ body.resizing-workbench-pane {
   background: var(--comment-tint);
 }
 .draft-review-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   max-height: min(520px, calc(100vh - 128px));
   margin-top: 8px;
@@ -3658,7 +3659,10 @@ body.resizing-workbench-pane {
 .draft-review-list {
   display: grid;
   gap: 8px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 10px 12px 12px;
 }
 .draft-review-item {
