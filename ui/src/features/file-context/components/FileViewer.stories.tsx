@@ -212,19 +212,31 @@ export const ViewerToolbarChromeConsistency: Story = {
         ".file-viewer-frame > section > .viewer-toolbar",
       ),
     );
+    expect(canvasElement.querySelectorAll(".file-location-bar")).toHaveLength(
+      0,
+    );
+    expect(canvasElement.querySelectorAll(".file-location-kind")).toHaveLength(
+      0,
+    );
     const firstHeight = toolbars[0]?.getBoundingClientRect().height ?? 0;
     expect(firstHeight).toBeGreaterThan(0);
 
     for (const toolbar of toolbars) {
+      const location = toolbar.querySelector<HTMLElement>(
+        ":scope > .viewer-toolbar-location",
+      );
       const actions = toolbar.querySelector<HTMLElement>(
         ":scope > .viewer-toolbar-actions",
       );
+      expect(location).toBeTruthy();
       expect(actions).toBeTruthy();
       expect(
         Math.abs(toolbar.getBoundingClientRect().height - firstHeight),
       ).toBeLessThanOrEqual(2);
       expect(toolbar.lastElementChild).toBe(actions);
     }
+
+    expect(canvasElement.textContent ?? "").not.toContain("Read-only");
   },
 };
 
@@ -269,7 +281,14 @@ export const ViewerToolbarStickyByExtension: Story = {
           "[data-toolbar-sticky-case] .file-viewer-frame > section > .viewer-toolbar",
         ),
       ).toHaveLength(toolbarStickyCases.length);
+      expect(canvasElement.querySelectorAll(".file-location-bar")).toHaveLength(
+        0,
+      );
+      expect(
+        canvasElement.querySelectorAll(".file-location-kind"),
+      ).toHaveLength(0);
     });
+    expect(canvasElement.textContent ?? "").not.toContain("Read-only");
 
     for (const item of toolbarStickyCases) {
       const caseElement = canvasElement.querySelector<HTMLElement>(
@@ -283,9 +302,16 @@ export const ViewerToolbarStickyByExtension: Story = {
       const toolbar = caseElement.querySelector<HTMLElement>(
         ".file-viewer-frame > section > .viewer-toolbar",
       );
+      const toolbarLocation = caseElement.querySelector<HTMLElement>(
+        ".file-viewer-frame > section > .viewer-toolbar .viewer-toolbar-location",
+      );
       expect(scrollBox).toBeTruthy();
       expect(toolbar).toBeTruthy();
-      if (!scrollBox || !toolbar) continue;
+      expect(toolbarLocation).toBeTruthy();
+      if (!scrollBox || !toolbar || !toolbarLocation) continue;
+      expect(toolbarLocation.textContent ?? "").toContain(
+        item.file.path.split("/").at(-1) ?? item.file.path,
+      );
 
       scrollBox.scrollTop = 120;
       scrollBox.dispatchEvent(new Event("scroll", { bubbles: true }));
@@ -335,6 +361,18 @@ const toolbarStickyCases = [
       ].join("\n"),
     ),
     viewerMode: "preview" as const,
+  },
+  {
+    extension: ".ts",
+    file: storyFileWithContent(
+      sampleFiles.code,
+      "test/cli-args.test.ts",
+      Array.from(
+        { length: 80 },
+        (_, index) =>
+          `export const stickyToolbarCase${index + 1}: number = ${index + 1};`,
+      ).join("\n"),
+    ),
   },
   {
     extension: ".go",

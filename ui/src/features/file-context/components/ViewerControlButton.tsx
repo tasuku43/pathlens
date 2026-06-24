@@ -1,4 +1,37 @@
+import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
+import type { FilePayload } from "../../../domain/fs-node.js";
+import { fileLocationSegments } from "../../../state/file-location.js";
+
+export interface ViewerHeaderReviewStop {
+  label: string;
+  preview: string;
+}
+
+interface ViewerHeaderContextValue {
+  activeReviewStop?: ViewerHeaderReviewStop | null;
+  file: FilePayload;
+  onFocusActiveComment?: () => void;
+  onRevealInTree?: (path?: string) => void;
+}
+
+const ViewerHeaderContext = createContext<ViewerHeaderContextValue | null>(
+  null,
+);
+
+export function ViewerHeaderProvider({
+  children,
+  value,
+}: {
+  children: ReactNode;
+  value: ViewerHeaderContextValue;
+}) {
+  return (
+    <ViewerHeaderContext.Provider value={value}>
+      {children}
+    </ViewerHeaderContext.Provider>
+  );
+}
 
 export function ViewerToolbar({
   actionsClassName,
@@ -13,11 +46,21 @@ export function ViewerToolbar({
   children: ReactNode;
   status?: ReactNode;
 }) {
+  const header = useContext(ViewerHeaderContext);
   return (
     <div
       className={`viewer-toolbar${actionsOnly ? " viewer-toolbar-actions-only" : ""}`}
       aria-label={ariaLabel}
+      data-viewer-header="unified"
     >
+      {header ? (
+        <ViewerToolbarLocation
+          file={header.file}
+          activeReviewStop={header.activeReviewStop}
+          onFocusActiveComment={header.onFocusActiveComment}
+          onRevealInTree={header.onRevealInTree}
+        />
+      ) : null}
       {status ? <span className="sandbox-status">{status}</span> : null}
       <div
         className={`viewer-toolbar-actions${actionsClassName ? ` ${actionsClassName}` : ""}`}
@@ -26,6 +69,87 @@ export function ViewerToolbar({
       </div>
     </div>
   );
+}
+
+export function ViewerToolbarLocation({
+  file,
+  activeReviewStop = null,
+  onFocusActiveComment,
+  onRevealInTree,
+}: {
+  file: FilePayload;
+  activeReviewStop?: ViewerHeaderReviewStop | null;
+  onFocusActiveComment?: () => void;
+  onRevealInTree?: (path?: string) => void;
+}) {
+  const segments = fileLocationSegments(file.path);
+  if (!segments.length) return null;
+  return (
+    <div
+      className="viewer-toolbar-location"
+      aria-label={fileLocationBarLabel(file.path)}
+    >
+      <nav
+        className="file-location-crumbs"
+        aria-label={`Location: ${file.path}`}
+      >
+        {segments.map((segment, index) => {
+          const segmentLabel = fileLocationSegmentLabel(
+            segment,
+            index,
+            segments.length,
+          );
+          return (
+            <span className="file-location-segment" key={segment.path}>
+              {index > 0 ? (
+                <span className="file-location-separator">/</span>
+              ) : null}
+              <button
+                aria-current={segment.kind === "file" ? "page" : undefined}
+                aria-label={segmentLabel}
+                type="button"
+                className={segment.kind}
+                title={segmentLabel}
+                onClick={() => onRevealInTree?.(segment.path)}
+              >
+                {segment.label}
+              </button>
+            </span>
+          );
+        })}
+      </nav>
+      {activeReviewStop ? (
+        <button
+          aria-keyshortcuts="Meta+I Control+I"
+          aria-label={`Focus current review stop, ${activeReviewStop.label}, ${activeReviewStop.preview}`}
+          className="file-location-review-stop"
+          disabled={!onFocusActiveComment}
+          type="button"
+          onClick={onFocusActiveComment}
+          title={`Focus current review stop (${activeReviewStop.label})`}
+        >
+          <strong>Current stop</strong>
+          <span>{activeReviewStop.label}</span>
+          <span>{activeReviewStop.preview}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function fileLocationBarLabel(path: string): string {
+  return `Current file location, ${path}`;
+}
+
+function fileLocationSegmentLabel(
+  segment: ReturnType<typeof fileLocationSegments>[number],
+  index: number,
+  count: number,
+): string {
+  if (segment.kind === "file") {
+    return `Current file ${segment.label}, segment ${index + 1} of ${count}, reveal ${segment.path} in the sidebar tree`;
+  }
+  return `Reveal folder ${segment.path}, segment ${index + 1} of ${count}, in the sidebar tree`;
 }
 
 export function DiffToggleButton({

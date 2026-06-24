@@ -16,10 +16,14 @@ import { DraftReviewTray } from "../ui/src/features/comments/components/DraftRev
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import {
   activeFileReviewStop,
-  FileLocationBar,
   FileOutlineControl,
   FileViewer,
 } from "../ui/src/features/file-context/components/FileViewer.js";
+import {
+  ViewerHeaderProvider,
+  ViewerToolbar,
+  ViewerToolbarLocation,
+} from "../ui/src/features/file-context/components/ViewerControlButton.js";
 import {
   Inspector,
   reviewQueueKeyboardTarget,
@@ -1315,21 +1319,36 @@ it("shows an explicit removed-file state instead of stale content", () => {
   expect(html).not.toContain("export function start");
 });
 
-it("renders a central file location bar that can reveal path segments", () => {
+it("renders file location inside the integrated viewer toolbar", () => {
   const calls: string[] = [];
   const file = {
     ...codeFile,
     path: "docs/brief/intro.md",
     viewerKind: "markdown" as const,
   };
-  const locationBar = FileLocationBar({
+  const toolbar = (
+    <ViewerHeaderProvider
+      value={{
+        file,
+        onRevealInTree: (path) => calls.push(path ?? ""),
+      }}
+    >
+      <ViewerToolbar>
+        <button type="button">Diff from HEAD</button>
+      </ViewerToolbar>
+    </ViewerHeaderProvider>
+  );
+  const html = renderToStaticMarkup(toolbar);
+  const location = ViewerToolbarLocation({
     file,
     onRevealInTree: (path) => calls.push(path ?? ""),
   });
-  const html = renderToStaticMarkup(locationBar);
 
+  expect(html).toContain('class="viewer-toolbar"');
+  expect(html).toContain('data-viewer-header="unified"');
+  expect(html).toContain('class="viewer-toolbar-location"');
   expect(html).toContain(
-    'aria-label="Current file location, brief / intro.md, full path docs/brief/intro.md"',
+    'aria-label="Current file location, docs/brief/intro.md"',
   );
   expect(html).toContain(
     'aria-label="Reveal folder docs/brief, segment 2 of 3, in the sidebar tree"',
@@ -1341,16 +1360,16 @@ it("renders a central file location bar that can reveal path segments", () => {
   expect(html).toContain("docs");
   expect(html).toContain("brief");
   expect(html).toContain("intro.md");
-  expect(html).toContain("Current file kind, Markdown");
+  expect(html).not.toContain("Current file kind");
   expect(html).not.toContain("Show in tree");
 
-  const directoryButton = findElement(locationBar, (element) => {
+  const directoryButton = findElement(location, (element) => {
     const props = element.props as { type?: string; children?: ReactNode };
     return props.type === "button" && flattenText(props.children) === "brief";
   });
   (directoryButton.props as { onClick: () => void }).onClick();
 
-  const fileButton = findElement(locationBar, (element) => {
+  const fileButton = findElement(location, (element) => {
     const props = element.props as { className?: string; children?: ReactNode };
     return (
       props.className === "file" && flattenText(props.children) === "intro.md"
@@ -1361,7 +1380,7 @@ it("renders a central file location bar that can reveal path segments", () => {
   expect(calls).toEqual(["docs/brief", "docs/brief/intro.md"]);
 });
 
-it("surfaces the current review stop in the central file location bar", () => {
+it("surfaces the current review stop in the integrated viewer toolbar", () => {
   const calls: string[] = [];
   const file = {
     ...codeFile,
@@ -1375,13 +1394,27 @@ it("surfaces the current review stop in the central file location bar", () => {
     ],
     codeLineComment.id,
   );
-  const locationBar = FileLocationBar({
+  const toolbar = (
+    <ViewerHeaderProvider
+      value={{
+        file,
+        activeReviewStop: stop,
+        onFocusActiveComment: () => calls.push("focus-stop"),
+        onRevealInTree: () => undefined,
+      }}
+    >
+      <ViewerToolbar>
+        <button type="button">Diff from HEAD</button>
+      </ViewerToolbar>
+    </ViewerHeaderProvider>
+  );
+  const html = renderToStaticMarkup(toolbar);
+  const location = ViewerToolbarLocation({
     file,
     activeReviewStop: stop,
     onFocusActiveComment: () => calls.push("focus-stop"),
     onRevealInTree: () => undefined,
   });
-  const html = renderToStaticMarkup(locationBar);
 
   expect(stop).toEqual({
     label: "source · L2",
@@ -1399,7 +1432,7 @@ it("surfaces the current review stop in the central file location bar", () => {
   expect(html).toContain("source · L2");
   expect(html).toContain("Check this return");
 
-  const stopButton = findElement(locationBar, (element) => {
+  const stopButton = findElement(location, (element) => {
     const props = element.props as { className?: string };
     return props.className === "file-location-review-stop";
   });

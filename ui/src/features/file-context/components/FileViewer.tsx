@@ -7,18 +7,17 @@ import type { CommentActivitySummary } from "../../../state/comment-activity.js"
 import { CsvViewer, isDelimitedPath } from "../viewers/CsvViewer.js";
 import { DiffViewer } from "../viewers/DiffViewer.js";
 import { BinaryMetadataViewer } from "../viewers/BinaryMetadataViewer.js";
-import { DiffToggleButton } from "./ViewerControlButton.js";
+import {
+  DiffToggleButton,
+  ViewerHeaderProvider,
+  type ViewerHeaderReviewStop,
+} from "./ViewerControlButton.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import {
   buildCodeMetadata,
   type CodeSymbol,
   type LineRange,
 } from "../../../state/code-viewer.js";
-import {
-  fileLocationSegments,
-  fileLocationSummary,
-} from "../../../state/file-location.js";
-import { iconForPath } from "../../../state/file-icons.js";
 import type {
   CommentCreateHandler,
   CommentStatusChangeHandler,
@@ -439,99 +438,21 @@ function FileViewerFrame({
 }) {
   return (
     <div className="file-viewer-frame">
-      <FileLocationBar
-        file={file}
-        activeReviewStop={activeReviewStop}
-        onFocusActiveComment={onFocusActiveComment}
-        onRevealInTree={onRevealInTree}
-      />
-      {children}
+      <ViewerHeaderProvider
+        value={{
+          file,
+          activeReviewStop,
+          onFocusActiveComment,
+          onRevealInTree,
+        }}
+      >
+        {children}
+      </ViewerHeaderProvider>
     </div>
   );
 }
 
-export function FileLocationBar({
-  file,
-  activeReviewStop = null,
-  onFocusActiveComment,
-  onRevealInTree,
-}: {
-  file: FilePayload;
-  activeReviewStop?: ActiveFileReviewStop | null;
-  onFocusActiveComment?: () => void;
-  onRevealInTree?: (path?: string) => void;
-}) {
-  const segments = fileLocationSegments(file.path);
-  if (!segments.length) return null;
-  return (
-    <div
-      className="file-location-bar"
-      aria-label={fileLocationBarLabel(file.path)}
-    >
-      <nav
-        className="file-location-crumbs"
-        aria-label={`Location: ${file.path}`}
-      >
-        {segments.map((segment, index) => {
-          const segmentLabel = fileLocationSegmentLabel(
-            segment,
-            index,
-            segments.length,
-          );
-          return (
-            <span className="file-location-segment" key={segment.path}>
-              {index > 0 ? (
-                <span className="file-location-separator">/</span>
-              ) : null}
-              <button
-                aria-current={segment.kind === "file" ? "page" : undefined}
-                aria-label={segmentLabel}
-                type="button"
-                className={segment.kind}
-                title={segmentLabel}
-                onClick={() => onRevealInTree?.(segment.path)}
-              >
-                {segment.label}
-              </button>
-            </span>
-          );
-        })}
-      </nav>
-      <span
-        aria-label={`Current file kind, ${fileViewerKindLabel(file.viewerKind)}`}
-        className="file-location-kind"
-      >
-        <span className="file-icon" aria-hidden="true">
-          {iconForPath(file.path, file.viewerKind)}
-        </span>
-        <span>{fileViewerKindLabel(file.viewerKind)}</span>
-      </span>
-      <span className="file-location-summary">
-        {fileLocationSummary(file.path)}
-      </span>
-      {activeReviewStop ? (
-        <button
-          aria-keyshortcuts="Meta+I Control+I"
-          aria-label={`Focus current review stop, ${activeReviewStop.label}, ${activeReviewStop.preview}`}
-          className="file-location-review-stop"
-          disabled={!onFocusActiveComment}
-          type="button"
-          onClick={onFocusActiveComment}
-          title={`Focus current review stop (${activeReviewStop.label})`}
-        >
-          <strong>Current stop</strong>
-          <span>{activeReviewStop.label}</span>
-          <span>{activeReviewStop.preview}</span>
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-interface ActiveFileReviewStop {
-  label: string;
-  preview: string;
-}
+type ActiveFileReviewStop = ViewerHeaderReviewStop;
 
 export function activeFileReviewStop(
   file: FilePayload,
@@ -647,7 +568,9 @@ export function FileOutlineControl({
               onSelect={(line) => {
                 controlRef.current
                   ?.closest(".viewer-pane")
-                  ?.querySelector<HTMLElement>(`.code-line[data-line="${line}"]`)
+                  ?.querySelector<HTMLElement>(
+                    `.code-line[data-line="${line}"]`,
+                  )
                   ?.scrollIntoView({
                     block: "center",
                     behavior: "smooth",
@@ -670,41 +593,12 @@ export function FileOutlineControl({
   );
 }
 
-function fileLocationBarLabel(path: string): string {
-  const summary = fileLocationSummary(path);
-  return summary === path
-    ? `Current file location, ${path}`
-    : `Current file location, ${summary}, full path ${path}`;
-}
-
-function fileViewerKindLabel(viewerKind: FilePayload["viewerKind"]): string {
-  if (viewerKind === "markdown") return "Markdown";
-  if (viewerKind === "html") return "HTML";
-  if (viewerKind === "json") return "JSON";
-  if (viewerKind === "mermaid") return "Mermaid";
-  if (viewerKind === "image") return "Image";
-  if (viewerKind === "binary") return "Binary";
-  if (viewerKind === "text") return "Text";
-  return "Code";
-}
-
 function surfaceLabel(comment: ViviComment): string {
   if (comment.anchor.surface === "diff") return "diff";
   if (comment.anchor.surface === "rendered") {
     return `${comment.anchor.rendered?.kind ?? comment.viewerKind} rendered`;
   }
   return "source";
-}
-
-function fileLocationSegmentLabel(
-  segment: ReturnType<typeof fileLocationSegments>[number],
-  index: number,
-  count: number,
-): string {
-  if (segment.kind === "file") {
-    return `Current file ${segment.label}, segment ${index + 1} of ${count}, reveal ${segment.path} in the sidebar tree`;
-  }
-  return `Reveal folder ${segment.path}, segment ${index + 1} of ${count}, in the sidebar tree`;
 }
 
 function fileOutlineControlLabel({

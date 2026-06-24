@@ -132,20 +132,20 @@ export function CodeViewer({
         actionsClassName="code-pro-actions"
         ariaLabel={`Code viewer controls for ${file.path}`}
         status={
-          <>
-            {refreshedAt ? (
-              <span className="refresh-pill">
-                refreshed {new Date(refreshedAt).toLocaleTimeString()}
-              </span>
-            ) : selected ? (
-              `Lines ${selected.start}-${selected.end} selected`
-            ) : (
-              "Read-only"
-            )}
-            {copyStatus ? (
-              <span className="copy-status">{copyStatus}</span>
-            ) : null}
-          </>
+          refreshedAt || selected || copyStatus ? (
+            <>
+              {refreshedAt ? (
+                <span className="refresh-pill">
+                  refreshed {new Date(refreshedAt).toLocaleTimeString()}
+                </span>
+              ) : selected ? (
+                `Lines ${selected.start}-${selected.end} selected`
+              ) : null}
+              {copyStatus ? (
+                <span className="copy-status">{copyStatus}</span>
+              ) : null}
+            </>
+          ) : undefined
         }
       >
         {selected ? (
