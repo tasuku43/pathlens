@@ -67,6 +67,24 @@ export const SourceMarkdownComment: Story = {
   },
 };
 
+export const RenderedBlockClickDraft: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: [],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const heading = canvas.getByRole("heading", { name: "Review Surface" });
+    await expect(heading).toHaveClass("vivi-rendered-comment-block");
+
+    await userEvent.click(heading);
+
+    await expect(canvas.getByLabelText("New line comment")).toBeInTheDocument();
+    await expect(heading).toHaveClass("drafting-rendered-comment");
+  },
+};
+
 export const MultipleRenderedDraftFormsStayOpen: Story = {
   tags: ["interaction"],
   args: {

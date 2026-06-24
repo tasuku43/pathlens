@@ -23,6 +23,9 @@ describe("rendered comment block ranges", () => {
       /\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-left: -12px;[\s\S]*?--rendered-comment-block-right: -12px;/,
     );
     expect(styles).toMatch(
+      /\.vivi-rendered-comment-block \{[\s\S]*?cursor: pointer;/,
+    );
+    expect(styles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?left: var\(--rendered-comment-block-left\);/,
     );
     expect(styles).toMatch(

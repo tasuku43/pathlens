@@ -1721,6 +1721,7 @@ body.resizing-workbench-pane {
   isolation: isolate;
   position: relative;
   border-radius: 8px;
+  cursor: pointer;
   transition:
     background 140ms ease,
     box-shadow 140ms ease;

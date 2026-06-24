@@ -90,6 +90,7 @@
       ],
       "interactionStories": [
         "Viewers/Code/CodeViewer/SourceWithOpenThread",
+        "Viewers/Markdown/MarkdownViewer/RenderedBlockClickDraft",
         "Viewers/Markdown/MarkdownViewer/RenderedMarkdownComment",
         "Viewers/HTML/HtmlViewer/SourceHtmlComment",
         "Viewers/File Coverage/FileViewer/ViewerToolbarStickyByExtension"
