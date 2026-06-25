@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -16,6 +17,8 @@ import {
   renderedCommentDraft,
   scheduleSelectionCommentUpdate,
   sourceTextForLineRange,
+  latestPublishedStatus,
+  visibleThreadComments,
   type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
   type CommentDraft,
@@ -120,6 +123,10 @@ export function MarkdownViewer({
   const html = renderMarkdownDocumentHtml(file.content);
   const markdownRef = useRef<HTMLElement | null>(null);
   const renderedThreadTargetsRef = useRef<MarkdownRenderedThreadTarget[]>([]);
+  const visibleRenderedComments = useMemo(
+    () => visibleThreadComments(comments),
+    [comments],
+  );
   const setMode = (nextMode: ViewerMode) => {
     setRenderedThreadTargets((items) => {
       for (const item of items) item.host.remove();
@@ -161,7 +168,7 @@ export function MarkdownViewer({
     if (mode !== "rendered" || diffEnabled) return;
     applyRenderedCommentHighlights(
       markdownRef.current,
-      comments,
+      visibleRenderedComments,
       activeCommentId,
       renderedThreadTargets.flatMap((target) => target.blockIds),
       "markdown",
@@ -169,11 +176,11 @@ export function MarkdownViewer({
     );
   }, [
     activeCommentId,
-    comments,
     diffEnabled,
     html,
     mode,
     renderedThreadTargets,
+    visibleRenderedComments,
   ]);
 
   useLayoutEffect(() => {
@@ -266,7 +273,7 @@ export function MarkdownViewer({
   const openRenderedComment = (block: HTMLElement | null) => {
     const id = block?.dataset.viviCommentId;
     if (!id || !block) return false;
-    const comment = comments.find((item) => item.id === id);
+    const comment = visibleRenderedComments.find((item) => item.id === id);
     const summary = comment
       ? renderedCommentSummaryForComment(comment, "markdown")
       : null;
@@ -340,13 +347,20 @@ export function MarkdownViewer({
     }
     if (isInteractiveRenderedCommentTarget(event.target)) return;
     if (window.getSelection()?.toString().trim()) return;
-    if (!hasRenderedCommentModifier(event)) return;
-
-    startRenderedComment(block);
+    if (hasRenderedCommentModifier(event)) {
+      startRenderedComment(block);
+      return;
+    }
+    if (block.dataset.viviCommentId) {
+      openRenderedComment(block);
+    }
   };
 
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
-    const threadComments = commentsForRenderedTarget(target, comments);
+    const threadComments = commentsForRenderedTarget(
+      target,
+      visibleRenderedComments,
+    );
     const thread = renderedThreadModel(file.path, target.draft, threadComments);
     const threadId =
       thread.comments[0]?.threadId ??
@@ -580,7 +594,7 @@ function renderedThreadModel(
     path,
     lineStart,
     lineEnd,
-    status: "open",
+    status: latestPublishedStatus(comments),
     comments,
   };
 }

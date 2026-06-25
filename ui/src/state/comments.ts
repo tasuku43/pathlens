@@ -260,7 +260,7 @@ export function lineCommentThreadActionLabel(
   return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; reopen to reply`;
 }
 
-function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
+export function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
   const published = comments.filter((comment) => !isDraftThreadComment(comment));
   if (!published.length) return "open";
   return published.reduce((latest, comment) =>

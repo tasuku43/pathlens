@@ -1295,7 +1295,19 @@ pre{border:1px solid %s;border-radius:8px;padding:12px;overflow:auto;}
     }
     if (event.target.closest?.(interactiveSelector)) return;
     if (document.getSelection()?.toString().trim()) return;
-    if (!hasRenderedCommentModifier(event)) return;
+    const commentId = block.dataset.viviCommentId;
+    if (!hasRenderedCommentModifier(event)) {
+      if (commentId) {
+        event.preventDefault();
+        event.stopPropagation();
+        const comment = renderedComments.find((item) => item.id === commentId);
+        const commentBlocks = comment ? findBlocksForComment(comment) : [];
+        const targetBlocks = commentBlocks.length ? commentBlocks : [block];
+        const target = targetForBlocks(targetBlocks);
+        postTarget(target, "vivi-html-comment-open", commentId);
+      }
+      return;
+    }
     event.preventDefault();
     event.stopPropagation();
     const target = targetForBlocks([block]);

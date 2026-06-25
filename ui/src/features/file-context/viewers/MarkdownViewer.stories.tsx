@@ -127,6 +127,83 @@ export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
   },
 };
 
+const renderedMarkdownComment = commentsForPath(
+  sampleFiles.markdown.path,
+).find((comment) => comment.id === "comment-md-rendered")!;
+
+export const RenderedResolvedCommentOpensFromBlock: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    activeCommentId: "comment-md-rendered",
+    comments: [
+      {
+        ...renderedMarkdownComment,
+        status: "resolved",
+        resolvedAt: "2026-06-25T09:15:00.000Z",
+        updatedAt: "2026-06-25T09:15:00.000Z",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const commentedText = canvas.getByText(
+      /Comment threads are the shared contract/,
+    );
+    const commentedBlock = commentedText.closest(
+      ".vivi-rendered-comment-block",
+    ) as HTMLElement;
+    await expect(commentedBlock).toHaveClass("has-rendered-comment");
+
+    await clickRenderedBlock(commentedText);
+
+    const thread = canvas.getByRole("article", {
+      name: "Comment thread for line 7",
+    });
+    await expect(thread).toBeVisible();
+    await expect(within(thread).getAllByText("Resolved")[0]).toBeVisible();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+  },
+};
+
+export const RenderedArchivedCommentHidden: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: [
+      {
+        ...renderedMarkdownComment,
+        status: "archived",
+        archivedAt: "2026-06-25T09:15:00.000Z",
+        updatedAt: "2026-06-25T09:15:00.000Z",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const commentedText = canvas.getByText(
+      /Comment threads are the shared contract/,
+    );
+    const commentedBlock = commentedText.closest(
+      ".vivi-rendered-comment-block",
+    ) as HTMLElement;
+
+    await expect(commentedBlock).not.toHaveClass("has-rendered-comment");
+    await expect(
+      within(commentedBlock).queryByRole("button", {
+        name: /Open comment thread/,
+      }),
+    ).toBeNull();
+
+    await clickRenderedBlock(commentedText);
+    await expect(
+      canvas.queryByRole("article", {
+        name: "Comment thread for line 7",
+      }),
+    ).toBeNull();
+  },
+};
+
 export const RenderedMarkdownWorkspaceLink: Story = {
   tags: ["interaction"],
   args: {

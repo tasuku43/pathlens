@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
@@ -7,8 +7,10 @@ import { renderedCommentBlocksForHtml } from "../../../domain/rendered-comment-b
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import {
   lineRangeForQuote,
+  latestPublishedStatus,
   renderedCommentDraft,
   sourceTextForLineRange,
+  visibleThreadComments,
   type CodeCommentThread as CodeCommentThreadModel,
   type CommentCreateHandler,
   type CommentDraft,
@@ -96,6 +98,10 @@ export function HtmlViewer({
       ? controlledMode
       : localMode;
   const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
+  const visibleRenderedComments = useMemo(
+    () => visibleThreadComments(comments),
+    [comments],
+  );
   const setMode = (nextMode: ViewerMode) => {
     setSourceSelectedRange(null);
     setRenderedThreadTargets([]);
@@ -125,7 +131,7 @@ export function HtmlViewer({
         openBlockIdGroups: renderedThreadTargets.map(
           (target) => target.blockIds,
         ),
-        comments: comments
+        comments: visibleRenderedComments
           .map((comment) => renderedCommentSummaryForComment(comment, "html"))
           .filter(Boolean),
       },
@@ -169,7 +175,9 @@ export function HtmlViewer({
       }
       if (data.type === "vivi-html-comment-open") {
         if (!data.id) return;
-        const comment = comments.find((item) => item.id === data.id);
+        const comment = visibleRenderedComments.find(
+          (item) => item.id === data.id,
+        );
         const target = renderedTargetFromMessage(data, iframeRef.current);
         if (!comment || !target) return;
         openRenderedDraft(target, comment);
@@ -196,19 +204,25 @@ export function HtmlViewer({
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [
-    comments,
     file.content,
     file.path,
     onCloseComment,
     onOpenComment,
     onOpenPath,
+    visibleRenderedComments,
   ]);
 
   useEffect(() => {
     postRenderedCommentState();
     const timeout = window.setTimeout(postRenderedCommentState, 0);
     return () => window.clearTimeout(timeout);
-  }, [activeCommentId, comments, file.path, mode, renderedThreadTargets]);
+  }, [
+    activeCommentId,
+    file.path,
+    mode,
+    renderedThreadTargets,
+    visibleRenderedComments,
+  ]);
 
   useLayoutEffect(() => {
     if (!renderedThreadTargets.length) {
@@ -265,7 +279,10 @@ export function HtmlViewer({
   };
 
   const renderedThreadEntries = renderedThreadTargets.map((target) => {
-    const threadComments = commentsForRenderedHtmlTarget(target, comments);
+    const threadComments = commentsForRenderedHtmlTarget(
+      target,
+      visibleRenderedComments,
+    );
     const thread = renderedThreadModel(file.path, target.draft, threadComments);
     const threadId =
       thread.comments[0]?.threadId ??
@@ -519,7 +536,7 @@ function renderedThreadModel(
     path,
     lineStart,
     lineEnd,
-    status: "open",
+    status: latestPublishedStatus(comments),
     comments,
   };
 }
