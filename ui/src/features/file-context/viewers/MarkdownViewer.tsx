@@ -297,6 +297,16 @@ export function MarkdownViewer({
     onCloseComment?.();
   };
 
+  const startSeparateRenderedThread = (
+    target: MarkdownRenderedThreadTarget,
+  ) => {
+    const blocks = renderedBlocksForTarget(markdownRef.current, target);
+    const nextTarget = targetForRenderedCommentBlocks(blocks);
+    if (!nextTarget) return;
+    openRenderedDraft(nextTarget, blocks);
+    onCloseComment?.();
+  };
+
   const closeRenderedThread = () => {
     setRenderedThreadTargets((items) => {
       for (const item of items) item.host.remove();
@@ -460,6 +470,7 @@ export function MarkdownViewer({
             activeCommentId={activeCommentId}
             onCreateComment={onCreateComment}
             onStatusChange={onCommentStatusChange}
+            onStartNewThread={() => startSeparateRenderedThread(entry.target)}
             onClose={() => closeRenderedThreadTarget(entry.key)}
           />,
           entry.target.mount,
@@ -514,6 +525,20 @@ function placeRenderedThreadHost(block: HTMLElement, host: HTMLElement): void {
     return;
   }
   if (block.nextElementSibling !== host) block.after(host);
+}
+
+function renderedBlocksForTarget(
+  root: HTMLElement | null,
+  target: { blockIds: string[] },
+): HTMLElement[] {
+  if (!root) return [];
+  return target.blockIds
+    .map((blockId) =>
+      root.querySelector<HTMLElement>(
+        `[${renderedCommentBlockAttribute}="${CSS.escape(blockId)}"]`,
+      ),
+    )
+    .filter((block): block is HTMLElement => Boolean(block));
 }
 
 function scheduleListItemThreadHostInset(

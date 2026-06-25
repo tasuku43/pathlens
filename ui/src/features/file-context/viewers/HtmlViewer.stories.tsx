@@ -153,6 +153,45 @@ export const PreviewRenderedHtmlThread: Story = {
   },
 };
 
+export const PreviewStartsSeparateDraftFromExistingThread: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    activeCommentId: "comment-html-rendered",
+    previewSrcDoc: htmlCommentPreviewStoryDocument(sampleFiles.html.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(sampleFiles.html.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
+
+    openHtmlStoryComment(frame);
+
+    const thread = await canvas.findByRole("article", {
+      name: "Comment thread for lines 6-7",
+    });
+    await expect(
+      within(thread).getByText(/HTML rendered comments should be visible/),
+    ).toBeVisible();
+
+    await userEvent.click(
+      within(thread).getByRole("button", { name: "Start separate thread" }),
+    );
+
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    ).toBeDisabled();
+    await expect(
+      canvas.queryByText(/HTML rendered comments should be visible/),
+    ).toBeNull();
+    await expect(canvas.queryByLabelText("Reply to thread")).toBeNull();
+  },
+};
+
 export const SinglePreviewDraftFormFixedSlot: Story = {
   tags: ["interaction"],
   args: {
@@ -573,6 +612,13 @@ function clickHtmlStoryBlockId(
   );
 }
 
+function openHtmlStoryComment(frame: HTMLIFrameElement): void {
+  frame.contentWindow?.postMessage(
+    { type: "vivi-story-open-comment", id: "comment-html-rendered" },
+    "*",
+  );
+}
+
 async function waitForHtmlDraftPreviewReady(
   frame: HTMLIFrameElement,
 ): Promise<void> {
@@ -731,6 +777,10 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 	          if (event.source === parent && event.data?.type === "vivi-story-click-block") {
 	            const targetBlock = blocks.find((item) => item.dataset.viviCommentBlockId === event.data.blockId);
 	            if (targetBlock && hasRenderedCommentModifier(event.data)) postTarget("vivi-html-block-target");
+	            return;
+	          }
+	          if (event.source === parent && event.data?.type === "vivi-story-open-comment") {
+	            postTarget("vivi-html-comment-open", event.data.id);
 	            return;
 	          }
 	          if (event.source !== parent || event.data?.type !== "vivi-html-comments" || event.data.path !== path) return;

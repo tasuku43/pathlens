@@ -35,6 +35,7 @@ export function CodeCommentThread({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const threadStatus: CommentStatus = thread.status;
   const lineLabel =
     thread.lineStart === thread.lineEnd
@@ -71,6 +72,11 @@ export function CodeCommentThread({
       window.removeEventListener("keydown", onKeyDown, { capture: true });
     };
   }, [onClose]);
+
+  useEffect(() => {
+    if (thread.comments.length) return;
+    textareaRef.current?.focus();
+  }, [thread.comments.length, thread.key]);
 
   async function submit() {
     const trimmed = body.trim();
@@ -206,6 +212,7 @@ export function CodeCommentThread({
         }}
       >
         <textarea
+          ref={textareaRef}
           autoFocus={!thread.comments.length}
           rows={2}
           value={body}

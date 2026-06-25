@@ -127,9 +127,48 @@ export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
   },
 };
 
-const renderedMarkdownComment = commentsForPath(
-  sampleFiles.markdown.path,
-).find((comment) => comment.id === "comment-md-rendered")!;
+export const RenderedStartsSeparateDraftFromExistingThread: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    comments: commentsForPath(sampleFiles.markdown.path),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const commentedText = canvas.getByText(
+      /Comment threads are the shared contract/,
+    );
+
+    await clickRenderedBlock(commentedText);
+    const existingThread = canvas.getByRole("article", {
+      name: "Comment thread for line 7",
+    });
+    await expect(
+      within(existingThread).getByText(/feedback layer well/),
+    ).toBeVisible();
+
+    await userEvent.click(
+      within(existingThread).getByRole("button", {
+        name: "Start separate thread",
+      }),
+    );
+
+    await expect(
+      canvas.getAllByRole("article", {
+        name: "Comment thread for line 7",
+      }),
+    ).toHaveLength(2);
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    ).toBeDisabled();
+    await expect(canvas.getByLabelText("Reply to thread")).toBeInTheDocument();
+  },
+};
+
+const renderedMarkdownComment = commentsForPath(sampleFiles.markdown.path).find(
+  (comment) => comment.id === "comment-md-rendered",
+)!;
 
 export const RenderedResolvedCommentOpensFromBlock: Story = {
   tags: ["interaction"],

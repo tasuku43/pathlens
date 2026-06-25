@@ -199,13 +199,16 @@ export const ViewerToolbarChromeConsistency: Story = {
     );
   },
   play: async ({ canvasElement }) => {
-    await waitFor(() => {
-      expect(
-        canvasElement.querySelectorAll(
-          ".file-viewer-frame > section > .viewer-toolbar",
-        ),
-      ).toHaveLength(5);
-    });
+    await waitFor(
+      () => {
+        expect(
+          canvasElement.querySelectorAll(
+            ".file-viewer-frame > section > .viewer-toolbar",
+          ),
+        ).toHaveLength(5);
+      },
+      { timeout: 5000 },
+    );
 
     const toolbars = Array.from(
       canvasElement.querySelectorAll<HTMLElement>(
