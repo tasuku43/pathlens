@@ -65,8 +65,8 @@ vivi .
 vivi ./docs
 vivi ./dist --open
 vivi . --port 0 --ready-json --actor codex
-vivi review queue --actor codex --json
 vivi comments work --actor codex --wait --loop --idle-events --json
+vivi review queue --actor codex --json
 vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --max-file-size 2097152
 vivi . --allow-html-scripts
@@ -102,6 +102,13 @@ reply to, resolve, or archive those threads through the CLI and GraphQL API.
 
 This keeps the human-facing UI visual and low-friction while keeping the
 agent-facing interface structured and deterministic.
+
+For coding agents, `comments work` is the primary feedback loop. Start Vivi
+with `--ready-json --actor <actor>`, then run the primary suggested
+`comments work --wait --loop --idle-events` command from that ready payload.
+`review queue` and `review diff` are changed-file context helpers; they are not
+the human-feedback intake loop. `protocol`, `schema`, `watch`, `follow`, and
+raw `claim` remain available for adapter authors, debugging, and recovery.
 
 ## Product Boundary
 
@@ -167,6 +174,8 @@ The fixture-driven fake agent loop is documented in
 [`docs/23-local-agent-loop-harness.md`](docs/23-local-agent-loop-harness.md).
 Against a running Vivi server, run `npm run harness:agent-loop` to verify the
 human comment, actor-aware read receipt, agent reply, and terminal lifecycle.
+Use `--intake work --terminal cli` when validating the primary resident
+agent-facing loop.
 
 The Go backend is the distribution target. The TypeScript server remains useful
 while the migration is in progress because selected API contract tests can be

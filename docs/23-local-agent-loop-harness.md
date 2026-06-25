@@ -64,9 +64,11 @@ Resident adapters that need an explicit readiness heartbeat can add
 `--idle-events`: the same stream emits `comment_work_idle` while waiting, with
 `summary.recommendedAction` set to `wait_for_gui_feedback` for an empty queue
 or `wait_for_claim_release` when open threads are currently owned by other
-actors. Empty-queue idle events also include suggested commands for entering
-the resident work loop or passively watching the open worklist, so a one-shot
-agent does not have to hard-code the next waiting command.
+actors. Empty-queue idle events also keep `comments work` as the primary
+suggested command, so a one-shot agent does not have to hard-code the next
+waiting command. Passive watch remains available in the harness as a
+comparison and compatibility path, not as the recommended resident adapter
+loop.
 The claimed payload also carries `summary.recommendedAction: "start_work"` and
 structured `summary.suggestedCommands`, so the fake agent verifies the same
 command-discovery path for initial feedback that it uses for follow-up

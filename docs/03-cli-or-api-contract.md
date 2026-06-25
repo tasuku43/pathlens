@@ -19,6 +19,25 @@ vivi [root] --port 0 --ready-json --actor codex
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
+vivi comments work --actor codex --wait --loop --idle-events --json
+vivi comments work --once --actor codex --full --json
+vivi comments mine --actor codex --json
+vivi comments check <thread-id> --actor codex --full --json
+vivi comments triage <thread-id> --actor codex --triage-file - --require-claim --json
+vivi comments release <thread-id> --actor codex --triage-file - --require-claim --json
+vivi comments done <thread-id> --actor codex --result-file - --require-claim --json
+vivi comments dismiss <thread-id> --actor codex --result-file - --require-claim --json
+vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
+vivi comments doctor --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi review queue --actor codex --json
+vivi review bases --json
+vivi review diff README.md --base HEAD --json
+
+# Advanced adapter/debug/recovery surfaces:
+vivi comments protocol --json
+vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments schema list --json
+vivi comments verify-receipts --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 vivi comments active --actor claude-code --json
 vivi comments active --actor claude-code --full --json
 vivi comments active --actor claude-code --review-batch review-batch-... --full --json
@@ -28,21 +47,10 @@ vivi comments next --actor codex --full --json
 vivi comments claim --actor codex --review-batch review-batch-... --full --json
 vivi comments claim <thread-id> --actor codex --lease 10m --json
 vivi comments claim --wait --actor codex --full --json
-vivi comments work --wait --actor codex --json
-vivi comments work --loop --actor codex --idle-events --json
-vivi comments work --loop --actor codex --idle-events --activity-limit 20 --comment-limit 10 --json
 vivi comments renew <thread-id> --actor codex --lease 10m --json
 vivi comments hold <thread-id> --actor codex --interval 2m --lease 10m --json
 vivi comments inbox --actor codex --json
 vivi comments batch review-batch-... --actor codex --full --json
-vivi comments mine --actor codex --json
-vivi comments release <thread-id> --actor codex --json
-vivi comments release <thread-id> --actor codex --body-file /tmp/vivi-handoff.md --json
-vivi comments release <thread-id> --actor codex --triage-file /tmp/vivi-triage.json --require-claim --json
-vivi comments done <thread-id> --actor codex --body-file /tmp/vivi-reply.md --require-claim --json
-vivi comments done <thread-id> --actor codex --result-file /tmp/vivi-result.json --require-claim --json
-vivi comments doctor --actor codex --client-event-id doctor-start-1 --json
-vivi comments doctor --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 vivi comments schema commentProtocolManifest --json
 vivi comments schema commentDoctorOutput --json
 vivi comments schema commentTriageFileInput --json
@@ -56,9 +64,6 @@ vivi comments schema commentActivityBatchEvent --json
 vivi comments schema commentWorkClaimedEvent --json
 vivi comments schema commentWorkIdleEvent --json
 vivi comments schema commentOpenWorklistEvent --json
-vivi review queue --actor codex --json
-vivi review bases --json
-vivi review diff README.md --base HEAD --json
 vivi comments watch --actor claude-code --json
 vivi comments follow <thread-id> --no-initial --json
 vivi comments context <thread-id> --full --context-lines 6 --json
@@ -92,9 +97,12 @@ Pass `--ready-json` when a launcher or coding agent needs a stable startup
 handoff. After the local server is listening, Vivi emits one JSON object on
 stdout with `event: "vivi_server_ready"`, the selected root, the resolved server
 URL, and `suggestedCommands` that already include the resolved `--url`. Add
-`--actor <id>` to include the agent actor in those startup suggestions, so the
-first `comments doctor` call can proceed directly to actor-owned work-loop
-commands instead of returning the `configure_actor` branch.
+`--actor <id>` to include the agent actor in those startup suggestions. With an
+actor, the primary startup suggestion is `comments work --wait --loop
+--idle-events`, which is the agent-facing feedback loop. `review queue` remains
+available as optional changed-file context, and `comments doctor` remains the
+online readiness and recovery check. Without an actor, the primary startup
+suggestion is a `comments doctor` retry that configures the agent actor first.
 The top-level `vivi --help` output includes this startup handoff as the agent
 quick start, so a CLI user can discover the server-first workflow before
 opening the deeper `review` or `comments` help screens.
@@ -109,29 +117,30 @@ When that server is not reachable, the JSON error envelope includes structured
 `suggestedCommands` for loading the offline protocol, starting `vivi` for the
 current directory with `--ready-json`, and retrying `comments doctor` with the
 same actor, URL, and receipt-log context where available.
-`vivi comments --help` is part of that agent contract: its first screen gives
-the recommended startup order (`protocol`, `schema list`, `doctor`, `mine`,
-`work`) and the write rules for claim-guarded triage, release, done, and
-dismiss commands. When an adapter opts into restart-safe receipt recovery, the
-same screen tells it to keep the selected `--receipt-log` on startup, resident
-loops, and suggested writes. Adapters can orient from help text before relying
-on hard-coded command recipes.
+`vivi comments --help` is part of that agent contract: its first screen keeps
+the common path centered on `comments work`, then lists recovery and adapter
+discovery commands separately. `protocol`, `schema`, `watch`, `follow`, and raw
+`claim` are still supported, but they are advanced/debug surfaces rather than
+the first workflow a coding agent needs to learn. When an adapter opts into
+restart-safe receipt recovery, help tells it to keep the selected
+`--receipt-log` on startup, resident loops, and suggested writes. Adapters can
+orient from help text before relying on hard-coded command recipes.
 
 For a durable agent loop, use:
 
 ```bash
 vivi . --port 0 --ready-json --actor codex
-vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json
-vivi comments doctor --actor codex --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 vivi comments work --actor codex --wait --loop --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 ```
 
 `comments work` is the preferred integrated intake loop: it claims owned work,
 follows the claimed thread, renews the claim lease, and can keep looping for the
-next feedback item. `comments watch` is passive open-worklist intake: it emits
-claimable open-thread snapshots without owning them. `comments follow` is the
-single-thread activity stream for a thread the agent already knows about, often
-after a claim, release wait, or resumed owned item.
+next feedback item. `comments mine` and `comments check` are recovery helpers
+for owned or stale work. `comments watch`, `comments follow`, and
+`comments claim --wait` are lower-level adapter/debug primitives: they remain
+available for specialized integrations, but new agent workflows should start
+from `comments work` unless they have a specific reason to compose the
+primitives themselves.
 
 The v1 commands are:
 
@@ -368,18 +377,18 @@ friendly copy for `--full` output.
 When no thread can be claimed, the payload still includes `summary` with
 routing counts and a next action. In particular,
 `summary.recommendedAction: "wait_for_claim_release"` means open threads exist
-but are currently leased by other actors; use the suggested `comments watch`,
-`comments inbox`, or resident work-loop recipe instead of immediately retrying
-the same claim.
+but are currently leased by other actors; use the suggested resident
+`comments work --wait --loop --idle-events` command or `comments inbox`
+snapshot instead of immediately retrying the same claim.
 
-`claim --wait` is the blocking intake command for a resident background agent.
-It polls the open worklist using `--interval`, skips threads currently claimed
-by another live actor, and returns only after it successfully appends a
-`thread_claimed` activity. The payload is the same as `claim --full` when
-`--full` is set. Use it when the agent wants to sleep until human GUI feedback
-is ready to handle, rather than separately running `watch` and `claim`; the
-returned suggestions are enough to immediately post an acknowledgement back to
-the GUI before editing.
+`claim --wait` is the lower-level blocking claim primitive underneath resident
+agent intake. It polls the open worklist using `--interval`, skips threads
+currently claimed by another live actor, and returns only after it successfully
+appends a `thread_claimed` activity. The payload is the same as `claim --full`
+when `--full` is set. New agent workflows should prefer `comments work --wait
+--loop --idle-events`, which keeps the claim lease warm and follows the claimed
+thread in one stream. Use `claim --wait` only when an adapter intentionally
+composes claim, renew, and follow itself.
 
 `work` is the integrated work-session intake command for coding-agent adapters
 that want one process to claim work, keep the lease warm, and listen for human
@@ -453,9 +462,9 @@ while the agent is waiting. The idle summary uses
 `recommendedAction: "wait_for_gui_feedback"` when the queue is empty and
 `recommendedAction: "wait_for_claim_release"` when open threads exist but are
 currently claimed by other actors. Empty-queue idle events suggest the
-resident `comments work --wait --loop --idle-events` command and passive
-`comments watch`, while claim-release waits suggest `comments inbox` and
-`comments watch` for inspection.
+resident `comments work --wait --loop --idle-events` command, while
+claim-release waits suggest keeping that primary work loop open and using
+`comments inbox` only for diagnostic routing.
 When a later activity batch contains `thread_status_changed` to `resolved` or
 `archived`, `work` emits that batch and exits successfully, giving adapters a
 natural stop signal after `done` or `dismiss`.
@@ -737,9 +746,9 @@ After caching the server-independent protocol and schemas, use
 readiness check for the selected Vivi server. It reads the open worklist cursor
 and count without recording read receipts, claims, or comments, then returns
 `recommendedAction` and startup `suggestedCommands` such as
-`comments mine --json`,
-`comments work --wait --loop --idle-events --json` or
-`comments inbox --json`.
+the primary `comments work --wait --loop --idle-events --json` resident loop,
+plus recovery helpers such as `comments mine --json` and routing snapshots such
+as `comments inbox --json`.
 If `--actor` is omitted, doctor returns `recommendedAction: "configure_actor"`
 with an actor-selection retry command that preserves the same server URL and
 receipt ledger path.
