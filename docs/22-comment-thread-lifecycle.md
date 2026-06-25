@@ -597,9 +597,13 @@ lease renewal, and follow-up activity in one loop.
 For a background coding agent,
 `comments watch --full` is the richest intake stream. Each delivered event
 still includes the compatible `threads` worklist, and additionally includes
-`items`: one item per open thread with the thread, anchored source context,
-current diff, and activity history. That shape lets the agent start triage from
-a single NDJSON event after a human publishes GUI feedback.
+`items`: one item per open thread with a compact `brief`, the thread, anchored
+source context, current diff, and activity history. The `brief` repeats the
+thread id, path, latest comment excerpt, source state when available, and
+item-specific `suggestedCommandIntents` such as `claim_open_thread` or
+`follow_until_released`. That shape lets a monitor agent hand one item directly
+to a worker agent without reconstructing routing context from the top-level
+summary.
 
 Use `dismiss` when intentionally closing work with an explanatory agent reply,
 use raw `archive` only when no new reply is needed, and `reopen` before

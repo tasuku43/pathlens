@@ -237,6 +237,12 @@ staying attached to `watch`:
   "items": [
     {
       "thread": {},
+      "brief": {
+        "threadId": "comment-thread-...",
+        "path": "README.md",
+        "recommendedAction": "inspect_thread",
+        "suggestedCommandIntents": ["inspect_thread"]
+      },
       "file": {},
       "source": {},
       "diff": {},
@@ -1033,7 +1039,11 @@ resident agent can continue against the same GUI/server session. `next` mirrors
 the summary branch and points to the first thread the adapter should inspect or
 resume; it is `null` when there is no owned, unclaimed, or other-claimed open
 work to act on. Pass `--full`
-to add rich `items` inside each group.
+to add rich `items` inside each group. Each item includes a compact `brief`
+with the thread id, path, latest comment excerpt, source state when context is
+requested, and item-specific suggested command intents. This lets a resident
+monitor hand one `items[]` entry directly to a worker agent without copying the
+group-level routing summary.
 
 `batch <review-batch-id>` is the publish-batch snapshot for agents that are
 responding to one human GUI review action. It reads all threads in the batch
@@ -1097,7 +1107,10 @@ claim activities:
 ```
 
 Pass `--full` to include `items` for those claimed threads. `mine` does not
-create read receipts or extend leases; use `renew <thread-id>` with a new
+create read receipts or extend leases. Each item brief recommends
+`resume_owned_work` and carries owned-thread command intents such as
+`renew_current_claim`, so a restarted agent can branch before reading the full
+source or activity payload. Use `renew <thread-id>` with a new
 `--client-event-id` to keep long-running work live.
 
 `release <thread-id>` is the non-terminal handoff command. It appends a
@@ -1300,6 +1313,12 @@ shape is:
   "items": [
     {
       "thread": {},
+      "brief": {
+        "threadId": "comment-thread-...",
+        "path": "README.md",
+        "recommendedAction": "claim_open_work",
+        "suggestedCommandIntents": ["claim_open_thread"]
+      },
       "file": {},
       "source": {},
       "diff": {},
@@ -1310,12 +1329,12 @@ shape is:
 ```
 
 Each item is aligned with one open thread and is intended as the background
-agent's triage unit: the human comment thread, the anchored source snippet when
-requested, the current per-file diff when requested, and the thread activity
-history when requested. For actor-attributed watch deliveries, the activity
-list includes the delivered read receipt keyed by the event cursor. The legacy
-`threads` array remains present for clients that only need the worklist
-snapshot.
+agent's triage unit: a compact `brief` for routing or sub-agent handoff, the
+human comment thread, the anchored source snippet when requested, the current
+per-file diff when requested, and the thread activity history when requested.
+For actor-attributed watch deliveries, the activity list includes the delivered
+read receipt keyed by the event cursor. The legacy `threads` array remains
+present for clients that only need the worklist snapshot.
 
 When `--actor` is set, watch records read receipts only for delivered
 snapshots. The client event id is derived from `--client-event-id` when

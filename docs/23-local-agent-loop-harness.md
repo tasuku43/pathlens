@@ -69,6 +69,11 @@ suggested command, so a one-shot agent does not have to hard-code the next
 waiting command. Passive watch remains available in the harness as a
 comparison and compatibility path, not as the recommended resident adapter
 loop.
+When adapters do use `comments watch --full` as a monitor process, each
+`items[]` entry carries its own compact `brief` with a recommended action and
+item-specific command intents. Harnesses can assert those item briefs before
+forking per-thread worker agents instead of depending only on the event-level
+summary.
 Adapters that do not need repeated identical heartbeats can add
 `--idle-on-change` beside `--idle-events`; the loop emits the first idle event
 for readiness, then stays quiet until the idle cursor changes or work becomes

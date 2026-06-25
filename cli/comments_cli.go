@@ -3467,6 +3467,7 @@ func commentWorkItemSchema() map[string]any {
 		"required":             []string{"thread"},
 		"properties": map[string]any{
 			"thread":     commentThreadSchema(),
+			"brief":      commentBriefSchema(),
 			"file":       map[string]any{"type": "object"},
 			"source":     sourceContextSchema(),
 			"diff":       textDiffSchema(),
@@ -3685,7 +3686,7 @@ func commentsList(ctx context.Context, stdout io.Writer, options commentsCommand
 	outputThreads := limitCommentThreadsHistory(threads, options.CommentLimit)
 	payload := map[string]any{"threads": outputThreads, "count": len(threads)}
 	if commentsNeedsWorkItem(options) {
-		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads)
+		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads, commentWorkItemBriefBuilder(options, "list", "inspect_thread", nil, nil))
 		if err != nil {
 			return err
 		}
@@ -4776,14 +4777,18 @@ func commentClaimPayload(ctx context.Context, options commentsCommandOptions, th
 }
 
 func commentBriefForThread(thread commentThreadOutput, summary commentActivityBatchSummary, item *commentWorkItemOutput) commentBriefOutput {
+	return commentBriefForWorkItem(thread, item, summary.RecommendedAction, summary.AttentionReasons, summary.SuggestedCommands)
+}
+
+func commentBriefForWorkItem(thread commentThreadOutput, item *commentWorkItemOutput, recommendedAction string, attentionReasons []string, suggestedCommands []commentSuggestedCommand) commentBriefOutput {
 	brief := commentBriefOutput{
 		ThreadID:                thread.ID,
 		Path:                    thread.Path,
 		Status:                  thread.Status,
-		RecommendedAction:       summary.RecommendedAction,
-		AttentionReasons:        summary.AttentionReasons,
-		SuggestedCommands:       summary.SuggestedCommands,
-		SuggestedCommandIntents: suggestedCommandIntents(summary.SuggestedCommands),
+		RecommendedAction:       recommendedAction,
+		AttentionReasons:        attentionReasons,
+		SuggestedCommands:       suggestedCommands,
+		SuggestedCommandIntents: suggestedCommandIntents(suggestedCommands),
 	}
 	if len(thread.Comments) > 0 {
 		latest := thread.Comments[len(thread.Comments)-1]
@@ -4843,16 +4848,17 @@ func commentsMine(ctx context.Context, stdout io.Writer, options commentsCommand
 	}
 	outputMine := limitCommentThreadsHistory(mine, options.CommentLimit)
 	group := commentInboxGroupOutput{Threads: outputMine, Claims: claims, Count: len(mine)}
+	summary := summarizeOwnedRoutingRecovery(group, options.ActorID, options.ActorKind, "mine", options.URL, options.ReceiptLog)
 	payload := map[string]any{
 		"actor":   actorInput(options),
 		"threads": outputMine,
 		"claims":  claims,
 		"count":   len(mine),
 		"cursor":  cursor,
-		"summary": summarizeOwnedRoutingRecovery(group, options.ActorID, options.ActorKind, "mine", options.URL, options.ReceiptLog),
+		"summary": summary,
 	}
 	if commentsNeedsWorkItem(options) {
-		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), mine)
+		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), mine, commentWorkItemBriefBuilder(options, "mine", summary.RecommendedAction, summary.AttentionReasons, commentClaimsByThreadID(claims)))
 		if err != nil {
 			return err
 		}
@@ -4873,13 +4879,13 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		return err
 	}
 	if commentsNeedsWorkItem(options) {
-		if routing.Mine.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Mine.Threads); err != nil {
+		if routing.Mine.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Mine.Threads, commentWorkItemBriefBuilder(options, "inbox:mine", "resume_owned_work", []string{"owned_live_claims"}, commentClaimsByThreadID(routing.Mine.Claims))); err != nil {
 			return err
 		}
-		if routing.Unclaimed.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Unclaimed.Threads); err != nil {
+		if routing.Unclaimed.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Unclaimed.Threads, commentWorkItemBriefBuilder(options, "inbox:unclaimed", "claim_open_work", []string{"unclaimed_open_threads"}, nil)); err != nil {
 			return err
 		}
-		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads); err != nil {
+		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads, commentWorkItemBriefBuilder(options, "inbox:claimed-by-others", "wait_for_claim_release", []string{"open_threads_claimed_by_others"}, commentClaimsByThreadID(routing.ClaimedByOthers.Claims))); err != nil {
 			return err
 		}
 	}
@@ -4923,23 +4929,7 @@ func commentInboxNextFromGroup(groupName string, group commentInboxGroupOutput, 
 	if len(group.Items) > 0 {
 		item = &group.Items[0]
 	}
-	brief := commentBriefOutput{
-		ThreadID:                thread.ID,
-		Path:                    thread.Path,
-		Status:                  thread.Status,
-		RecommendedAction:       summary.RecommendedAction,
-		AttentionReasons:        summary.AttentionReasons,
-		SuggestedCommands:       summary.SuggestedCommands,
-		SuggestedCommandIntents: suggestedCommandIntents(summary.SuggestedCommands),
-	}
-	if len(thread.Comments) > 0 {
-		latest := thread.Comments[len(thread.Comments)-1]
-		brief.LatestComment = commentExcerpt(latest.Body, 240)
-		brief.LatestCommentAuthor = latest.CreatedBy.ID
-	}
-	if item != nil && item.Source != nil {
-		brief.SourceState = item.Source.SourceState
-	}
+	brief := commentBriefForWorkItem(thread, item, summary.RecommendedAction, summary.AttentionReasons, summary.SuggestedCommands)
 	next := commentInboxNextOutput{
 		Group:             groupName,
 		RecommendedAction: summary.RecommendedAction,
@@ -5055,13 +5045,13 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 		return err
 	}
 	if commentsNeedsWorkItem(options) {
-		if routing.Mine.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Mine.Threads); err != nil {
+		if routing.Mine.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Mine.Threads, commentWorkItemBriefBuilder(options, "batch:mine", "resume_owned_work", []string{"owned_live_claims"}, commentClaimsByThreadID(routing.Mine.Claims))); err != nil {
 			return err
 		}
-		if routing.Unclaimed.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Unclaimed.Threads); err != nil {
+		if routing.Unclaimed.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.Unclaimed.Threads, commentWorkItemBriefBuilder(options, "batch:unclaimed", "claim_open_work", []string{"unclaimed_open_threads"}, nil)); err != nil {
 			return err
 		}
-		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads); err != nil {
+		if routing.ClaimedByOthers.Items, err = commentWorkItemsForThreads(ctx, withoutReadHeaders(options), routing.ClaimedByOthers.Threads, commentWorkItemBriefBuilder(options, "batch:claimed-by-others", "wait_for_claim_release", []string{"open_threads_claimed_by_others"}, commentClaimsByThreadID(routing.ClaimedByOthers.Claims))); err != nil {
 			return err
 		}
 	}
@@ -5090,7 +5080,7 @@ func commentsBatch(ctx context.Context, stdout io.Writer, options commentsComman
 		},
 	}
 	if commentsNeedsWorkItem(options) {
-		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), ordered)
+		items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), ordered, commentWorkItemBriefBuilder(options, "batch", "inspect_thread", nil, nil))
 		if err != nil {
 			return err
 		}
@@ -5339,16 +5329,79 @@ func commentsNeedsWorkItem(options commentsCommandOptions) bool {
 	return options.WithContext || options.WithDiff || options.WithActivities
 }
 
-func commentWorkItemsForThreads(ctx context.Context, options commentsCommandOptions, threads []commentThreadOutput) ([]commentWorkItemOutput, error) {
+type commentWorkItemBriefBuilderFunc func(commentWorkItemOutput) *commentBriefOutput
+
+func commentWorkItemsForThreads(ctx context.Context, options commentsCommandOptions, threads []commentThreadOutput, buildBrief commentWorkItemBriefBuilderFunc) ([]commentWorkItemOutput, error) {
 	items := make([]commentWorkItemOutput, 0, len(threads))
 	for _, thread := range threads {
 		item, err := commentWorkItemForThread(ctx, options, thread)
 		if err != nil {
 			return nil, err
 		}
+		if buildBrief != nil {
+			item.Brief = buildBrief(item)
+		}
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func commentWorkItemBriefBuilder(options commentsCommandOptions, clientEventScope string, recommendedAction string, attentionReasons []string, claimsByThreadID map[string]commentActivityOutput) commentWorkItemBriefBuilderFunc {
+	return func(item commentWorkItemOutput) *commentBriefOutput {
+		thread := item.Thread
+		commands := suggestedCommandsForWorkItemBrief(recommendedAction, thread, commentClaimForThread(claimsByThreadID, thread.ID), options, clientEventScope)
+		brief := commentBriefForWorkItem(thread, &item, recommendedAction, attentionReasons, commands)
+		return &brief
+	}
+}
+
+func suggestedCommandsForWorkItemBrief(recommendedAction string, thread commentThreadOutput, claim *commentActivityOutput, options commentsCommandOptions, clientEventScope string) []commentSuggestedCommand {
+	threadID := strings.TrimSpace(thread.ID)
+	if threadID == "" {
+		return nil
+	}
+	switch recommendedAction {
+	case "resume_owned_work":
+		return suggestedCommandsForWritePreflight("owned_live_claim", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
+	case "claim_open_work":
+		if strings.TrimSpace(options.ActorID) == "" {
+			return []commentSuggestedCommand{
+				suggestedCommentsCommand("inspect_thread", "comments show", withURLArg([]string{"comments", "show", threadID, "--json"}, options.URL), "", "Inspect this open thread before choosing an actor-specific claim command."),
+			}
+		}
+		return []commentSuggestedCommand{
+			suggestedCommentsCommandWithClientEventID("claim_open_thread", "comments claim", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "claim", threadID}, options.ActorID, options.ActorKind, "--full", "--json")), options.URL, options.ReceiptLog), "", "Claim this specific open thread and receive source, diff, and activity context.", commentSuggestedClientEventID(clientEventScope, threadID, "claim")),
+		}
+	case "wait_for_claim_release":
+		return suggestedCommandsForWritePreflight("claimed_by_other_actor", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
+	default:
+		return suggestedCommandsForWritePreflight("", thread, claim, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog)
+	}
+}
+
+func commentClaimsByThreadID(claims []commentActivityOutput) map[string]commentActivityOutput {
+	if len(claims) == 0 {
+		return nil
+	}
+	byThreadID := make(map[string]commentActivityOutput, len(claims))
+	for _, claim := range claims {
+		threadID := strings.TrimSpace(claim.ThreadID)
+		if threadID != "" {
+			byThreadID[threadID] = claim
+		}
+	}
+	return byThreadID
+}
+
+func commentClaimForThread(claimsByThreadID map[string]commentActivityOutput, threadID string) *commentActivityOutput {
+	if len(claimsByThreadID) == 0 {
+		return nil
+	}
+	claim, ok := claimsByThreadID[strings.TrimSpace(threadID)]
+	if !ok {
+		return nil
+	}
+	return &claim
 }
 
 func commentWorkItemForThread(ctx context.Context, options commentsCommandOptions, thread commentThreadOutput) (commentWorkItemOutput, error) {
@@ -5640,6 +5693,7 @@ func commentsWatch(ctx context.Context, stdout io.Writer, options commentsComman
 				previous = threads
 				first = false
 			} else {
+				summary := summarizeOpenWorklist(threads, options.ActorID, options.ActorKind, cursor, options.Path, options.URL, options.ReceiptLog)
 				event := commentWatchEvent{
 					Type:               "comments_open_worklist",
 					SchemaVersion:      commentsStreamSchemaVersion,
@@ -5652,11 +5706,11 @@ func commentsWatch(ctx context.Context, stdout io.Writer, options commentsComman
 					Cursor:             cursor,
 					EmittedAt:          time.Now().UTC().Format(time.RFC3339Nano),
 					Count:              len(threads),
-					Summary:            summarizeOpenWorklist(threads, options.ActorID, options.ActorKind, cursor, options.Path, options.URL, options.ReceiptLog),
+					Summary:            summary,
 					Threads:            limitCommentThreadsHistory(threads, options.CommentLimit),
 				}
 				if commentsNeedsWorkItem(options) {
-					items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads)
+					items, err := commentWorkItemsForThreads(ctx, withoutReadHeaders(options), threads, commentWorkItemBriefBuilder(options, "watch", summary.RecommendedAction, summary.AttentionReasons, nil))
 					if err != nil {
 						if options.WatchOnce {
 							return err
@@ -7615,6 +7669,7 @@ type commentBriefOutput struct {
 
 type commentWorkItemOutput struct {
 	Thread     commentThreadOutput     `json:"thread"`
+	Brief      *commentBriefOutput     `json:"brief,omitempty"`
 	File       map[string]any          `json:"file,omitempty"`
 	Source     *sourceContextOutput    `json:"source,omitempty"`
 	Diff       *textDiffOutput         `json:"diff,omitempty"`

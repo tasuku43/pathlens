@@ -468,7 +468,7 @@ func TestCommentsCLIClaimLeasesNextOpenThreadForAgentWork(t *testing.T) {
 	if len(minePayload.Claims) != 1 || minePayload.Claims[0].ID != renewedPayload.Renewal.ID {
 		t.Fatalf("mine claims = %#v", minePayload.Claims)
 	}
-	if len(minePayload.Items) != 1 || minePayload.Items[0].Thread.ID != firstID || !containsActivity(minePayload.Items[0].Activities, "thread_claimed", "renew-open-1") {
+	if len(minePayload.Items) != 1 || minePayload.Items[0].Thread.ID != firstID || minePayload.Items[0].Brief == nil || minePayload.Items[0].Brief.RecommendedAction != "resume_owned_work" || !containsString(minePayload.Items[0].Brief.SuggestedCommandIntents, "renew_current_claim") || !containsActivity(minePayload.Items[0].Activities, "thread_claimed", "renew-open-1") {
 		t.Fatalf("mine items = %#v", minePayload.Items)
 	}
 	if !strings.HasPrefix(minePayload.Cursor, "open:") {
@@ -800,17 +800,23 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if len(inboxPayload.Mine.Claims) != 1 || inboxPayload.Mine.Claims[0].ClientEventID != "inbox-claim-mine" {
 		t.Fatalf("mine claims = %#v", inboxPayload.Mine.Claims)
 	}
-	if len(inboxPayload.Mine.Items) != 1 || !containsActivity(inboxPayload.Mine.Items[0].Activities, "thread_claimed", "inbox-claim-mine") {
+	if len(inboxPayload.Mine.Items) != 1 || inboxPayload.Mine.Items[0].Brief == nil || inboxPayload.Mine.Items[0].Brief.RecommendedAction != "resume_owned_work" || !containsString(inboxPayload.Mine.Items[0].Brief.SuggestedCommandIntents, "renew_current_claim") || !containsActivity(inboxPayload.Mine.Items[0].Activities, "thread_claimed", "inbox-claim-mine") {
 		t.Fatalf("mine items = %#v", inboxPayload.Mine.Items)
 	}
 	if inboxPayload.Unclaimed.Count != 1 || len(inboxPayload.Unclaimed.Threads) != 1 || inboxPayload.Unclaimed.Threads[0].ID != unclaimedID {
 		t.Fatalf("unclaimed group = %#v", inboxPayload.Unclaimed)
+	}
+	if len(inboxPayload.Unclaimed.Items) != 1 || inboxPayload.Unclaimed.Items[0].Brief == nil || inboxPayload.Unclaimed.Items[0].Brief.RecommendedAction != "claim_open_work" || !containsString(inboxPayload.Unclaimed.Items[0].Brief.SuggestedCommandIntents, "claim_open_thread") {
+		t.Fatalf("unclaimed items = %#v", inboxPayload.Unclaimed.Items)
 	}
 	if inboxPayload.ClaimedByOthers.Count != 1 || len(inboxPayload.ClaimedByOthers.Threads) != 1 || inboxPayload.ClaimedByOthers.Threads[0].ID != otherID {
 		t.Fatalf("claimed-by-others group = %#v", inboxPayload.ClaimedByOthers)
 	}
 	if len(inboxPayload.ClaimedByOthers.Claims) != 1 || inboxPayload.ClaimedByOthers.Claims[0].Actor.ID != "claude-code:inbox-2" {
 		t.Fatalf("claimed-by-others claims = %#v", inboxPayload.ClaimedByOthers.Claims)
+	}
+	if len(inboxPayload.ClaimedByOthers.Items) != 1 || inboxPayload.ClaimedByOthers.Items[0].Brief == nil || inboxPayload.ClaimedByOthers.Items[0].Brief.RecommendedAction != "wait_for_claim_release" || !containsString(inboxPayload.ClaimedByOthers.Items[0].Brief.SuggestedCommandIntents, "follow_until_released") {
+		t.Fatalf("claimed-by-others items = %#v", inboxPayload.ClaimedByOthers.Items)
 	}
 	if inboxPayload.SourceUnavailable.Count != 1 || len(inboxPayload.SourceUnavailable.Threads) != 1 || inboxPayload.SourceUnavailable.Threads[0].Path != "stale.md" {
 		t.Fatalf("source-unavailable group = %#v", inboxPayload.SourceUnavailable)
@@ -2183,6 +2189,11 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if _, ok := openWorklistSummaryProperties["suggestedCommands"]; !ok || openWorklistPayload.Example["summary"].(map[string]any)["recommendedAction"] != "claim_open_work" {
 		t.Fatalf("open worklist summary schema = %#v", openWorklistPayload)
 	}
+	openWorklistItemProperties := openWorklistProperties["items"].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)
+	workItemBriefProperties := openWorklistItemProperties["brief"].(map[string]any)["properties"].(map[string]any)
+	if _, ok := workItemBriefProperties["suggestedCommandIntents"]; !ok {
+		t.Fatalf("work item brief schema missing suggestedCommandIntents = %#v", workItemBriefProperties)
+	}
 
 	errorSchema := runCommentsCLIForTest(t, "schema", "error", "--json")
 	var errorPayload commentSchemaOutput
@@ -2694,6 +2705,9 @@ func TestCommentsCLIContextAndNextCanIncludeCurrentDiff(t *testing.T) {
 	if activePayload.Items[0].Thread.ID != threadID || activePayload.Items[0].Source == nil || !activePayload.Items[0].Source.Available {
 		t.Fatalf("active full source item = %#v", activePayload.Items[0])
 	}
+	if activePayload.Items[0].Brief == nil || activePayload.Items[0].Brief.RecommendedAction != "inspect_thread" || activePayload.Items[0].Brief.SourceState != "current" || !containsString(activePayload.Items[0].Brief.SuggestedCommandIntents, "inspect_thread") {
+		t.Fatalf("active full brief = %#v", activePayload.Items[0].Brief)
+	}
 	if activePayload.Items[0].Diff == nil || activePayload.Items[0].Diff.Status != "available" || !strings.Contains(activePayload.Items[0].Diff.Content, "+Hello from working tree") {
 		t.Fatalf("active full diff item = %#v", activePayload.Items[0].Diff)
 	}
@@ -2714,6 +2728,9 @@ func TestCommentsCLIContextAndNextCanIncludeCurrentDiff(t *testing.T) {
 	if listPayload.Items[0].Source == nil || !listPayload.Items[0].Source.Available || listPayload.Items[0].Diff == nil || listPayload.Items[0].Diff.Status != "available" {
 		t.Fatalf("list full item = %#v", listPayload.Items[0])
 	}
+	if listPayload.Items[0].Brief == nil || listPayload.Items[0].Brief.RecommendedAction != "inspect_thread" || listPayload.Items[0].Brief.ThreadID != threadID || !containsString(listPayload.Items[0].Brief.SuggestedCommandIntents, "inspect_thread") {
+		t.Fatalf("list full brief = %#v", listPayload.Items[0].Brief)
+	}
 	if !containsActivity(listPayload.Items[0].Activities, "thread_read", "list-full") {
 		t.Fatalf("list full activities did not include read receipt: %#v", listPayload.Items[0].Activities)
 	}
@@ -2725,6 +2742,9 @@ func TestCommentsCLIContextAndNextCanIncludeCurrentDiff(t *testing.T) {
 	}
 	if len(watchEvent.Items) != 1 || watchEvent.Items[0].Thread.ID != threadID {
 		t.Fatalf("watch work items = %s", watchOutput.String())
+	}
+	if watchEvent.Items[0].Brief == nil || watchEvent.Items[0].Brief.RecommendedAction != "claim_open_work" || watchEvent.Items[0].Brief.ThreadID != threadID || !containsString(watchEvent.Items[0].Brief.SuggestedCommandIntents, "claim_open_thread") {
+		t.Fatalf("watch work item brief = %#v", watchEvent.Items[0].Brief)
 	}
 	if watchEvent.Items[0].Source == nil || !watchEvent.Items[0].Source.Available {
 		t.Fatalf("watch source context = %#v", watchEvent.Items[0].Source)
