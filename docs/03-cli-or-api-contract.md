@@ -971,7 +971,7 @@ idempotent claim event.
 
 `inbox` is the startup snapshot for background agents. It reads the open
 worklist without creating read receipts, classifies threads by their latest live
-claim, and returns three groups:
+claim, and returns routed groups plus the first recommended work target:
 
 ```json
 {
@@ -991,6 +991,23 @@ claim, and returns three groups:
     "unclaimedCount": 1,
     "claimedByOthersCount": 1,
     "suggestedCommands": []
+  },
+  "next": {
+    "group": "mine",
+    "recommendedAction": "resume_owned_work",
+    "threadId": "comment-thread-1",
+    "path": "README.md",
+    "status": "open",
+    "brief": {
+      "threadId": "comment-thread-1",
+      "path": "README.md",
+      "status": "open",
+      "recommendedAction": "resume_owned_work",
+      "attentionReasons": ["owned_live_claims"],
+      "latestComment": "Already claimed by this agent",
+      "latestCommentAuthor": "human:reviewer",
+      "suggestedCommandIntents": ["renew_owned_claim"]
+    }
   },
   "mine": { "threads": [], "claims": [], "count": 1 },
   "unclaimed": { "threads": [], "count": 1 },
@@ -1012,7 +1029,10 @@ reported in `summary.sourceUnavailableCount`. `summary.suggestedCommands`
 contains the next safe CLI recipes, such as renewing and following recovered
 owned work or starting `comments work` for claimable feedback. Those recipes
 preserve the selected `--url`, plus `--receipt-log` where relevant, so a
-resident agent can continue against the same GUI/server session. Pass `--full`
+resident agent can continue against the same GUI/server session. `next` mirrors
+the summary branch and points to the first thread the adapter should inspect or
+resume; it is `null` when there is no owned, unclaimed, or other-claimed open
+work to act on. Pass `--full`
 to add rich `items` inside each group.
 
 `batch <review-batch-id>` is the publish-batch snapshot for agents that are
@@ -1371,8 +1391,9 @@ the lease expires.
 Use `check <thread-id>` right before a guarded write when the agent wants a
 JSON preflight instead of discovering stale ownership from a terminal error.
 Use `inbox --json` for a compact snapshot of owned, unclaimed, and
-other-claimed routing before deciding its next command; add `--full` only when
-the snapshot itself needs source, diff, and activity payloads.
+other-claimed routing before deciding its next command. Read `summary` for the
+branch decision and `next` for the first concrete thread target; add `--full`
+only when the snapshot itself needs source, diff, and activity payloads.
 Use `release <thread-id> --triage-file <path|-> --require-claim` to explain a
 blocked or needs-info handoff with structured JSON and release the claim
 without resolving or archiving it. Use `release <thread-id> --body-file <path>`

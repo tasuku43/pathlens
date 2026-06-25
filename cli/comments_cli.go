@@ -1839,7 +1839,7 @@ func commentInboxOutputSchema() commentSchemaOutput {
 			"title":                "commentInboxOutput",
 			"type":                 "object",
 			"additionalProperties": true,
-			"required":             []string{"schemaVersion", "schemaCommand", "actor", "cursor", "count", "summary", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
+			"required":             []string{"schemaVersion", "schemaCommand", "actor", "cursor", "count", "summary", "next", "mine", "unclaimed", "claimedByOthers", "sourceUnavailable"},
 			"properties": map[string]any{
 				"schemaVersion":     map[string]any{"type": "integer", "minimum": 1},
 				"schemaCommand":     arraySchema(map[string]any{"type": "string"}),
@@ -1847,6 +1847,7 @@ func commentInboxOutputSchema() commentSchemaOutput {
 				"cursor":            map[string]any{"type": "string"},
 				"count":             map[string]any{"type": "integer", "minimum": 0},
 				"summary":           commentRoutingSummarySchema(),
+				"next":              nullableSchema(commentInboxNextSchema()),
 				"mine":              commentInboxGroupSchema(),
 				"unclaimed":         commentInboxGroupSchema(),
 				"claimedByOthers":   commentInboxGroupSchema(),
@@ -2287,6 +2288,24 @@ func commentInboxOutputExample() map[string]any {
 					"clientEventId": "inbox:comment-thread-1:renew",
 					"reason":        "Refresh the recovered live claim before continuing work after an adapter restart.",
 				},
+			},
+		},
+		"next": map[string]any{
+			"group":             "mine",
+			"recommendedAction": "resume_owned_work",
+			"threadId":          "comment-thread-1",
+			"path":              "README.md",
+			"status":            "open",
+			"claim":             claim,
+			"brief": map[string]any{
+				"threadId":                "comment-thread-1",
+				"path":                    "README.md",
+				"status":                  "open",
+				"recommendedAction":       "resume_owned_work",
+				"attentionReasons":        []string{"owned_live_claims"},
+				"latestComment":           "Please update this paragraph.",
+				"latestCommentAuthor":     "human:reviewer",
+				"suggestedCommandIntents": []string{"renew_owned_claim"},
 			},
 		},
 		"mine": map[string]any{
@@ -3275,6 +3294,23 @@ func commentInboxGroupSchema() map[string]any {
 			"claims":  arraySchema(commentActivitySchema()),
 			"count":   map[string]any{"type": "integer", "minimum": 0},
 			"items":   arraySchema(commentWorkItemSchema()),
+		},
+	}
+}
+
+func commentInboxNextSchema() map[string]any {
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": true,
+		"required":             []string{"group", "recommendedAction", "threadId", "path", "brief"},
+		"properties": map[string]any{
+			"group":             map[string]any{"type": "string", "enum": []string{"mine", "unclaimed", "claimedByOthers"}},
+			"recommendedAction": map[string]any{"type": "string", "enum": []string{"resume_owned_work", "claim_open_work", "wait_for_claim_release"}},
+			"threadId":          map[string]any{"type": "string"},
+			"path":              map[string]any{"type": "string"},
+			"status":            map[string]any{"type": "string"},
+			"claim":             commentActivitySchema(),
+			"brief":             commentBriefSchema(),
 		},
 	}
 }
@@ -4848,19 +4884,75 @@ func commentsInbox(ctx context.Context, stdout io.Writer, options commentsComman
 		}
 	}
 	outputRouting := limitCommentOpenRoutingHistory(routing, options.CommentLimit)
+	summary := summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.Path, options.URL, options.ReceiptLog)
 	payload := map[string]any{
 		"schemaVersion":     commentsStreamSchemaVersion,
 		"schemaCommand":     commentSchemaCommandArgs("commentInboxOutput"),
 		"actor":             actorInput(options),
 		"cursor":            cursor,
 		"count":             len(ordered),
-		"summary":           summarizeOpenRouting(routing, options.ActorID, options.ActorKind, cursor, "inbox", options.Path, options.URL, options.ReceiptLog),
+		"summary":           summary,
+		"next":              commentInboxNextWork(outputRouting, summary),
 		"mine":              outputRouting.Mine,
 		"unclaimed":         outputRouting.Unclaimed,
 		"claimedByOthers":   outputRouting.ClaimedByOthers,
 		"sourceUnavailable": outputRouting.SourceUnavailable,
 	}
 	return writeJSON(stdout, payload)
+}
+
+func commentInboxNextWork(routing commentOpenRoutingOutput, summary commentRoutingSummary) *commentInboxNextOutput {
+	if routing.Mine.Count > 0 {
+		return commentInboxNextFromGroup("mine", routing.Mine, summary)
+	}
+	if routing.Unclaimed.Count > 0 {
+		return commentInboxNextFromGroup("unclaimed", routing.Unclaimed, summary)
+	}
+	if routing.ClaimedByOthers.Count > 0 {
+		return commentInboxNextFromGroup("claimedByOthers", routing.ClaimedByOthers, summary)
+	}
+	return nil
+}
+
+func commentInboxNextFromGroup(groupName string, group commentInboxGroupOutput, summary commentRoutingSummary) *commentInboxNextOutput {
+	if len(group.Threads) == 0 {
+		return nil
+	}
+	thread := group.Threads[0]
+	var item *commentWorkItemOutput
+	if len(group.Items) > 0 {
+		item = &group.Items[0]
+	}
+	brief := commentBriefOutput{
+		ThreadID:                thread.ID,
+		Path:                    thread.Path,
+		Status:                  thread.Status,
+		RecommendedAction:       summary.RecommendedAction,
+		AttentionReasons:        summary.AttentionReasons,
+		SuggestedCommands:       summary.SuggestedCommands,
+		SuggestedCommandIntents: suggestedCommandIntents(summary.SuggestedCommands),
+	}
+	if len(thread.Comments) > 0 {
+		latest := thread.Comments[len(thread.Comments)-1]
+		brief.LatestComment = commentExcerpt(latest.Body, 240)
+		brief.LatestCommentAuthor = latest.CreatedBy.ID
+	}
+	if item != nil && item.Source != nil {
+		brief.SourceState = item.Source.SourceState
+	}
+	next := commentInboxNextOutput{
+		Group:             groupName,
+		RecommendedAction: summary.RecommendedAction,
+		ThreadID:          thread.ID,
+		Path:              thread.Path,
+		Status:            thread.Status,
+		Brief:             brief,
+	}
+	if len(group.Claims) > 0 {
+		claim := group.Claims[0]
+		next.Claim = &claim
+	}
+	return &next
 }
 
 func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, actorKind string, cursor string, clientEventScope string, pathFilter string, serverURL string, receiptLog string) commentRoutingSummary {
@@ -7532,6 +7624,16 @@ type commentInboxGroupOutput struct {
 	Claims  []commentActivityOutput `json:"claims,omitempty"`
 	Count   int                     `json:"count"`
 	Items   []commentWorkItemOutput `json:"items,omitempty"`
+}
+
+type commentInboxNextOutput struct {
+	Group             string                 `json:"group"`
+	RecommendedAction string                 `json:"recommendedAction"`
+	ThreadID          string                 `json:"threadId"`
+	Path              string                 `json:"path"`
+	Status            string                 `json:"status,omitempty"`
+	Claim             *commentActivityOutput `json:"claim,omitempty"`
+	Brief             commentBriefOutput     `json:"brief"`
 }
 
 type commentRoutingSummary struct {

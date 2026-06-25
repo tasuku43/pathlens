@@ -379,9 +379,11 @@ top-level `summary` turns those groups into an adapter decision:
 `resume_owned_work`, `claim_open_work`, `wait_for_claim_release`, or
 `wait_for_gui_feedback`, with matching `suggestedCommands` so the agent can
 renew/follow recovered owned work or claim the next GUI feedback without
-hard-coding the route. Runtime routing suggestions preserve the selected
-`--url`, and write-oriented suggestions preserve `--receipt-log` when the
-adapter is keeping a durable ledger.
+hard-coding the route. The top-level `next` object mirrors that decision with
+the first concrete thread target, or `null` when there is no actionable open
+work. Runtime routing suggestions preserve the selected `--url`, and
+write-oriented suggestions preserve `--receipt-log` when the adapter is keeping
+a durable ledger.
 
 `comments batch <review-batch-id>` is the routing snapshot for one published
 GUI review batch. It includes all threads in that publish action, summary

@@ -768,6 +768,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 		Cursor            string                  `json:"cursor"`
 		Count             int                     `json:"count"`
 		Summary           commentRoutingSummary   `json:"summary"`
+		Next              *commentInboxNextOutput `json:"next"`
 		Mine              commentInboxGroupOutput `json:"mine"`
 		Unclaimed         commentInboxGroupOutput `json:"unclaimed"`
 		ClaimedByOthers   commentInboxGroupOutput `json:"claimedByOthers"`
@@ -785,6 +786,9 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	}
 	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "resume_owned_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 1 || inboxPayload.Summary.UnclaimedCount != 1 || inboxPayload.Summary.ClaimedByOthersCount != 1 || !containsString(inboxPayload.Summary.AttentionReasons, "owned_live_claims") {
 		t.Fatalf("inbox summary = %#v", inboxPayload.Summary)
+	}
+	if inboxPayload.Next == nil || inboxPayload.Next.Group != "mine" || inboxPayload.Next.RecommendedAction != "resume_owned_work" || inboxPayload.Next.ThreadID != mineID || inboxPayload.Next.Path != "README.md" || inboxPayload.Next.Claim == nil || inboxPayload.Next.Claim.ClientEventID != "inbox-claim-mine" || inboxPayload.Next.Brief.ThreadID != mineID || inboxPayload.Next.Brief.LatestComment != "Already claimed by this agent" || !containsString(inboxPayload.Next.Brief.SuggestedCommandIntents, "renew_owned_claim") {
+		t.Fatalf("inbox next = %#v", inboxPayload.Next)
 	}
 	if len(inboxPayload.Summary.SuggestedCommands) != 3 || inboxPayload.Summary.SuggestedCommands[0].Intent != "renew_owned_claim" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments renew" || !strings.HasPrefix(inboxPayload.Summary.SuggestedCommands[0].DisplayCommand, "vivi comments renew "+mineID+" --actor codex:inbox-1") || !strings.Contains(inboxPayload.Summary.SuggestedCommands[0].DisplayCommand, " --url "+server.URL+" ") || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, inboxPayload.Summary.SuggestedCommands[0].ClientEventID) || inboxPayload.Summary.SuggestedCommands[1].Command != "comments follow" || inboxPayload.Summary.SuggestedCommands[2].Command != "comments check" {
 		t.Fatalf("inbox summary suggestions = %#v", inboxPayload.Summary.SuggestedCommands)
@@ -813,6 +817,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 
 	runCommentsCLIForTest(t, "release", mineID, "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--client-event-id", "inbox-release-mine", "--json")
 	afterRelease := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--json")
+	inboxPayload.Next = nil
 	decodeCLIJSON(t, afterRelease, &inboxPayload)
 	if inboxPayload.Mine.Count != 0 || len(inboxPayload.Mine.Threads) != 0 {
 		t.Fatalf("mine after release = %s", afterRelease.String())
@@ -822,6 +827,9 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	}
 	if !inboxPayload.Summary.RequiresAttention || inboxPayload.Summary.RecommendedAction != "claim_open_work" || inboxPayload.Summary.TotalOpenThreadCount != 4 || inboxPayload.Summary.OpenThreadCount != 3 || inboxPayload.Summary.SourceUnavailableCount != 1 || inboxPayload.Summary.MineCount != 0 || inboxPayload.Summary.UnclaimedCount != 2 || inboxPayload.Summary.ClaimedByOthersCount != 1 || len(inboxPayload.Summary.SuggestedCommands) != 1 || inboxPayload.Summary.SuggestedCommands[0].Intent != "claim_next_open_thread" || inboxPayload.Summary.SuggestedCommands[0].Command != "comments work" || inboxPayload.Summary.SuggestedCommands[0].ClientEventID == "" || !containsString(inboxPayload.Summary.SuggestedCommands[0].Args, "--once") {
 		t.Fatalf("inbox summary after release = %#v", inboxPayload.Summary)
+	}
+	if inboxPayload.Next == nil || inboxPayload.Next.Group != "unclaimed" || inboxPayload.Next.RecommendedAction != "claim_open_work" || (inboxPayload.Next.ThreadID != mineID && inboxPayload.Next.ThreadID != unclaimedID) || inboxPayload.Next.Claim != nil || !containsString(inboxPayload.Next.Brief.SuggestedCommandIntents, "claim_next_open_thread") {
+		t.Fatalf("inbox next after release = %#v", inboxPayload.Next)
 	}
 
 	scopedInbox := runCommentsCLIForTest(t, "inbox", "--url", server.URL, "--actor", "codex:inbox-1", "--actor-kind", "codex", "--path", "README.md", "--json")
@@ -1863,11 +1871,15 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	if inboxProperties["schemaVersion"].(map[string]any)["type"] != "integer" || inboxProperties["schemaCommand"].(map[string]any)["type"] != "array" || !containsAnyString(inboxRequired, "schemaVersion") || !containsAnyString(inboxRequired, "schemaCommand") {
 		t.Fatalf("inbox schema metadata properties = %#v", inboxPayload.Schema)
 	}
+	if inboxProperties["next"].(map[string]any)["anyOf"] == nil || !containsAnyString(inboxRequired, "next") {
+		t.Fatalf("inbox next schema = %#v", inboxPayload.Schema)
+	}
 	if inboxProperties["sourceUnavailable"].(map[string]any)["type"] != "object" {
 		t.Fatalf("inbox sourceUnavailable schema = %#v", inboxPayload)
 	}
 	inboxExampleSummary := inboxPayload.Example["summary"].(map[string]any)
-	if inboxExampleSummary["recommendedAction"] != "resume_owned_work" || !containsAnyString(inboxPayload.Example["schemaCommand"].([]any), "commentInboxOutput") || inboxPayload.Example["mine"].(map[string]any)["count"] != float64(1) && inboxPayload.Example["mine"].(map[string]any)["count"] != 1 || inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != float64(0) && inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != 0 {
+	inboxExampleNext := inboxPayload.Example["next"].(map[string]any)
+	if inboxExampleSummary["recommendedAction"] != "resume_owned_work" || inboxExampleNext["group"] != "mine" || inboxExampleNext["recommendedAction"] != "resume_owned_work" || !containsAnyString(inboxPayload.Example["schemaCommand"].([]any), "commentInboxOutput") || inboxPayload.Example["mine"].(map[string]any)["count"] != float64(1) && inboxPayload.Example["mine"].(map[string]any)["count"] != 1 || inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != float64(0) && inboxPayload.Example["sourceUnavailable"].(map[string]any)["count"] != 0 {
 		t.Fatalf("inbox schema example = %#v", inboxPayload.Example)
 	}
 
