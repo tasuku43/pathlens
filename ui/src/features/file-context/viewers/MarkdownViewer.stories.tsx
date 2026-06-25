@@ -228,6 +228,9 @@ export const RenderedMarkerPlacement: Story = {
         ),
       ).toBeLessThan(2),
     );
+    await expect(renderedBlockBottomPadding(listItem)).toBeGreaterThanOrEqual(
+      5,
+    );
 
     const codeBlock = canvasElement.querySelector("pre")!;
     await expect(
@@ -258,6 +261,9 @@ export const RenderedMarkerPlacement: Story = {
             .getBoundingClientRect().top - listTopBefore,
         ),
       ).toBeLessThan(2),
+    );
+    await expect(renderedBlockBottomPadding(listItem)).toBeGreaterThanOrEqual(
+      5,
     );
   },
 };
@@ -301,6 +307,28 @@ function markerPlacementComment(input: {
       },
     },
   };
+}
+
+function renderedBlockBottomPadding(block: HTMLElement): number {
+  const textRect = firstReadableTextRect(block);
+  const blockRect = block.getBoundingClientRect();
+  const beforeStyle = getComputedStyle(block, "::before");
+  const beforeTop = Number.parseFloat(beforeStyle.top);
+  const beforeHeight = Number.parseFloat(beforeStyle.height);
+  const highlightBottom = blockRect.top + beforeTop + beforeHeight;
+  return highlightBottom - textRect.bottom;
+}
+
+function firstReadableTextRect(block: HTMLElement): DOMRect {
+  for (const node of block.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      return rect;
+    }
+  }
+  return block.getBoundingClientRect();
 }
 
 export const SourceDiffMode: Story = {
