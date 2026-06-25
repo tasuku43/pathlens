@@ -83,6 +83,7 @@ export function SourceCommentSurface({
     start: number;
     current: number;
     moved: boolean;
+    pointerId: number;
   } | null>(null);
   const suppressLineClickRef = useRef(false);
   const lines = splitCodeLines(file.content);
@@ -155,7 +156,13 @@ export function SourceCommentSurface({
       start: lineNumber,
       current: lineNumber,
       moved: false,
+      pointerId: event.pointerId,
     };
+    try {
+      linesRef.current?.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture can fail in non-browser renderers; drag still works via React events.
+    }
     setLineDragging(true);
     setAnchorLine(lineNumber);
     onSelectionChange({ start: lineNumber, end: lineNumber });
@@ -169,41 +176,39 @@ export function SourceCommentSurface({
     onSelectionChange(normalizeLineRange(drag.start, lineNumber, lines.length));
   }
 
-  useEffect(() => {
-    const trackLineDrag = (event: PointerEvent) => {
-      if (!lineDragRef.current) return;
-      const row = document
-        .elementFromPoint(event.clientX, event.clientY)
-        ?.closest<HTMLElement>(".code-line[data-line]");
-      const lineNumber = Number(row?.dataset.line);
-      if (Number.isInteger(lineNumber) && lineNumber > 0) {
-        extendLineDrag(lineNumber);
-      }
-    };
-    const finishLineDrag = () => {
-      const drag = lineDragRef.current;
-      lineDragRef.current = null;
-      setLineDragging(false);
-      if (!drag?.moved) return;
-      const range = normalizeLineRange(drag.start, drag.current, lines.length);
-      suppressLineClickRef.current = true;
-      window.setTimeout(() => {
-        suppressLineClickRef.current = false;
-      }, 0);
-      startRangeComment(
-        range,
-        lines.slice(range.start - 1, range.end).join("\n"),
-      );
-    };
-    window.addEventListener("pointermove", trackLineDrag);
-    window.addEventListener("pointerup", finishLineDrag);
-    window.addEventListener("pointercancel", finishLineDrag);
-    return () => {
-      window.removeEventListener("pointermove", trackLineDrag);
-      window.removeEventListener("pointerup", finishLineDrag);
-      window.removeEventListener("pointercancel", finishLineDrag);
-    };
-  }, [file.path, file.content]);
+  function trackLineDrag(event: React.PointerEvent) {
+    const drag = lineDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const row = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLElement>(".code-line[data-line]");
+    const lineNumber = Number(row?.dataset.line);
+    if (Number.isInteger(lineNumber) && lineNumber > 0) {
+      extendLineDrag(lineNumber);
+    }
+  }
+
+  function finishLineDrag(event: React.PointerEvent) {
+    const drag = lineDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    lineDragRef.current = null;
+    try {
+      linesRef.current?.releasePointerCapture(event.pointerId);
+    } catch {
+      // Capture may already be released by the browser on pointer cancel.
+    }
+    setLineDragging(false);
+    if (!drag.moved) return;
+    const range = normalizeLineRange(drag.start, drag.current, lines.length);
+    suppressLineClickRef.current = true;
+    window.setTimeout(() => {
+      suppressLineClickRef.current = false;
+    }, 0);
+    startRangeComment(
+      range,
+      lines.slice(range.start - 1, range.end).join("\n"),
+    );
+  }
 
   function updateSelectionComment() {
     const selection = selectionCommentTargetInElement(linesRef.current);
@@ -311,6 +316,9 @@ export function SourceCommentSurface({
       role="list"
       ref={linesRef}
       onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
+      onPointerMove={trackLineDrag}
+      onPointerUp={finishLineDrag}
+      onPointerCancel={finishLineDrag}
       onKeyUp={updateSelectionComment}
     >
       {lines.map((line, index) => {
