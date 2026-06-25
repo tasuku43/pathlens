@@ -14,12 +14,13 @@ func TestHelpTextSurfacesAgentCommentsLoop(t *testing.T) {
 	help := helpText()
 	for _, command := range []string{
 		"vivi review <queue|bases|diff> [options]",
-		"vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
-		"vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
+		"vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
+		"vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
 		"Agent quick start:",
 		"Start the local server: vivi <root> --port 0 --ready-json --actor <actor>",
-		"Then run the emitted review/comments commands; they include the resolved --url.",
-		"Inspect deeper command help with: vivi review --help or vivi comments --help",
+		"Then run the emitted primary comments work command; it includes the resolved --url.",
+		"Use review queue/diff only when the agent needs changed-file context beside human feedback.",
+		"Inspect deeper command help with: vivi comments --help or vivi review --help.",
 		"--ready-json",
 	} {
 		if !strings.Contains(help, command) {
@@ -34,14 +35,18 @@ func TestServerReadyPayloadIncludesResolvedURLAndAgentCommands(t *testing.T) {
 	if payload.SchemaVersion != 1 || payload.Event != "vivi_server_ready" || payload.Root != "/work/linux" || payload.URL != "http://127.0.0.1:59432" || payload.Actor != "" {
 		t.Fatalf("unexpected ready payload metadata: %#v", payload)
 	}
-	if len(payload.SuggestedCommands) != 2 {
-		t.Fatalf("expected two suggested commands, got %#v", payload.SuggestedCommands)
+	if len(payload.SuggestedCommands) != 3 {
+		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
 	}
-	reviewCommand := payload.SuggestedCommands[0]
-	if reviewCommand.Intent != "inspect_review_queue" || reviewCommand.Command != "review queue" || reviewCommand.DisplayCommand != "vivi review queue --url http://127.0.0.1:59432 --json" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
+	configureCommand := payload.SuggestedCommands[0]
+	if configureCommand.Intent != "configure_agent_actor" || configureCommand.Command != "comments doctor" || !configureCommand.Primary || configureCommand.DisplayCommand != "vivi comments doctor --url http://127.0.0.1:59432 --json" || !containsString(configureCommand.Args, "--url") || !containsString(configureCommand.Args, "http://127.0.0.1:59432") || !containsString(configureCommand.Args, "--json") {
+		t.Fatalf("ready payload should make actor configuration primary without --actor: %#v", configureCommand)
+	}
+	reviewCommand := payload.SuggestedCommands[1]
+	if reviewCommand.Intent != "inspect_review_queue_context" || reviewCommand.Command != "review queue" || reviewCommand.DisplayCommand != "vivi review queue --url http://127.0.0.1:59432 --json" || !containsString(reviewCommand.Args, "--url") || !containsString(reviewCommand.Args, "http://127.0.0.1:59432") || !containsString(reviewCommand.Args, "--json") {
 		t.Fatalf("review ready suggestion did not carry resolved url: %#v", reviewCommand)
 	}
-	commentsCommand := payload.SuggestedCommands[1]
+	commentsCommand := payload.SuggestedCommands[2]
 	if commentsCommand.Intent != "check_comments_readiness" || commentsCommand.Command != "comments doctor" || commentsCommand.DisplayCommand != "vivi comments doctor --url http://127.0.0.1:59432 --json" || !containsString(commentsCommand.Args, "--url") || !containsString(commentsCommand.Args, "http://127.0.0.1:59432") || !containsString(commentsCommand.Args, "--json") {
 		t.Fatalf("comments ready suggestion did not carry resolved url: %#v", commentsCommand)
 	}
@@ -65,8 +70,12 @@ func TestServerReadyPayloadCanCarryAgentActor(t *testing.T) {
 	if payload.Actor != "codex" {
 		t.Fatalf("ready payload actor = %q", payload.Actor)
 	}
-	if len(payload.SuggestedCommands) != 2 {
-		t.Fatalf("expected two suggested commands, got %#v", payload.SuggestedCommands)
+	if len(payload.SuggestedCommands) != 3 {
+		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
+	}
+	workCommand := payload.SuggestedCommands[0]
+	if workCommand.Intent != "start_resident_work_loop" || workCommand.Command != "comments work" || !workCommand.Primary || workCommand.ClientEventID != "server-ready:codex:work" || !containsString(workCommand.Args, "--wait") || !containsString(workCommand.Args, "--loop") || !containsString(workCommand.Args, "--idle-events") || !containsString(workCommand.Args, "--activity-limit") || !containsString(workCommand.Args, "--comment-limit") {
+		t.Fatalf("actor-ready payload should make comments work primary: %#v", workCommand)
 	}
 	for _, command := range payload.SuggestedCommands {
 		if !containsString(command.Args, "--actor") || !containsString(command.Args, "codex") || !containsString(command.Args, "--url") || !containsString(command.Args, "http://127.0.0.1:59432") {
@@ -91,52 +100,26 @@ func TestReviewActorFromFlagUsesBrowserReviewerIdentity(t *testing.T) {
 func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	help := commentsHelpText()
 	for _, text := range []string{
-		"Agent quick path:",
-		"1. Discover the contract and receipt ledger: vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"2. Cache the schema index offline: vivi comments schema list --json",
-		"3. Check startup state: vivi comments doctor --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"4. Resume owned work first: vivi comments mine --actor <actor> --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"5. Run the compact resident loop: vivi comments work --actor <actor> --wait --loop --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"6. Execute suggestedCommands from protocol, doctor, work, follow, check, and errors before inventing argv",
-		"Agent write rules:",
+		"Agent common path:",
+		"1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
+		"vivi comments work --actor <actor> --wait --loop --idle-events --url <url> --json",
+		"Recovery and adapter discovery:",
+		"Safe write rules:",
 		"Read stdinSchemaCommand before stdinRequired writes",
 		"When using restart recovery, keep the same --receipt-log on startup, resident loop, and suggested writes",
 		"Use --require-claim for triage, release, done, and dismiss in background loops",
 		"Reuse a stable --client-event-id only for retries of the same logical write",
 		"Run comments check <thread-id> --actor <actor> --full --json before writing when ownership may be stale",
 		"Prefer done/dismiss --result-file - for terminal replies and release --triage-file - for blocked handoffs",
-		"vivi comments protocol --json",
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
-		"vivi comments doctor --actor claude-code --json",
-		"vivi comments doctor --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments work --once --actor claude-code --full --json",
-		"vivi comments work --wait --actor claude-code --json",
-		"vivi comments work --loop --actor claude-code --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"vivi comments work --actor claude-code --wait --loop --idle-events --json",
 		"vivi comments release <thread-id> --triage-file - --actor claude-code --require-claim --json",
-		"vivi comments verify-receipt --receipt-file /tmp/vivi-receipt.json --json",
-		"vivi comments verify-receipts --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
-		"vivi comments schema commentTriageFileInput --json",
-		"vivi comments schema commentResultFileInput --json",
-		"vivi comments schema commentProtocolManifest --json",
-		"vivi comments schema commentDoctorOutput --json",
-		"vivi comments schema commentClaimOutput --json",
-		"vivi comments schema commentInboxOutput --json",
-		"vivi comments schema commentMineOutput --json",
-		"vivi comments schema commentBatchOutput --json",
-		"vivi comments schema commentCheckOutput --json",
-		"vivi comments schema commentTriageOutput --json",
-		"vivi comments schema commentReleaseOutput --json",
-		"vivi comments schema commentResultOutput --json",
-		"vivi comments schema commentSuggestedCommand --json",
-		"vivi comments schema commentWriteReceipt --json",
-		"vivi comments schema commentWriteReceiptVerification --json",
-		"vivi comments schema commentWriteReceiptLedgerVerification --json",
-		"vivi comments schema commentActivityBatchEvent --json",
-		"vivi comments schema commentWorkClaimedEvent --json",
-		"vivi comments schema commentWorkIdleEvent --json",
-		"vivi comments schema commentOpenWorklistEvent --json",
-		"vivi comments work --loop --actor claude-code --idle-events --json",
+		"Advanced/debug commands:",
+		"vivi comments watch --actor claude-code --json",
+		"vivi comments follow <thread-id> --no-initial --json",
+		"vivi comments claim --wait --actor claude-code --full --json",
 		"--interval <duration>      Watch, follow, hold, or work polling interval",
 		"--activity-limit <count>   Limit emitted activity history to the most recent count",
 		"--comment-limit <count>    Limit emitted thread comments to the most recent count",
@@ -152,6 +135,9 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	}
 	if count := strings.Count(help, "vivi comments watch --actor claude-code --json"); count != 1 {
 		t.Fatalf("comments help text should list watch once, got %d\n%s", count, help)
+	}
+	if strings.Index(help, "Common commands:") > strings.Index(help, "Advanced/debug commands:") {
+		t.Fatalf("comments help should show common commands before advanced/debug commands:\n%s", help)
 	}
 }
 

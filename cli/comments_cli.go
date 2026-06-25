@@ -3299,6 +3299,7 @@ func commentSuggestedCommandSchema() map[string]any {
 			"command":            map[string]any{"type": "string"},
 			"args":               arraySchema(map[string]any{"type": "string"}),
 			"displayCommand":     map[string]any{"type": "string"},
+			"primary":            map[string]any{"type": "boolean"},
 			"clientEventId":      map[string]any{"type": "string"},
 			"stdinRequired":      map[string]any{"type": "boolean"},
 			"stdinSchema":        map[string]any{"type": "string"},
@@ -4357,6 +4358,11 @@ func suggestedCommentsCommand(intent string, command string, args []string, stdi
 		suggestion.StdinSchemaCommand = []string{"comments", "schema", stdinSchema, "--json"}
 		suggestion.StdinExample = suggestedCommandStdinExample(intent, command, stdinSchema)
 	}
+	return suggestion
+}
+
+func (suggestion commentSuggestedCommand) withPrimary() commentSuggestedCommand {
+	suggestion.Primary = true
 	return suggestion
 }
 
@@ -7353,6 +7359,7 @@ type commentSuggestedCommand struct {
 	Command            string         `json:"command"`
 	Args               []string       `json:"args"`
 	DisplayCommand     string         `json:"displayCommand"`
+	Primary            bool           `json:"primary,omitempty"`
 	ClientEventID      string         `json:"clientEventId,omitempty"`
 	StdinRequired      bool           `json:"stdinRequired,omitempty"`
 	StdinSchema        string         `json:"stdinSchema,omitempty"`

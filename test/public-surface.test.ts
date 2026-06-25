@@ -34,7 +34,11 @@ it("routes the repository npm bin to the canonical Go CLI help surface", () => {
 
   expect(result.status).toBe(0);
   expect(result.stdout).toContain("vivi review <queue|bases|diff>");
-  expect(result.stdout).toContain("vivi comments <protocol|schema|doctor");
+  expect(result.stdout).toContain(
+    "vivi comments <work|doctor|mine|check|triage|release|done|dismiss>",
+  );
+  expect(result.stdout).toContain("vivi comments <protocol|schema|inbox|watch");
+  expect(result.stdout).toContain("emitted primary comments work command");
   expect(result.stdout).toContain("--ready-json");
   expect(result.stdout).not.toMatch(/^vivi \[root\].*Options:/s);
 });

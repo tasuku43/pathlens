@@ -197,13 +197,14 @@ func helpText() string {
 		"Usage:",
 		"  vivi [root] [--host 127.0.0.1] [--port 4317] [--open] [--include md,html,ts] [--max-file-size 1048576] [--allow-html-scripts]",
 		"  vivi review <queue|bases|diff> [options]",
-		"  vivi comments <protocol|schema|doctor|inbox|batch|mine|claim|work|renew|hold|watch|follow|check> [options]",
-		"  vivi comments <active|next|list|show|context|reply|done|dismiss|resolve|archive|reopen> [options]",
+		"  vivi comments <work|doctor|mine|check|triage|release|done|dismiss> [options]",
+		"  vivi comments <protocol|schema|inbox|watch|follow|claim|renew|hold|active|next|list|show|context|reply|resolve|archive|reopen> [advanced]",
 		"",
 		"Agent quick start:",
 		"  Start the local server: vivi <root> --port 0 --ready-json --actor <actor>",
-		"  Then run the emitted review/comments commands; they include the resolved --url.",
-		"  Inspect deeper command help with: vivi review --help or vivi comments --help",
+		"  Then run the emitted primary comments work command; it includes the resolved --url.",
+		"  Use review queue/diff only when the agent needs changed-file context beside human feedback.",
+		"  Inspect deeper command help with: vivi comments --help or vivi review --help.",
 		"",
 		"Options:",
 		"  --host <host>              Host to bind (default: 127.0.0.1)",
@@ -234,34 +235,57 @@ type serverReadyPayload struct {
 func newServerReadyPayload(root string, serverURL string, actor string) serverReadyPayload {
 	reviewArgs := []string{"review", "queue", "--url", serverURL}
 	doctorArgs := []string{"comments", "doctor", "--url", serverURL}
+	workArgs := []string{"comments", "work", "--url", serverURL}
 	if actor = strings.TrimSpace(actor); actor != "" {
 		reviewArgs = append(reviewArgs, "--actor", actor)
 		doctorArgs = append(doctorArgs, "--actor", actor)
+		workArgs = append(workArgs, "--actor", actor, "--wait", "--loop", "--idle-events")
 	}
 	reviewArgs = append(reviewArgs, "--json")
 	doctorArgs = append(doctorArgs, "--json")
+	workArgs = append(workArgs, "--json")
+	suggestions := []commentSuggestedCommand{}
+	if actor != "" {
+		suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID(
+			"start_resident_work_loop",
+			"comments work",
+			withAgentHistoryLimitArgs(workArgs),
+			"",
+			"Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.",
+			"server-ready:"+actor+":work",
+		).withPrimary())
+	} else {
+		suggestions = append(suggestions, suggestedCommentsCommand(
+			"configure_agent_actor",
+			"comments doctor",
+			doctorArgs,
+			"",
+			"Choose an --actor before starting the resident comments work loop.",
+		).withPrimary())
+	}
+	suggestions = append(suggestions,
+		suggestedCommentsCommand(
+			"inspect_review_queue_context",
+			"review queue",
+			reviewArgs,
+			"",
+			"Optional changed-file context; use this beside comments work, not as the human-feedback intake loop.",
+		),
+		suggestedCommentsCommand(
+			"check_comments_readiness",
+			"comments doctor",
+			doctorArgs,
+			"",
+			"Optional online readiness and recovery check for receipt ledgers, actor setup, and owned live claims.",
+		),
+	)
 	return serverReadyPayload{
-		SchemaVersion: 1,
-		Event:         "vivi_server_ready",
-		Root:          root,
-		URL:           serverURL,
-		Actor:         actor,
-		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand(
-				"inspect_review_queue",
-				"review queue",
-				reviewArgs,
-				"",
-				"Inspect the changed-file review queue using the resolved Vivi server URL.",
-			),
-			suggestedCommentsCommand(
-				"check_comments_readiness",
-				"comments doctor",
-				doctorArgs,
-				"",
-				"Check comment protocol readiness before starting an actor-owned feedback loop.",
-			),
-		},
+		SchemaVersion:     1,
+		Event:             "vivi_server_ready",
+		Root:              root,
+		URL:               serverURL,
+		Actor:             actor,
+		SuggestedCommands: suggestions,
 	}
 }
 
