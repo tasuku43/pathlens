@@ -94,6 +94,7 @@ export function FileViewer({
   threadActivities = {},
   onRevealInTree,
   onFocusActiveComment,
+  onOpenPath,
   onCloseRemoved,
 }: {
   file: FilePayload | null;
@@ -124,6 +125,7 @@ export function FileViewer({
   threadActivities?: Record<string, CommentActivitySummary>;
   onRevealInTree?: (path?: string) => void;
   onFocusActiveComment?: () => void;
+  onOpenPath?: (path: string) => void;
   onCloseRemoved?: () => void;
 }) {
   if (!file)
@@ -219,6 +221,7 @@ export function FileViewer({
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
+            onOpenPath={onOpenPath}
           />
         </LazyViewerFallback>
       </FileViewerFrame>
@@ -247,6 +250,7 @@ export function FileViewer({
             onCloseComment={onCloseComment}
             onCommentStatusChange={onCommentStatusChange}
             threadActivities={threadActivities}
+            onOpenPath={onOpenPath}
           />
         </LazyViewerFallback>
       </FileViewerFrame>

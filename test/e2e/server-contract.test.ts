@@ -133,6 +133,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   expect(previewHtml).toContain('data-vivi-source-line-end="1"');
   expect(previewHtml).toContain("vivi-html-block-target");
   expect(previewHtml).toContain("vivi-html-comment-open");
+  expect(previewHtml).toContain("vivi-html-open-path");
   expect(previewHtml).toContain("vivi-html-thread-layout");
   expect(previewHtml).toContain(
     "if (event.source && event.source !== parent) return;",
@@ -196,6 +197,34 @@ it("targets the nearest rendered HTML block in the UI mock index cards", async (
     expect(cardTarget.text).toContain("Open mock");
     expect(cardTarget.sourceLineStart).toBe(cardLine);
     expect(cardTarget.sourceLineEnd).toBeGreaterThan(cardLine);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
+it("posts workspace open-path messages for local rendered HTML links", async () => {
+  await writeFile(
+    path.join(dir, "index.html"),
+    '<main><a href="docs/guide.md">Guide</a><a href="https://example.com">External</a></main>',
+  );
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=index.html`);
+
+    const openPathPromise = nextHtmlOpenPath(page);
+    await page.getByRole("link", { name: "Guide" }).click();
+    await expect(openPathPromise).resolves.toMatchObject({
+      type: "vivi-html-open-path",
+      targetPath: "docs/guide.md",
+    });
+    expect(page.url()).toBe(`${server.url}/preview/html?path=index.html`);
   } finally {
     await browser.close();
   }
@@ -814,6 +843,20 @@ async function nextHtmlBlockTarget(
       new Promise<Record<string, unknown>>((resolve) => {
         const onMessage = (event: MessageEvent) => {
           if (event.data?.type !== "vivi-html-block-target") return;
+          window.removeEventListener("message", onMessage);
+          resolve(event.data as Record<string, unknown>);
+        };
+        window.addEventListener("message", onMessage);
+      }),
+  );
+}
+
+async function nextHtmlOpenPath(page: Page): Promise<Record<string, unknown>> {
+  return await page.evaluate(
+    () =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        const onMessage = (event: MessageEvent) => {
+          if (event.data?.type !== "vivi-html-open-path") return;
           window.removeEventListener("message", onMessage);
           resolve(event.data as Record<string, unknown>);
         };

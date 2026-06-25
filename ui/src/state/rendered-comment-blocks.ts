@@ -26,7 +26,6 @@ export interface RenderedCommentSummary {
 const commentableBlockClass = "vivi-rendered-comment-block";
 
 const interactiveSelector = [
-  "a",
   "button",
   "input",
   "select",

@@ -29,6 +29,7 @@ const meta = {
     onOpenComment: fn(),
     onCloseComment: fn(),
     onCommentStatusChange: fn(),
+    onOpenPath: fn(),
   },
 } satisfies Meta<typeof HtmlViewer>;
 
@@ -88,6 +89,31 @@ export const PreviewSandboxChrome: Story = {
           "The iframe preview chrome and sandbox state render in Storybook; the /preview/html server response remains covered by E2E.",
       },
     },
+  },
+};
+
+export const PreviewWorkspaceLink: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "preview",
+    comments: [],
+    previewSrcDoc: htmlWorkspaceLinkPreviewStoryDocument(sampleFiles.html.path),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.findByTitle(sampleFiles.html.path),
+    ).resolves.toBeInTheDocument();
+    const frame = canvas.getByTitle(sampleFiles.html.path) as HTMLIFrameElement;
+    await waitForHtmlDraftPreviewReady(frame);
+    frame.contentWindow?.postMessage(
+      { type: "vivi-story-click-link", text: "product review" },
+      "*",
+    );
+    await waitFor(() =>
+      expect(args.onOpenPath).toHaveBeenCalledWith("docs/product-review.md"),
+    );
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
   },
 };
 
@@ -239,6 +265,43 @@ export const SourceDiffMode: Story = {
     diff: htmlDiff,
   },
 };
+
+function htmlWorkspaceLinkPreviewStoryDocument(path: string): string {
+  return `<!doctype html>
+<html>
+  <body>
+    <main>
+      <h1>Workspace links</h1>
+      <p>Open the <a href="docs/product-review.md">product review</a>.</p>
+    </main>
+    <script>
+      (() => {
+        const path = ${JSON.stringify(path)};
+        const postReady = () => parent.postMessage({ type: "vivi-story-html-ready", path }, "*");
+        const openPath = (targetPath) => parent.postMessage({ type: "vivi-html-open-path", path, targetPath }, "*");
+        document.addEventListener("click", (event) => {
+          const link = event.target.closest?.("a[href]");
+          if (!link) return;
+          event.preventDefault();
+          event.stopPropagation();
+          openPath("docs/product-review.md");
+        });
+        window.addEventListener("message", (event) => {
+          if (event.source === parent && event.data?.type === "vivi-story-ready-request") {
+            postReady();
+            return;
+          }
+          if (event.source === parent && event.data?.type === "vivi-story-click-link") {
+            const link = Array.from(document.querySelectorAll("a[href]")).find((item) => item.textContent.trim() === event.data.text);
+            link?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+          }
+        });
+        postReady();
+      })();
+    </script>
+  </body>
+</html>`;
+}
 
 function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
   const annotated = addRenderedCommentBlockIdsToHtml(docReaderMockHtml);

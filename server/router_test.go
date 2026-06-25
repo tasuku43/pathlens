@@ -147,6 +147,7 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`data-vivi-comment-block-id="vivi-block-1"`,
 		`vivi-html-block-target`,
 		`vivi-html-comment-open`,
+		`vivi-html-open-path`,
 		`vivi-html-thread-layout`,
 		`drafting-rendered-comment`,
 		`rendered-comment-marker`,
@@ -168,6 +169,8 @@ func TestHTMLPreviewRuntimeUsesRenderedThreadContract(t *testing.T) {
 		`document.addEventListener("pointermove", (event) => setHoveredBlock(renderedThreadOpen() ? null : closestBlock(event.target)));`,
 		`const interactiveSelector = "input,select,textarea,[contenteditable]";`,
 		`const hasRenderedCommentModifier = (event) => event.altKey || event.ctrlKey || event.metaKey;`,
+		`const workspacePathForHref = (href) => {`,
+		`post({ type: "vivi-html-open-path", targetPath });`,
 		`if (!hasRenderedCommentModifier(event)) return;`,
 		`event.preventDefault();`,
 	} {

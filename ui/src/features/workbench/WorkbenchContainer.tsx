@@ -2658,6 +2658,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                     toggleHeadDiff(paneFile.path);
                   }}
                   onRevealInTree={(path) => revealActiveFileInTree(path)}
+                  onOpenPath={(path) => {
+                    const mode = paneActiveTab?.isPreview
+                      ? "preview"
+                      : "normal";
+                    void loadFile(path, pane.id, mode).catch((err) =>
+                      setError(String(err)),
+                    );
+                  }}
                   onCloseRemoved={() => {
                     if (pane.activePath) closeTab(pane.activePath, pane.id);
                   }}

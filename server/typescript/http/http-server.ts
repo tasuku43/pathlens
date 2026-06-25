@@ -1857,6 +1857,43 @@ function injectHtmlPreviewRuntime(
   };
   const hasRenderedCommentModifier = (event) =>
     event.altKey || event.ctrlKey || event.metaKey;
+  const workspacePathForHref = (href) => {
+    if (typeof href !== "string") return null;
+    const trimmed = href.trim();
+    if (
+      !trimmed ||
+      trimmed.startsWith("#") ||
+      trimmed.startsWith("//") ||
+      /^[A-Za-z][A-Za-z0-9+.-]*:/.test(trimmed)
+    ) {
+      return null;
+    }
+    const pathPart = (trimmed.split("#", 1)[0] || "").split("?", 1)[0] || "";
+    if (!pathPart) return null;
+    let decoded;
+    try {
+      decoded = decodeURI(pathPart);
+    } catch {
+      return null;
+    }
+    const baseDir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+    const candidate = decoded.startsWith("/")
+      ? decoded.slice(1)
+      : baseDir
+        ? baseDir + "/" + decoded
+        : decoded;
+    const parts = [];
+    for (const part of candidate.replace(/\\\\/g, "/").split("/")) {
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        if (!parts.length) return null;
+        parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return parts.length ? parts.join("/") : null;
+  };
   window.addEventListener("message", (event) => {
     if (event.source && event.source !== parent) return;
     const data = event.data;
@@ -1871,6 +1908,16 @@ function injectHtmlPreviewRuntime(
     applyHighlights();
   });
   document.addEventListener("click", (event) => {
+    const link = event.target.closest?.("a[href]");
+    if (link) {
+      const targetPath = workspacePathForHref(link.getAttribute("href"));
+      if (targetPath) {
+        event.preventDefault();
+        event.stopPropagation();
+        post({ type: "vivi-html-open-path", targetPath });
+        return;
+      }
+    }
     const marker = event.target.closest?.(".rendered-comment-marker");
     const block = closestBlock(marker || event.target);
     if (marker) {

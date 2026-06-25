@@ -35,6 +35,7 @@ const meta = {
     onOpenComment: fn(),
     onCloseComment: fn(),
     onCommentStatusChange: fn(),
+    onOpenPath: fn(),
   },
 } satisfies Meta<typeof MarkdownViewer>;
 
@@ -123,6 +124,29 @@ export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
     await expect(
       canvas.queryByText(/This sentence captures the feedback layer/),
     ).toBeNull();
+  },
+};
+
+export const RenderedMarkdownWorkspaceLink: Story = {
+  tags: ["interaction"],
+  args: {
+    mode: "rendered",
+    file: {
+      ...sampleFiles.markdown,
+      content: [
+        "# Review Surface",
+        "",
+        "Read the [review queue](review-queue.md) next.",
+        "",
+      ].join("\n"),
+    },
+    comments: [],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("link", { name: "review queue" }));
+    await expect(args.onOpenPath).toHaveBeenCalledWith("docs/review-queue.md");
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
   },
 };
 

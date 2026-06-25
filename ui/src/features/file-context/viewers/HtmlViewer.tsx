@@ -58,6 +58,7 @@ export function HtmlViewer({
   onCommentStatusChange,
   threadActivities = {},
   previewSrcDoc,
+  onOpenPath,
 }: {
   file: FilePayload;
   allowHtmlScripts: boolean;
@@ -79,6 +80,7 @@ export function HtmlViewer({
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
   previewSrcDoc?: string;
+  onOpenPath?: (path: string) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("preview");
   const [sourceSelectedRange, setSourceSelectedRange] =
@@ -144,8 +146,13 @@ export function HtmlViewer({
         sourceLineStart?: number;
         sourceLineEnd?: number;
         rect?: { left: number; top: number; width: number; height: number };
+        targetPath?: string;
       } | null;
       if (data?.path !== file.path) return;
+      if (data.type === "vivi-html-open-path") {
+        if (typeof data.targetPath === "string") onOpenPath?.(data.targetPath);
+        return;
+      }
       if (data.type === "vivi-html-thread-layout") {
         const rect = rectFromIframe(data.rect, iframeRef.current);
         if (rect) {
@@ -188,7 +195,14 @@ export function HtmlViewer({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [comments, file.content, file.path, onCloseComment, onOpenComment]);
+  }, [
+    comments,
+    file.content,
+    file.path,
+    onCloseComment,
+    onOpenComment,
+    onOpenPath,
+  ]);
 
   useEffect(() => {
     postRenderedCommentState();

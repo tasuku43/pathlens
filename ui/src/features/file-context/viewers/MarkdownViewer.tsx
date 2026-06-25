@@ -22,6 +22,7 @@ import {
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import type { LineRange } from "../../../state/code-viewer.js";
+import { resolveWorkspaceLink } from "../../../state/workspace-links.js";
 import {
   applyRenderedCommentHighlights,
   closestRenderedCommentBlock,
@@ -83,6 +84,7 @@ export function MarkdownViewer({
   onCloseComment,
   onCommentStatusChange,
   threadActivities = {},
+  onOpenPath,
 }: {
   file: FilePayload;
   mode?: ViewerMode;
@@ -103,6 +105,7 @@ export function MarkdownViewer({
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
+  onOpenPath?: (path: string) => void;
 }) {
   const [localMode, setLocalMode] = useState<ViewerMode>("rendered");
   const [renderedThreadTargets, setRenderedThreadTargets] = useState<
@@ -316,6 +319,9 @@ export function MarkdownViewer({
     ) {
       return;
     }
+    if (openWorkspaceLink(event, file.path, markdownRef.current, onOpenPath)) {
+      return;
+    }
     const block = closestRenderedCommentBlock(
       markdownRef.current,
       event.target,
@@ -524,6 +530,26 @@ function hasRenderedCommentModifier(
   event: Pick<MouseEvent<HTMLElement>, "altKey" | "ctrlKey" | "metaKey">,
 ): boolean {
   return event.altKey || event.ctrlKey || event.metaKey;
+}
+
+function openWorkspaceLink(
+  event: MouseEvent<HTMLElement>,
+  currentPath: string,
+  root: HTMLElement | null,
+  onOpenPath: ((path: string) => void) | undefined,
+): boolean {
+  if (!onOpenPath || !(event.target instanceof Element) || !root) return false;
+  const anchor = event.target.closest<HTMLAnchorElement>("a[href]");
+  if (!anchor || !root.contains(anchor)) return false;
+  const path = resolveWorkspaceLink(
+    currentPath,
+    anchor.getAttribute("href") ?? "",
+  );
+  if (!path) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  onOpenPath(path);
+  return true;
 }
 
 function commentsForRenderedTarget(
