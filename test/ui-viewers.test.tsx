@@ -461,6 +461,8 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).not.toContain("Cmd/Ctrl Shift R");
   expect(html).toContain("Cmd/Ctrl Shift C");
   expect(html).toContain("Open Attention / Comments");
+  expect(html).toContain("Cmd/Ctrl Shift P");
+  expect(html).toContain("Publish draft review comments");
   expect(html).toContain("Cmd/Ctrl G");
   expect(html).toContain("Cmd/Ctrl Shift G");
   expect(html).toContain("Cmd/Ctrl /");
@@ -2405,6 +2407,12 @@ it("renders draft review tray editing, success, and publish failure states", () 
   );
   expect(editingHtml).toContain('aria-describedby="draft-edit-hint-draft-1"');
   expect(editingHtml).toContain("Publish review comments");
+  expect(editingHtml).toContain(
+    'aria-keyshortcuts="Meta+Shift+P Control+Shift+P"',
+  );
+  expect(editingHtml).toContain(
+    'title="Publish 2 draft comments as 2 open threads across 2 files (Cmd/Ctrl Shift P)"',
+  );
   expect(editingHtml).toContain(
     "Publish 2 draft comments as 2 open threads across 2 files",
   );

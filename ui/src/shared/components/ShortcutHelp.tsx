@@ -22,6 +22,7 @@ const shortcutGroups: readonly {
       ["Previous review item", "Cmd/Ctrl Shift K"],
       ["Open Attention / Comments", "Cmd/Ctrl Shift C"],
       ["Return to current thread", "Cmd/Ctrl I"],
+      ["Publish draft review comments", "Cmd/Ctrl Shift P"],
       ["Resolve / reopen current thread", "Cmd/Ctrl Shift Enter"],
       ["Archive current thread", "Cmd/Ctrl Shift Backspace"],
       ["Next open thread", "Cmd/Ctrl ]"],

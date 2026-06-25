@@ -34,6 +34,9 @@ export const PublishCtaEnabled: Story = {
     await expect(
       canvas.getByRole("complementary", { name: "Draft review tray" }),
     ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: /Publish \d+ draft comments/ }),
+    ).toHaveAttribute("aria-keyshortcuts", "Meta+Shift+P Control+Shift+P");
     await userEvent.click(
       canvas.getByRole("button", { name: /Publish \d+ draft comments/ }),
     );

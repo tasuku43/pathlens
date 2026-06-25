@@ -510,7 +510,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   async function publishDraftReviewComments() {
-    if (!draftComments.length) return;
+    if (!draftComments.length || draftPublishing) return;
     setDraftPublishing(true);
     setDraftPublishError(null);
     setLastPublishedReviewBatchId(null);
@@ -1993,6 +1993,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       event.preventDefault();
       if (action === "toggle-diff") toggleHeadDiff();
       if (action === "toggle-source") toggleSourceRendered();
+      if (action === "publish-draft-review")
+        void publishDraftReviewComments().catch((err) =>
+          setError(String(err)),
+        );
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
       if (action === "open-next-review") openReviewQueueFile("next");
       if (action === "open-previous-review") openReviewQueueFile("previous");
@@ -2024,6 +2028,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     commentsPanelOpen,
     activeComment,
     activeCommentId,
+    draftComments,
+    draftPublishing,
     openThreadTargets,
     currentFileOpenThreadTargets,
     reviewItems,

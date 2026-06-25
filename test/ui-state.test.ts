@@ -859,8 +859,8 @@ it("maps workspace keyboard shortcuts to app actions", () => {
   expect(keyboardShortcutAction({ ...command, key: "G", shiftKey: true })).toBe(
     "open-previous-search-result",
   );
-  expect(keyboardShortcutAction({ ...command, key: "R", shiftKey: true })).toBe(
-    null,
+  expect(keyboardShortcutAction({ ...command, key: "P", shiftKey: true })).toBe(
+    "publish-draft-review",
   );
   expect(keyboardShortcutAction({ ...command, key: "w" })).toBe(
     "close-active-tab",
