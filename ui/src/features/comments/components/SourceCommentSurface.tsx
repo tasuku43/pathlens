@@ -16,7 +16,7 @@ import {
   hasTextSelectionInElement,
   lineCommentThreadActionLabel,
   lineRangeForQuote,
-  matchingCodeCommentThread,
+  matchingDraftPreviewThread,
   nextDeferredSourceHighlightState,
   preferredCodeCommentThread,
   rectLikeFromElement,
@@ -99,7 +99,7 @@ export function SourceCommentSurface({
   const visibleThreadKeys = new Set<string>();
   for (const draftThread of draftThreads) {
     visibleThreadKeys.add(
-      matchingCodeCommentThread(commentThreads, draftThread.thread)?.key ??
+      matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
         draftThread.thread.key,
     );
   }
@@ -340,7 +340,10 @@ export function SourceCommentSurface({
         const rowThreads = lineThreads.filter(
           (thread) => thread.lineEnd === lineNumber,
         );
-        const rowThread = preferredCodeCommentThread(rowThreads, activeCommentId);
+        const rowThread = preferredCodeCommentThread(
+          rowThreads,
+          activeCommentId,
+        );
         const displayedThreads = commentThreads.filter(
           (thread) =>
             visibleThreadKeys.has(thread.key) && thread.lineEnd === lineNumber,
@@ -369,7 +372,7 @@ export function SourceCommentSurface({
         );
         const draftThread = draftThreads.find(
           (candidate) =>
-            !matchingCodeCommentThread(commentThreads, candidate.thread) &&
+            !matchingDraftPreviewThread(commentThreads, candidate.thread) &&
             lineNumber >= candidate.thread.lineStart &&
             lineNumber <= candidate.thread.lineEnd,
         );
@@ -399,7 +402,8 @@ export function SourceCommentSurface({
           .join(" ");
         const threadsForDisplay = [
           ...displayedThreads.map((thread) => {
-            const threadId = thread.comments[0]?.threadId ?? thread.comments[0]?.id;
+            const threadId =
+              thread.comments[0]?.threadId ?? thread.comments[0]?.id;
             return {
               thread,
               threadId,
@@ -441,45 +445,45 @@ export function SourceCommentSurface({
                 }
                 selectLine(lineNumber, event.shiftKey);
               }}
-	            >
-	              <button
-	                className={`code-line-comment-action${actionThread ? " has-thread" : ""}`}
-	                type="button"
-	                aria-expanded={threadOpen}
-	                aria-label={actionLabel}
-	                title={actionLabel}
-	                data-comment-id={actionThread?.comments[0]?.id}
-	                data-comment-surface="source"
-	                data-line={lineNumber}
-	                data-path={file.path}
+            >
+              <button
+                className={`code-line-comment-action${actionThread ? " has-thread" : ""}`}
+                type="button"
+                aria-expanded={threadOpen}
+                aria-label={actionLabel}
+                title={actionLabel}
+                data-comment-id={actionThread?.comments[0]?.id}
+                data-comment-surface="source"
+                data-line={lineNumber}
+                data-path={file.path}
                 data-testid="line-comment-action"
                 onPointerDown={(event) => {
                   if (!actionThread) beginLineDrag(event, lineNumber);
                 }}
-	                onClick={(event) => {
-	                  event.stopPropagation();
-	                  if (suppressLineClickRef.current) return;
-	                  if (threadOpen) {
-	                    for (const entry of threadsForDisplay) {
-	                      closeCommentThread(entry.thread.key);
-	                    }
-	                  } else if (actionStackThreads.length > 1) {
-	                    for (const thread of actionStackThreads) {
-	                      openCommentThread(thread, event.currentTarget);
-	                    }
-	                  } else if (actionThread) {
-	                    openCommentThread(actionThread, event.currentTarget);
-	                  } else {
-	                    startLineComment(lineNumber);
-	                  }
-	                }}
-	              >
-	                {actionThread ? (
-	                  <span className="code-line-comment-count">
-	                    {actionStack?.threadCount ?? actionThread.comments.length}
-	                  </span>
-	                ) : null}
-	              </button>
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (suppressLineClickRef.current) return;
+                  if (threadOpen) {
+                    for (const entry of threadsForDisplay) {
+                      closeCommentThread(entry.thread.key);
+                    }
+                  } else if (actionStackThreads.length > 1) {
+                    for (const thread of actionStackThreads) {
+                      openCommentThread(thread, event.currentTarget);
+                    }
+                  } else if (actionThread) {
+                    openCommentThread(actionThread, event.currentTarget);
+                  } else {
+                    startLineComment(lineNumber);
+                  }
+                }}
+              >
+                {actionThread ? (
+                  <span className="code-line-comment-count">
+                    {actionStack?.threadCount ?? actionThread.comments.length}
+                  </span>
+                ) : null}
+              </button>
               <button
                 className="line-number"
                 type="button"
@@ -498,27 +502,40 @@ export function SourceCommentSurface({
                 dangerouslySetInnerHTML={{
                   __html: highlighted ?? escapeHtml(line || " "),
                 }}
-	              />
-	            </div>
-	            {threadsForDisplay.map((entry) => (
-	              <div
-	                className="code-comment-thread-row"
-	                role="listitem"
-	                key={entry.thread.key}
-	              >
-	                <CodeCommentThread
-	                  thread={entry.thread}
-	                  draft={entry.draft}
-	                  activity={
-	                    entry.threadId ? threadActivities[entry.threadId] : undefined
-	                  }
-	                  activeCommentId={activeCommentId}
-	                  onCreateComment={onCreateComment}
-	                  onStatusChange={onCommentStatusChange}
-	                  onClose={() => closeCommentThread(entry.thread.key)}
-	                />
-	              </div>
-	            ))}
+              />
+            </div>
+            {threadsForDisplay.map((entry) => (
+              <div
+                className="code-comment-thread-row"
+                role="listitem"
+                key={entry.thread.key}
+              >
+                <CodeCommentThread
+                  thread={entry.thread}
+                  draft={entry.draft}
+                  activity={
+                    entry.threadId
+                      ? threadActivities[entry.threadId]
+                      : undefined
+                  }
+                  activeCommentId={activeCommentId}
+                  onCreateComment={onCreateComment}
+                  onStatusChange={onCommentStatusChange}
+                  onStartNewThread={() =>
+                    startRangeComment(
+                      {
+                        start: entry.thread.lineStart,
+                        end: entry.thread.lineEnd,
+                      },
+                      lines
+                        .slice(entry.thread.lineStart - 1, entry.thread.lineEnd)
+                        .join("\n"),
+                    )
+                  }
+                  onClose={() => closeCommentThread(entry.thread.key)}
+                />
+              </div>
+            ))}
           </Fragment>
         );
       })}

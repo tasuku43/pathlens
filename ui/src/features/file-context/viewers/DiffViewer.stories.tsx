@@ -92,6 +92,44 @@ export const ActiveDiffCommentStaysInline: Story = {
   },
 };
 
+export const DiffStartsSeparateDraftOnExistingLine: Story = {
+  tags: ["interaction"],
+  args: {
+    comments: [
+      {
+        ...sampleComments[2]!,
+        id: "comment-diff-existing-composer-10",
+        threadId: "thread-diff-existing-composer-10",
+        body: "Existing diff thread should stay separate from the next note.",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Open comment thread on line 10 with 1 message; open to reply",
+      }),
+    );
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Start separate thread" }),
+    );
+
+    await expect(
+      canvas.getAllByRole("article", {
+        name: "Comment thread for line 10",
+      }),
+    ).toHaveLength(2);
+    await expect(
+      canvas.getByText(
+        "Existing diff thread should stay separate from the next note.",
+      ),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+  },
+};
+
 export const MultipleDraftFormsStayOpen: Story = {
   tags: ["interaction"],
   args: {

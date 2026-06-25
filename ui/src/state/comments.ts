@@ -78,10 +78,10 @@ export function commentAnchorSourceChanged(
   const anchorHash = comment.anchor.canonical.fileHash?.trim();
   return Boolean(
     file &&
-      comment.path === file.path &&
-      anchorHash &&
-      file.etag &&
-      anchorHash !== file.etag,
+    comment.path === file.path &&
+    anchorHash &&
+    file.etag &&
+    anchorHash !== file.etag,
   );
 }
 
@@ -224,6 +224,28 @@ export function matchingCodeCommentThread(
   );
 }
 
+export function matchingDraftPreviewThread(
+  threads: CodeCommentThread[],
+  target: CodeCommentThread,
+): CodeCommentThread | undefined {
+  const isSameRange = (thread: CodeCommentThread) =>
+    thread.path === target.path &&
+    thread.lineStart === target.lineStart &&
+    thread.lineEnd === target.lineEnd;
+  return (
+    threads.find(
+      (thread) =>
+        thread.key === target.key &&
+        thread.comments.some((comment) => isDraftThreadComment(comment)),
+    ) ??
+    threads.find(
+      (thread) =>
+        isSameRange(thread) &&
+        thread.comments.some((comment) => isDraftThreadComment(comment)),
+    )
+  );
+}
+
 export function preferredCodeCommentThread(
   threads: CodeCommentThread[],
   activeCommentId?: string | null,
@@ -260,8 +282,12 @@ export function lineCommentThreadActionLabel(
   return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; reopen to reply`;
 }
 
-export function latestPublishedStatus(comments: ThreadComment[]): CommentStatus {
-  const published = comments.filter((comment) => !isDraftThreadComment(comment));
+export function latestPublishedStatus(
+  comments: ThreadComment[],
+): CommentStatus {
+  const published = comments.filter(
+    (comment) => !isDraftThreadComment(comment),
+  );
   if (!published.length) return "open";
   return published.reduce((latest, comment) =>
     comment.updatedAt > latest.updatedAt ? comment : latest,
@@ -450,7 +476,9 @@ export function selectionCommentTargetInElement(
   };
 }
 
-export function hasTextSelectionInElement(element: HTMLElement | null): boolean {
+export function hasTextSelectionInElement(
+  element: HTMLElement | null,
+): boolean {
   if (!element) return false;
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return false;

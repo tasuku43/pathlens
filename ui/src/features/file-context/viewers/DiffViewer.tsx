@@ -14,7 +14,7 @@ import {
   commentsForLine,
   diffCommentDraft,
   lineCommentThreadActionLabel,
-  matchingCodeCommentThread,
+  matchingDraftPreviewThread,
   preferredCodeCommentThread,
   rectLikeFromElement,
   scheduleSelectionCommentUpdate,
@@ -166,7 +166,7 @@ function SourceDiff({
     const keys = new Set<string>();
     for (const draftThread of draftThreads) {
       keys.add(
-        matchingCodeCommentThread(commentThreads, draftThread.thread)?.key ??
+        matchingDraftPreviewThread(commentThreads, draftThread.thread)?.key ??
           draftThread.thread.key,
       );
     }
@@ -326,18 +326,17 @@ function SourceDiff({
               activeCommentId,
             )
           : undefined;
-        const displayedThread =
-          currentLine
-            ? commentThreads.find(
-                (thread) =>
-                  visibleThreadKeys.has(thread.key) &&
-                  thread.lineEnd === currentLine,
-              )
-            : undefined;
+        const displayedThreads = currentLine
+          ? commentThreads.filter(
+              (thread) =>
+                visibleThreadKeys.has(thread.key) &&
+                thread.lineEnd === currentLine,
+            )
+          : [];
         const draftThread = currentLine
           ? draftThreads.find(
               (candidate) =>
-                !matchingCodeCommentThread(commentThreads, candidate.thread) &&
+                !matchingDraftPreviewThread(commentThreads, candidate.thread) &&
                 currentLine >= candidate.thread.lineStart &&
                 currentLine <= candidate.thread.lineEnd,
             )
@@ -353,24 +352,34 @@ function SourceDiff({
           draftingRangeLine &&
           draftThread?.thread.lineEnd === currentLine,
         );
-        const threadForDisplay =
-          displayedThread ??
-          (draftingThread && draftThread ? draftThread.thread : null);
-        const firstDisplayedComment = displayedThread?.comments[0];
-        const threadDraft = displayedThread
-          ? firstDisplayedComment
-            ? {
-                threadId:
-                  firstDisplayedComment.threadId ?? firstDisplayedComment.id,
-                path: firstDisplayedComment.path,
-                viewerKind: firstDisplayedComment.viewerKind,
-                anchor: firstDisplayedComment.anchor,
-              }
-            : null
-          : (draftThread?.draft ?? null);
-        const threadId =
-          threadForDisplay?.comments[0]?.threadId ??
-          threadForDisplay?.comments[0]?.id;
+        const threadsForDisplay = [
+          ...displayedThreads.flatMap((thread) => {
+            const firstComment = thread.comments[0];
+            if (!firstComment) return [];
+            const threadId = firstComment.threadId ?? firstComment.id;
+            return [
+              {
+                thread,
+                threadId,
+                draft: {
+                  threadId,
+                  path: firstComment.path,
+                  viewerKind: firstComment.viewerKind,
+                  anchor: firstComment.anchor,
+                },
+              },
+            ];
+          }),
+          ...(draftingThread && draftThread
+            ? [
+                {
+                  thread: draftThread.thread,
+                  threadId: undefined,
+                  draft: draftThread.draft,
+                },
+              ]
+            : []),
+        ];
         return (
           <Fragment
             key={`${line.kind}-${index}-${"oldLine" in line ? (line.oldLine ?? "") : ""}-${"newLine" in line ? (line.newLine ?? "") : ""}-${line.text}`}
@@ -382,8 +391,8 @@ function SourceDiff({
               comments={diffComments}
               activeCommentId={activeCommentId}
               rowThread={rowThread}
-              threadOpen={Boolean(threadForDisplay)}
-              threadKey={threadForDisplay?.key}
+              threadOpen={threadsForDisplay.length > 0}
+              threadKeys={threadsForDisplay.map((entry) => entry.thread.key)}
               drafting={draftingRangeLine}
               onOpenThread={openCommentThread}
               onCloseThread={closeCommentThread}
@@ -391,19 +400,29 @@ function SourceDiff({
                 currentLine ? () => startDiffComment(currentLine) : undefined
               }
             />
-            {threadForDisplay && threadDraft ? (
-              <div className="code-comment-thread-row">
+            {threadsForDisplay.map((entry) => (
+              <div className="code-comment-thread-row" key={entry.thread.key}>
                 <CodeCommentThread
-                  thread={threadForDisplay}
-                  draft={threadDraft}
-                  activity={threadId ? threadActivities[threadId] : undefined}
+                  thread={entry.thread}
+                  draft={entry.draft}
+                  activity={
+                    entry.threadId
+                      ? threadActivities[entry.threadId]
+                      : undefined
+                  }
                   activeCommentId={activeCommentId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
-                  onClose={() => closeCommentThread(threadForDisplay.key)}
+                  onStartNewThread={() =>
+                    startDiffComment(
+                      entry.thread.lineStart,
+                      entry.thread.lineEnd,
+                    )
+                  }
+                  onClose={() => closeCommentThread(entry.thread.key)}
                 />
               </div>
-            ) : null}
+            ))}
           </Fragment>
         );
       })}
@@ -429,7 +448,7 @@ function SourceDiffLine({
   activeCommentId,
   rowThread,
   threadOpen,
-  threadKey,
+  threadKeys = [],
   drafting,
   onOpenThread,
   onCloseThread,
@@ -442,7 +461,7 @@ function SourceDiffLine({
   activeCommentId?: string | null;
   rowThread?: CodeCommentThreadModel;
   threadOpen?: boolean;
-  threadKey?: string;
+  threadKeys?: string[];
   drafting?: boolean;
   onOpenThread?: (thread: CodeCommentThreadModel) => void;
   onCloseThread?: (threadKey: string) => void;
@@ -465,8 +484,9 @@ function SourceDiffLine({
       }
       onClick={(event) => {
         if (!rowThread) return;
-        if (threadOpen && threadKey) onCloseThread?.(threadKey);
-        else onOpenThread?.(rowThread);
+        if (threadOpen && threadKeys.length) {
+          for (const key of threadKeys) onCloseThread?.(key);
+        } else onOpenThread?.(rowThread);
       }}
     >
       {currentLine ? (
@@ -484,8 +504,9 @@ function SourceDiffLine({
           data-testid="line-comment-action"
           onClick={(event) => {
             event.stopPropagation();
-            if (threadOpen && threadKey) onCloseThread?.(threadKey);
-            else if (rowThread) onOpenThread?.(rowThread);
+            if (threadOpen && threadKeys.length) {
+              for (const key of threadKeys) onCloseThread?.(key);
+            } else if (rowThread) onOpenThread?.(rowThread);
             else onStartLineComment?.();
           }}
         >

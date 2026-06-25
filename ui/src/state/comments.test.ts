@@ -3,6 +3,7 @@ import type { DraftReviewComment, ViviComment } from "../domain/comments.js";
 import {
   codeCommentThreads,
   draftReviewCommentAsViviComment,
+  matchingDraftPreviewThread,
 } from "./comments.js";
 
 const anchor = {
@@ -46,10 +47,9 @@ function draft(
 
 describe("draftReviewCommentAsViviComment", () => {
   it("keeps threadId-less same-anchor drafts separate from published threads", () => {
-    const draftComment = draftReviewCommentAsViviComment(
-      draft("same-anchor"),
-      [existingComment],
-    );
+    const draftComment = draftReviewCommentAsViviComment(draft("same-anchor"), [
+      existingComment,
+    ]);
 
     expect(draftComment.threadId).not.toBe(existingComment.threadId);
     expect(draftComment.threadId).toContain("draft-thread:same-anchor:");
@@ -97,5 +97,32 @@ describe("draftReviewCommentAsViviComment", () => {
       "First draft.",
       "Second draft.",
     ]);
+  });
+
+  it("matches local draft composers only to saved draft preview threads", () => {
+    const localDraftThread = {
+      key: JSON.stringify(["README.md", 4, 4]),
+      path: "README.md",
+      lineStart: 4,
+      lineEnd: 4,
+      status: "open" as const,
+      comments: [],
+    };
+    const savedDraft = draftReviewCommentAsViviComment(
+      draft("saved", { body: "Saved draft preview." }),
+    );
+
+    expect(
+      matchingDraftPreviewThread(
+        codeCommentThreads([existingComment]),
+        localDraftThread,
+      ),
+    ).toBeUndefined();
+    expect(
+      matchingDraftPreviewThread(
+        codeCommentThreads([existingComment, savedDraft]),
+        localDraftThread,
+      )?.comments[0]?.id,
+    ).toBe("draft:saved");
   });
 });

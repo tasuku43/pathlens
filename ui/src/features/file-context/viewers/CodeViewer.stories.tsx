@@ -242,26 +242,24 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
         },
         body: "Published review item on this source line.",
       },
-      draftReviewCommentAsViviComment(
-        {
-          ...sampleDraftComments[0]!,
-          id: "draft-source-existing-10",
-          path: sampleFiles.code.path,
-          viewerKind: "text",
-          anchor: {
-            surface: "source",
-            canonical: {
-              path: sampleFiles.code.path,
-              lineStart: 10,
-              lineEnd: 10,
-              quote:
-                "return client.publishDraftReviewComments({ actor: humanTasuku });",
-              fileHash: sampleFiles.code.etag,
-            },
+      draftReviewCommentAsViviComment({
+        ...sampleDraftComments[0]!,
+        id: "draft-source-existing-10",
+        path: sampleFiles.code.path,
+        viewerKind: "text",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
           },
-          body: "Private draft should become its own review thread on publish.",
         },
-      ),
+        body: "Private draft should become its own review thread on publish.",
+      }),
     ],
   },
   play: async ({ canvasElement }) => {
@@ -291,6 +289,59 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
       ),
     ).toBeVisible();
     expect(canvas.getAllByText("Draft").length).toBeGreaterThan(0);
+  },
+};
+
+export const SourceStartsSeparateDraftOnExistingLine: Story = {
+  tags: ["interaction"],
+  args: {
+    selectedRange: null,
+    comments: [
+      {
+        ...sampleComments[0]!,
+        id: "comment-source-existing-composer-10",
+        threadId: "thread-source-existing-composer-10",
+        anchor: {
+          surface: "source",
+          canonical: {
+            path: sampleFiles.code.path,
+            lineStart: 10,
+            lineEnd: 10,
+            quote:
+              "return client.publishDraftReviewComments({ actor: humanTasuku });",
+            fileHash: sampleFiles.code.etag,
+          },
+        },
+        body: "Existing thread should stay separate from the next note.",
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole("button", {
+        name: "Open comment thread on line 10 with 1 message; open to reply",
+      }),
+    );
+
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Start separate thread" }),
+    );
+
+    await expect(
+      canvas.getAllByRole("article", {
+        name: "Comment thread for line 10",
+      }),
+    ).toHaveLength(2);
+    await expect(
+      canvas.getByText(
+        "Existing thread should stay separate from the next note.",
+      ),
+    ).toBeVisible();
+    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
+    await expect(
+      canvas.getByRole("button", { name: "Save private draft comment" }),
+    ).toBeDisabled();
   },
 };
 
@@ -469,13 +520,11 @@ function SavedInlineDraftHarness(args: ComponentProps<typeof CodeViewer>) {
       onCreateComment={async (_draft, body) => {
         const fixture = sampleDraftComments[0]!;
         setComments([
-          draftReviewCommentAsViviComment(
-            {
-              ...fixture,
-              body,
-              updatedAt: "2026-06-23T10:10:00.000Z",
-            },
-          ),
+          draftReviewCommentAsViviComment({
+            ...fixture,
+            body,
+            updatedAt: "2026-06-23T10:10:00.000Z",
+          }),
         ]);
       }}
     />

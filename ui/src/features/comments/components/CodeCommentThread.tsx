@@ -16,6 +16,7 @@ export function CodeCommentThread({
   className,
   onCreateComment,
   onStatusChange,
+  onStartNewThread,
   onClose,
   activity,
   activeCommentId = null,
@@ -25,6 +26,7 @@ export function CodeCommentThread({
   className?: string;
   onCreateComment?: CommentCreateHandler;
   onStatusChange?: CommentStatusChangeHandler;
+  onStartNewThread?: () => void;
   onClose: () => void;
   activity?: CommentActivitySummary;
   activeCommentId?: string | null;
@@ -250,6 +252,11 @@ export function CodeCommentThread({
                 >
                   {archiveLabel}
                 </button>
+                {onStartNewThread ? (
+                  <button type="button" onClick={onStartNewThread}>
+                    Start separate thread
+                  </button>
+                ) : null}
               </>
             ) : null}
           </div>
