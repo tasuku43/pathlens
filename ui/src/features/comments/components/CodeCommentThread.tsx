@@ -233,7 +233,10 @@ export function CodeCommentThread({
           aria-label={isReplyComposer ? "Reply to thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
-          onChange={(event) => setBody(event.currentTarget.value)}
+          onChange={(event) => {
+            setBody(event.currentTarget.value);
+            if (error) setError(null);
+          }}
           onKeyDown={(event) => {
             if (isCommentSubmitShortcut(event)) {
               event.preventDefault();
@@ -287,7 +290,11 @@ export function CodeCommentThread({
             ↑
           </button>
         </div>
-        {error ? <p className="code-comment-thread-error">{error}</p> : null}
+        {error ? (
+          <p className="code-comment-thread-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
     </article>
   );

@@ -233,6 +233,34 @@ export const DirtyComposerConfirmsBeforeClose: Story = {
   },
 };
 
+export const SubmitFailureKeepsDraftEditable: Story = {
+  tags: ["interaction"],
+  args: {
+    ...args("open"),
+    onCreateComment: fn(async () => {
+      throw new Error("Comment save failed. Try again.");
+    }),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const reply = canvas.getByLabelText("Reply to thread");
+    await userEvent.type(reply, "This should survive a failed save.");
+    await userEvent.click(canvas.getByRole("button", { name: "Add reply" }));
+
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    await expect(reply).toHaveValue("This should survive a failed save.");
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "Comment save failed. Try again.",
+    );
+
+    await userEvent.type(reply, " Continuing.");
+    await expect(canvas.queryByRole("alert")).toBeNull();
+    await expect(reply).toHaveValue(
+      "This should survive a failed save. Continuing.",
+    );
+  },
+};
+
 export const UserWritesOneDraftComment: Story = {
   args: {
     thread: {
