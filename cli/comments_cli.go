@@ -241,7 +241,7 @@ func suggestedCommandsForCommentsError(command string, args []string, code strin
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("claim_thread_before_retrying", "comments claim", withURLArg(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL), "", "Claim this thread before retrying the failed guarded write.", commentSuggestedClientEventID("error", threadID, "claim")),
+			suggestedCommentsCommandWithClientEventID("claim_thread_before_retrying", "comments claim", withRuntimeArgs(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Claim this thread before retrying the failed guarded write.", commentSuggestedClientEventID("error", threadID, "claim")),
 			suggestedCommentsCommand("check_thread_before_retrying", "comments check", withRuntimeArgs(actorCommand([]string{"comments", "check", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Inspect live claim ownership and use write.suggestedCommands for the next safe write."),
 		}
 	case "claimed_by_other_actor":
@@ -1143,7 +1143,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			{
 				"intent":  "recover_owned_live_claims",
 				"command": "comments mine",
-				"args":    withURLArg([]string{"comments", "mine", "--actor", actor, "--json"}, serverURL),
+				"args":    withRuntimeArgs([]string{"comments", "mine", "--actor", actor, "--json"}, serverURL, receiptLog),
 				"reason":  "After an adapter restart, inspect live claim routing before claiming new GUI feedback; fetch context for the selected thread on demand.",
 			},
 		},
@@ -6253,7 +6253,7 @@ func suggestedCommandsForWritePreflight(reason string, thread commentThreadOutpu
 			}
 		}
 		return []commentSuggestedCommand{
-			suggestedCommentsCommandWithClientEventID("claim_thread_before_writing", "comments claim", withURLArg(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL), "", "Claim this open thread and receive source, diff, and activity context before writing.", commentSuggestedClientEventID("check", threadID, "claim")),
+			suggestedCommentsCommandWithClientEventID("claim_thread_before_writing", "comments claim", withRuntimeArgs(actorCommand([]string{"comments", "claim", threadID}, actorID, actorKind, "--full", "--json"), serverURL, receiptLog), "", "Claim this open thread and receive source, diff, and activity context before writing.", commentSuggestedClientEventID("check", threadID, "claim")),
 		}
 	case "claimed_by_other_actor":
 		args := []string{"comments", "show", threadID, "--json"}

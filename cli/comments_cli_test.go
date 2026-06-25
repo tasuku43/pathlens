@@ -1462,6 +1462,10 @@ func TestCommentsCLIProtocolPropagatesReceiptLogIntoAgentRecipes(t *testing.T) {
 			Intent string   `json:"intent"`
 			Args   []string `json:"args"`
 		} `json:"intakeAlternatives"`
+		Recovery []struct {
+			Intent string   `json:"intent"`
+			Args   []string `json:"args"`
+		} `json:"recovery"`
 		ThreadCompanions []struct {
 			Intent string   `json:"intent"`
 			Args   []string `json:"args"`
@@ -1480,6 +1484,9 @@ func TestCommentsCLIProtocolPropagatesReceiptLogIntoAgentRecipes(t *testing.T) {
 	}
 	if len(payload.IntakeAlternatives) != 2 || !containsString(payload.IntakeAlternatives[0].Args, receiptLog) || !containsString(payload.IntakeAlternatives[1].Args, receiptLog) {
 		t.Fatalf("intake receipt-log propagation = %#v", payload.IntakeAlternatives)
+	}
+	if len(payload.Recovery) != 1 || !containsString(payload.Recovery[0].Args, receiptLog) {
+		t.Fatalf("recovery receipt-log propagation = %#v", payload.Recovery)
 	}
 	if len(payload.ThreadCompanions) != 2 || !containsString(payload.ThreadCompanions[0].Args, receiptLog) || !containsString(payload.ThreadCompanions[1].Args, receiptLog) {
 		t.Fatalf("companions receipt-log propagation = %#v", payload.ThreadCompanions)
@@ -2263,7 +2270,7 @@ func TestCommentsCLIRequireClaimGuardsAgentWrites(t *testing.T) {
 	if envelope.Error.Code != "no_live_claim" || !envelope.Error.Recoverable || envelope.Error.Command != "comments done" {
 		t.Fatalf("no-claim error envelope = %#v", envelope)
 	}
-	if len(envelope.Error.SuggestedCommands) != 2 || envelope.Error.SuggestedCommands[0].Intent != "claim_thread_before_retrying" || envelope.Error.SuggestedCommands[0].ClientEventID == "" || !containsString(envelope.Error.SuggestedCommands[0].Args, envelope.Error.SuggestedCommands[0].ClientEventID) || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[0].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[0].Args, "codex") || envelope.Error.SuggestedCommands[1].Intent != "check_thread_before_retrying" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex") {
+	if len(envelope.Error.SuggestedCommands) != 2 || envelope.Error.SuggestedCommands[0].Intent != "claim_thread_before_retrying" || envelope.Error.SuggestedCommands[0].ClientEventID == "" || !containsString(envelope.Error.SuggestedCommands[0].Args, envelope.Error.SuggestedCommands[0].ClientEventID) || !containsString(envelope.Error.SuggestedCommands[0].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[0].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[0].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[0].Args, "codex") || envelope.Error.SuggestedCommands[1].Intent != "check_thread_before_retrying" || !containsString(envelope.Error.SuggestedCommands[1].Args, server.URL) || !containsString(envelope.Error.SuggestedCommands[1].Args, receiptLog) || !containsString(envelope.Error.SuggestedCommands[1].Args, "--actor-kind") || !containsString(envelope.Error.SuggestedCommands[1].Args, "codex") {
 		t.Fatalf("no-claim error suggestions = %#v", envelope.Error.SuggestedCommands)
 	}
 
@@ -2340,7 +2347,7 @@ func TestCommentsCLICheckReportsWritePreflight(t *testing.T) {
 	}
 	noClaimSuggestions := payload.Write["suggestedCommands"].([]any)
 	noClaimSuggestion := noClaimSuggestions[0].(map[string]any)
-	if len(noClaimSuggestions) != 1 || noClaimSuggestion["intent"] != "claim_thread_before_writing" || noClaimSuggestion["command"] != "comments claim" || noClaimSuggestion["clientEventId"] == "" || !containsAnyString(noClaimSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(noClaimSuggestion["args"].([]any), noClaimSuggestion["clientEventId"].(string)) || !containsAnyString(noClaimSuggestion["args"].([]any), "--full") || !containsAnyString(noClaimSuggestion["args"].([]any), server.URL) || !containsAnyString(noClaimSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(noClaimSuggestion["args"].([]any), "codex") {
+	if len(noClaimSuggestions) != 1 || noClaimSuggestion["intent"] != "claim_thread_before_writing" || noClaimSuggestion["command"] != "comments claim" || noClaimSuggestion["clientEventId"] == "" || !containsAnyString(noClaimSuggestion["args"].([]any), "--client-event-id") || !containsAnyString(noClaimSuggestion["args"].([]any), noClaimSuggestion["clientEventId"].(string)) || !containsAnyString(noClaimSuggestion["args"].([]any), "--full") || !containsAnyString(noClaimSuggestion["args"].([]any), server.URL) || !containsAnyString(noClaimSuggestion["args"].([]any), receiptLog) || !containsAnyString(noClaimSuggestion["args"].([]any), "--actor-kind") || !containsAnyString(noClaimSuggestion["args"].([]any), "codex") {
 		t.Fatalf("check without claim suggestions = %#v", noClaimSuggestions)
 	}
 	if containsActivity(payload.Activities, "thread_read", "") {
