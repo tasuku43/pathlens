@@ -86,9 +86,8 @@ export function HtmlViewer({
   const [renderedThreadTargets, setRenderedThreadTargets] = useState<
     HtmlRenderedThreadTarget[]
   >([]);
-  const [renderedThreadPositions, setRenderedThreadPositions] = useState<
-    Record<string, HtmlRenderedThreadPosition>
-  >({});
+  const [renderedThreadPosition, setRenderedThreadPosition] =
+    useState<HtmlRenderedThreadPosition | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "preview"
@@ -199,22 +198,20 @@ export function HtmlViewer({
 
   useLayoutEffect(() => {
     if (!renderedThreadTargets.length) {
-      setRenderedThreadPositions({});
+      setRenderedThreadPosition(null);
       return;
     }
     const update = () =>
-      setRenderedThreadPositions(
-        Object.fromEntries(
-          renderedThreadTargets.map((target) => [
-            renderedHtmlThreadTargetKey(file.path, target),
-            positionHtmlRenderedThread(target.rect),
-          ]),
-        ),
+      setRenderedThreadPosition(
+        positionHtmlRenderedThread({
+          width: window.innerWidth,
+          height: window.innerHeight,
+        }),
       );
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, [file.path, renderedThreadTargets]);
+  }, [renderedThreadTargets]);
 
   const openRenderedDraft = (
     target: RenderedCommentBlockTarget,
@@ -241,18 +238,7 @@ export function HtmlViewer({
         threadId: comment?.threadId ?? comment?.id,
       },
     };
-    const key = renderedHtmlThreadTargetKey(file.path, nextTarget);
-    setRenderedThreadTargets((items) => [
-      ...items.filter(
-        (item) => renderedHtmlThreadTargetKey(file.path, item) !== key,
-      ),
-      nextTarget,
-    ]);
-  };
-
-  const closeRenderedThread = () => {
-    setRenderedThreadTargets([]);
-    onCloseComment?.();
+    setRenderedThreadTargets([nextTarget]);
   };
 
   const closeRenderedThreadTarget = (key: string) => {
@@ -274,7 +260,7 @@ export function HtmlViewer({
     const key = renderedHtmlThreadTargetKey(file.path, target);
     return {
       key,
-      position: renderedThreadPositions[key],
+      position: renderedThreadPosition,
       target,
       thread,
       threadId,
@@ -549,27 +535,21 @@ function renderedHtmlThreadTargetKey(
     : JSON.stringify([path, lineStart, lineEnd, target.blockIds.join("|")]);
 }
 
-function positionHtmlRenderedThread(
-  rect: DOMRectLike,
+export function positionHtmlRenderedThread(
+  viewport: { width: number; height: number },
 ): HtmlRenderedThreadPosition {
-  const width = Math.min(680, Math.max(340, window.innerWidth - 24));
-  const margin = 12;
-  const gap = 12;
-  const sideLeft = rect.left + rect.width + gap;
-  const sideFits = sideLeft + width + margin <= window.innerWidth;
-  const left = sideFits
-    ? sideLeft
-    : Math.min(Math.max(rect.left, margin), window.innerWidth - width - margin);
-  const belowTop = rect.top + rect.height + 8;
-  const maxHeight = Math.max(180, window.innerHeight - belowTop - margin);
+  const margin = 24;
+  const width = Math.min(520, Math.max(300, viewport.width - margin * 2));
+  const maxHeight = Math.max(220, viewport.height - margin * 2);
+  const preferredHeight = Math.min(430, maxHeight);
   return {
-    left,
+    left: Math.max(margin, viewport.width - width - margin),
     top: Math.min(
-      Math.max(belowTop, margin),
-      window.innerHeight - margin - 180,
+      Math.max((viewport.height - preferredHeight) / 2, margin),
+      viewport.height - margin - Math.min(preferredHeight, maxHeight),
     ),
     width,
-    maxHeight,
+    maxHeight: preferredHeight,
   };
 }
 

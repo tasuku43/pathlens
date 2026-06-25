@@ -11,6 +11,7 @@ import {
   type CommentStatus,
   type CommentThread,
   type CommentThreadActivityEvent,
+  type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
 
@@ -21,6 +22,7 @@ export interface NodeCommentStoreOptions {
 
 export class NodeCommentStore implements CommentStorePort {
   private readonly filePath: string;
+  private readonly draftPath: string;
   private readonly threadEventPath: string;
   private writeQueue: Promise<unknown> = Promise.resolve();
 
@@ -28,6 +30,10 @@ export class NodeCommentStore implements CommentStorePort {
     this.filePath = path.join(
       path.resolve(options.dataDir ?? defaultViviDataDir()),
       options.fileName ?? "comments.jsonl",
+    );
+    this.draftPath = path.join(
+      path.dirname(this.filePath),
+      "draft-review-comments.jsonl",
     );
     this.threadEventPath = path.join(
       path.dirname(this.filePath),
@@ -240,6 +246,55 @@ export class NodeCommentStore implements CommentStorePort {
     return comment;
   }
 
+  async listDraftReviewComments(
+    filters: CommentListFilters = {},
+  ): Promise<DraftReviewComment[]> {
+    return (await this.readDrafts()).filter(
+      (draft) => !filters.path || draft.path === filters.path,
+    );
+  }
+
+  async createDraftReviewComment(
+    draft: DraftReviewComment,
+  ): Promise<DraftReviewComment> {
+    await this.enqueueWrite(async () => {
+      const drafts = await this.readDrafts();
+      drafts.push(draft);
+      await this.writeDrafts(drafts);
+    });
+    return draft;
+  }
+
+  async updateDraftReviewComment(
+    id: string,
+    body: string,
+    at: string,
+  ): Promise<DraftReviewComment> {
+    let updated: DraftReviewComment | undefined;
+    await this.enqueueWrite(async () => {
+      const drafts = await this.readDrafts();
+      const index = drafts.findIndex((draft) => draft.id === id);
+      if (index < 0) throw new Error("draft review comment not found");
+      updated = { ...drafts[index], body, updatedAt: at };
+      drafts[index] = updated;
+      await this.writeDrafts(drafts);
+    });
+    return updated!;
+  }
+
+  async deleteDraftReviewComment(id: string): Promise<DraftReviewComment> {
+    let deleted: DraftReviewComment | undefined;
+    await this.enqueueWrite(async () => {
+      const drafts = await this.readDrafts();
+      const index = drafts.findIndex((draft) => draft.id === id);
+      if (index < 0) throw new Error("draft review comment not found");
+      deleted = drafts[index];
+      drafts.splice(index, 1);
+      await this.writeDrafts(drafts);
+    });
+    return deleted!;
+  }
+
   private async readAll(): Promise<ViviComment[]> {
     try {
       const text = await readFile(this.filePath, "utf8");
@@ -251,6 +306,24 @@ export class NodeCommentStore implements CommentStorePort {
         .map((comment) => ({
           ...comment,
           source: comment.source ?? "unknown",
+        }));
+    } catch (error) {
+      if (isMissingFileError(error)) return [];
+      throw error;
+    }
+  }
+
+  private async readDrafts(): Promise<DraftReviewComment[]> {
+    try {
+      const text = await readFile(this.draftPath, "utf8");
+      return text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as DraftReviewComment)
+        .map((draft) => ({
+          ...draft,
+          source: draft.source ?? "unknown",
         }));
     } catch (error) {
       if (isMissingFileError(error)) return [];
@@ -291,6 +364,14 @@ export class NodeCommentStore implements CommentStorePort {
     const tmpPath = `${this.filePath}.${process.pid}.tmp`;
     await writeFile(tmpPath, body ? `${body}\n` : "", "utf8");
     await rename(tmpPath, this.filePath);
+  }
+
+  private async writeDrafts(drafts: DraftReviewComment[]): Promise<void> {
+    await mkdir(path.dirname(this.draftPath), { recursive: true });
+    const body = drafts.map((draft) => JSON.stringify(draft)).join("\n");
+    const tmpPath = `${this.draftPath}.${process.pid}.tmp`;
+    await writeFile(tmpPath, body ? `${body}\n` : "", "utf8");
+    await rename(tmpPath, this.draftPath);
   }
 
   private enqueueWrite<T>(write: () => Promise<T>): Promise<T> {

@@ -4,6 +4,7 @@ import {
   renderedCommentBlocksForHtml,
 } from "../ui/src/domain/rendered-comment-blocks.js";
 import { positionInlineCommentCard } from "../ui/src/features/comments/components/InlineCommentCard.js";
+import { positionHtmlRenderedThread } from "../ui/src/features/file-context/viewers/HtmlViewer.js";
 import {
   renderedCommentActionLabel,
   renderedCommentSourceRange,
@@ -232,5 +233,21 @@ line
       { width: 340, height: 220 },
     );
     expect(narrow).toMatchObject({ arrow: "top", top: 302, maxHeight: 155 });
+  });
+
+  it("keeps HTML rendered comment forms in a fixed right-middle slot", () => {
+    expect(positionHtmlRenderedThread({ width: 1000, height: 700 })).toEqual({
+      left: 456,
+      top: 135,
+      width: 520,
+      maxHeight: 430,
+    });
+
+    expect(positionHtmlRenderedThread({ width: 360, height: 640 })).toEqual({
+      left: 24,
+      top: 105,
+      width: 312,
+      maxHeight: 430,
+    });
   });
 });

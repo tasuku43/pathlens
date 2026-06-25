@@ -29,6 +29,13 @@ describe("rendered comment block ranges", () => {
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?left: var\(--rendered-comment-block-left\);/,
     );
     expect(styles).toMatch(
+      /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?z-index: 0;/,
+    );
+    expect(styles).not.toContain("z-index: -1;");
+    expect(styles).toMatch(
+      /\.vivi-rendered-comment-block:not\(tr\) > \* \{[\s\S]*?position: relative;[\s\S]*?z-index: 1;/,
+    );
+    expect(styles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?top: var\(--rendered-comment-block-top\);[\s\S]*?bottom: var\(--rendered-comment-block-bottom\);/,
     );
     expect(styles).toMatch(

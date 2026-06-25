@@ -103,6 +103,7 @@ Requirements:
 - Watcher events may feed the queue when Git status is unavailable, but they should be collapsed by file path instead of shown as raw event history.
 - Markdown and HTML documents should expose an H1/H2 outline under "In this file" below the Review Queue.
 - Comments should preserve the surface where the issue was seen, such as rendered Markdown, HTML preview, source, or diff.
+- HTML preview comments should use one fixed floating composer near the right-middle of the viewport. Unlike source/code comments, opening a second HTML preview target replaces the current composer instead of keeping multiple block-local forms open.
 - The active heading should be highlightable later as the user scrolls.
 - File type, path, watch status, size, and last update information should be minimized or kept behind a lightweight details disclosure.
 - In Git worktrees, diff viewing is an independent `Diff from HEAD` toggle on the open file surface, not a right-inspector preview and not part of the rendered/source segmented control. The toggle should also be available with Cmd/Ctrl + D.

@@ -11,6 +11,7 @@ import type {
 } from "../../server/typescript/application/contracts.js";
 import type { FsEvent } from "../../server/typescript/domain/fs-node.js";
 import { NodeFileSystem } from "../../server/typescript/infrastructure/node-file-system.js";
+import { NodeCommentStore } from "../../server/typescript/infrastructure/node-comment-store.js";
 import { startHttpServer } from "../../server/typescript/http/http-server.js";
 
 let dir: string;
@@ -144,7 +145,9 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   );
   expect(previewHtml).toContain("spansMultipleLines");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
-  expect(previewHtml).toContain("background:#0e1316");
+  expect(previewHtml).toContain("--vivi-rendered-palette:#0e1316");
+  expect(previewHtml).not.toContain("html{color-scheme:dark;background:");
+  expect(previewHtml).not.toContain("body{background:");
 
   const css = await fetch(`${server.url}/preview/raw/style.css`);
   expect(css.status).toBe(200);
@@ -275,6 +278,9 @@ it("does not dim broad layout containers during a complex rendered HTML draft fl
       "This layout treats Markdown as the primary surface.",
     );
 
+    await page.locator(".toolbar .btn.active").hover();
+    expect(await renderedHtmlHoverState(page)).toEqual([]);
+
     await page.evaluate((messageTarget) => {
       const blockIds = Array.isArray(messageTarget.blockIds)
         ? messageTarget.blockIds
@@ -317,6 +323,42 @@ it("does not dim broad layout containers during a complex rendered HTML draft fl
   }
 }, 10000);
 
+it("preserves authored HTML styles during a rendered HTML draft flow", async () => {
+  const mockIndexHtml = await readFile("docs/ui-mocks/index.html", "utf8");
+  await writeFile(path.join(dir, "index.html"), mockIndexHtml);
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    changeReview: new StaticChangeReview(),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`${server.url}/preview/html?path=index.html&theme=light`);
+
+    expect(await authoredHtmlStyleState(page)).toMatchObject({
+      bodyBackground: "rgb(15, 17, 23)",
+      cardBackground: "rgb(21, 25, 35)",
+      cardTextColor: "rgb(230, 232, 239)",
+    });
+
+    const targetPromise = nextHtmlBlockTarget(page);
+    await page.getByText("02 Document reader", { exact: true }).first().click();
+    await targetPromise;
+    await page.mouse.move(500, 540);
+
+    expect(await authoredHtmlStyleState(page)).toMatchObject({
+      bodyBackground: "rgb(15, 17, 23)",
+      cardBackground: "rgb(21, 25, 35)",
+      cardTextColor: "rgb(230, 232, 239)",
+    });
+    expect(await renderedHtmlHoverState(page)).toEqual([]);
+  } finally {
+    await browser.close();
+  }
+}, 10000);
+
 it("serves HTML preview with sanitized generated ids and escaped Mermaid source", async () => {
   await writeFile(
     path.join(dir, "danger.html"),
@@ -338,6 +380,96 @@ it("serves HTML preview with sanitized generated ids and escaped Mermaid source"
   expect(html).not.toContain("<script>x</script>");
 }, 10000);
 
+it("keeps draft review comments hidden until GraphQL publish", async () => {
+  const service = new ViewerService({
+    fileSystem: new NodeFileSystem({ rootDir: dir }),
+    commentStore: new NodeCommentStore({ dataDir: path.join(dir, ".vivi") }),
+  });
+  server = await startHttpServer({ host: "127.0.0.1", port: 0, service });
+
+  const input = {
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "source",
+      canonical: { path: "README.md", lineStart: 1, lineEnd: 1 },
+    },
+    body: "Draft from rendered workflow",
+    actor: { id: "human:tasuku", kind: "human", displayName: "Tasuku" },
+    source: "human",
+  };
+
+  const created = await graphql("CreateDraftReviewComment", {
+    query:
+      "mutation CreateDraftReviewComment($input: DraftReviewCommentInput!) { createDraftReviewComment(input: $input) { id path body createdBy { kind } } }",
+    variables: { input },
+  });
+  expect(created.createDraftReviewComment).toEqual(
+    expect.objectContaining({
+      path: "README.md",
+      body: "Draft from rendered workflow",
+      createdBy: expect.objectContaining({ kind: "human" }),
+    }),
+  );
+
+  const beforeDrafts = await graphql("ViviDraftReviewComments", {
+    query:
+      "query ViviDraftReviewComments($path: String) { draftReviewComments(path: $path) { id body } }",
+    variables: { path: "README.md" },
+  });
+  const beforeComments = await graphql("ViviComments", {
+    query:
+      "query ViviComments($path: String) { comments(path: $path) { id } commentThreads(path: $path) { id } }",
+    variables: { path: "README.md" },
+  });
+  expect(beforeDrafts.draftReviewComments).toHaveLength(1);
+  expect(beforeComments.comments).toEqual([]);
+  expect(beforeComments.commentThreads).toEqual([]);
+
+  const updated = await graphql("UpdateDraftReviewComment", {
+    query:
+      "mutation UpdateDraftReviewComment($id: ID!, $input: DraftReviewCommentUpdateInput!) { updateDraftReviewComment(id: $id, input: $input) { id body } }",
+    variables: {
+      id: created.createDraftReviewComment.id,
+      input: { body: "Edited draft body" },
+    },
+  });
+  expect(updated.updateDraftReviewComment.body).toBe("Edited draft body");
+
+  const published = await graphql("PublishDraftReviewComments", {
+    query:
+      "mutation PublishDraftReviewComments { publishDraftReviewComments { reviewBatchId threads { path reviewBatchId status comments { body reviewBatchId } } } }",
+  });
+  expect(published.publishDraftReviewComments.reviewBatchId).toMatch(
+    /^review-/,
+  );
+  expect(published.publishDraftReviewComments.threads).toContainEqual(
+    expect.objectContaining({
+      path: "README.md",
+      status: "open",
+      comments: [
+        expect.objectContaining({
+          body: "Edited draft body",
+          reviewBatchId: published.publishDraftReviewComments.reviewBatchId,
+        }),
+      ],
+    }),
+  );
+
+  const afterDrafts = await graphql("ViviDraftReviewComments", {
+    query:
+      "query ViviDraftReviewComments($path: String) { draftReviewComments(path: $path) { id } }",
+    variables: { path: "README.md" },
+  });
+  const afterThreads = await graphql("ViviCommentThreads", {
+    query:
+      "query ViviCommentThreads($path: String) { commentThreads(path: $path) { id reviewBatchId } }",
+    variables: { path: "README.md" },
+  });
+  expect(afterDrafts.draftReviewComments).toEqual([]);
+  expect(afterThreads.commentThreads).toHaveLength(1);
+});
+
 it("serves adversarial HTML preview input without regex backtracking stalls", async () => {
   await writeFile(
     path.join(dir, "stress.html"),
@@ -353,10 +485,23 @@ it("serves adversarial HTML preview input without regex backtracking stalls", as
 
   expect(response.status).toBe(200);
   expect(Date.now() - startedAt).toBeLessThan(1_000);
-  await expect(response.text()).resolves.toContain(
-    "data-vivi-mermaid-preview",
-  );
+  await expect(response.text()).resolves.toContain("data-vivi-mermaid-preview");
 }, 10000);
+
+async function graphql<T = Record<string, unknown>>(
+  operationName: string,
+  payload: { query: string; variables?: Record<string, unknown> },
+): Promise<T> {
+  const response = await fetch(`${server!.url}/graphql`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ operationName, ...payload }),
+  });
+  expect(response.status).toBe(200);
+  const body = (await response.json()) as { data?: T; errors?: unknown };
+  expect(body.errors).toBeUndefined();
+  return body.data!;
+}
 
 it("does not expose internal error details in API error responses", async () => {
   const service = new ViewerService({
@@ -711,6 +856,22 @@ async function renderedHtmlCommentClassState(page: Page): Promise<{
     return {
       hover: read(".hover-rendered-comment-block"),
       drafting: read(".drafting-rendered-comment"),
+    };
+  });
+}
+
+async function authoredHtmlStyleState(page: Page): Promise<{
+  bodyBackground: string;
+  cardBackground: string;
+  cardTextColor: string;
+}> {
+  return await page.evaluate(() => {
+    const card = document.querySelector<HTMLElement>(".mock-card")!;
+    const heading = card.querySelector<HTMLElement>("h2")!;
+    return {
+      bodyBackground: getComputedStyle(document.body).backgroundColor,
+      cardBackground: getComputedStyle(card).backgroundColor,
+      cardTextColor: getComputedStyle(heading).color,
     };
   });
 }

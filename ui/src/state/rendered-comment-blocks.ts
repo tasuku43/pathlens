@@ -25,22 +25,6 @@ export interface RenderedCommentSummary {
 
 const commentableBlockClass = "vivi-rendered-comment-block";
 
-const preferredBlockSelectors = [
-  "tr",
-  "li",
-  "pre",
-  "figure",
-  "aside",
-  "blockquote",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "p",
-];
-
 const interactiveSelector = [
   "a",
   "button",
@@ -57,12 +41,6 @@ export function closestRenderedCommentBlock(
 ): HTMLElement | null {
   if (!root || !(target instanceof Element) || !root.contains(target)) {
     return null;
-  }
-  for (const selector of preferredBlockSelectors) {
-    const block = target.closest<HTMLElement>(
-      `${selector}[${renderedCommentBlockAttribute}]`,
-    );
-    if (block && root.contains(block)) return block;
   }
   const block = target.closest<HTMLElement>(renderedCommentBlockSelector);
   return block && root.contains(block) ? block : null;
@@ -315,8 +293,7 @@ export function findBlocksForRenderedComment(
         comment.sourceLineEnd > comment.sourceLineStart;
       if (
         spansMultipleLines &&
-        bySourceRange.length > 1 &&
-        bySourceRange.includes(closest)
+        shouldProjectSourceRange(closest, bySourceRange)
       ) {
         return bySourceRange;
       }
@@ -346,6 +323,17 @@ export function findBlocksForRenderedComment(
       root.querySelectorAll<HTMLElement>(renderedCommentBlockSelector),
     ).find((block) => readableBlockText(block).includes(quote)) ?? null;
   return byQuote ? [byQuote] : [];
+}
+
+function shouldProjectSourceRange(
+  closest: HTMLElement,
+  blocks: HTMLElement[],
+): boolean {
+  return (
+    blocks.length > 1 &&
+    blocks.includes(closest) &&
+    blocks.some((block) => block !== closest && !closest.contains(block))
+  );
 }
 
 function blocksForRenderedSourceRange(

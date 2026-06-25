@@ -91,6 +91,7 @@ export interface CreateCommentInput {
   threadId?: string;
   path: string;
   viewerKind?: CommentViewerKind;
+  reviewBatchId?: string;
   anchor: CommentAnchor;
   body: string;
   actor?: CommentActor;
@@ -121,6 +122,20 @@ export interface CommentThread {
   resolvedAt?: string;
   archivedAt?: string;
   comments: ViviComment[];
+}
+
+export interface DraftReviewComment {
+  id: string;
+  threadId?: string;
+  path: string;
+  viewerKind: CommentViewerKind;
+  anchor: CommentAnchor;
+  body: string;
+  createdBy?: CommentActor;
+  author?: string;
+  source?: CommentSource;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CommentExportFilters {
@@ -185,6 +200,7 @@ export function normalizeCommentCreateInput(
     viewerKind:
       normalizeCommentViewerKind(input.viewerKind) ??
       commentViewerKindFor(options.viewerKind, path),
+    reviewBatchId: optionalString(input.reviewBatchId),
     anchor,
     body,
     actor: normalizeCommentActor(input.actor),
@@ -296,11 +312,13 @@ export function buildCommentThreads(comments: ViviComment[]): CommentThread[] {
         id: threadId,
         path: comment.path,
         status: comment.status,
+        reviewBatchId: comment.reviewBatchId,
         anchor: comment.anchor,
         updatedAt: comment.updatedAt,
         createdAt: comment.createdAt,
         comments: [],
       } satisfies CommentThread);
+    thread.reviewBatchId ??= comment.reviewBatchId;
     thread.comments.push(comment);
     if (commentStatusRank(comment.status) > commentStatusRank(thread.status))
       thread.status = comment.status;

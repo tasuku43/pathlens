@@ -14,6 +14,7 @@ import {
   type CommentThreadActivityEvent,
   type CommentListFilters,
   type CreateCommentInput,
+  type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
 import type {
@@ -202,6 +203,101 @@ export class ViewerService {
     return this.createNormalizedComment(normalized);
   }
 
+  async listDraftReviewComments(
+    filters: CommentListFilters = {},
+  ): Promise<DraftReviewComment[]> {
+    return this.requireDraftCommentStore().listDraftReviewComments(filters);
+  }
+
+  async createDraftReviewComment(input: unknown): Promise<DraftReviewComment> {
+    const requestedPath = pathFromCommentInput(input);
+    const file = await this.fileSystem.readFile(requestedPath);
+    const normalized = normalizeCommentCreateInput(input, {
+      resolvedPath: file.path,
+      fileHash: file.etag,
+      viewerKind: file.viewerKind,
+    });
+    const now = isoNow();
+    const draft: DraftReviewComment = {
+      id: randomUUID(),
+      threadId: normalized.threadId,
+      path: normalized.path,
+      viewerKind: normalized.viewerKind ?? "unknown",
+      anchor: normalized.anchor,
+      body: normalized.body,
+      createdBy:
+        normalized.actor ?? legacyActor(normalized.source, normalized.author),
+      author: normalized.author,
+      source: normalized.source ?? "unknown",
+      createdAt: now,
+      updatedAt: now,
+    };
+    return this.requireDraftCommentStore().createDraftReviewComment(draft);
+  }
+
+  async updateDraftReviewComment(
+    id: string,
+    input: unknown,
+  ): Promise<DraftReviewComment> {
+    if (!id.trim()) throw new Error("draft review comment id is required");
+    if (typeof input !== "object" || input === null || Array.isArray(input)) {
+      throw new Error("invalid draft review comment update payload");
+    }
+    const body = (input as { body?: unknown }).body;
+    if (typeof body !== "string" || !body.trim()) {
+      throw new Error("draft review comment body is required");
+    }
+    return this.requireDraftCommentStore().updateDraftReviewComment(
+      id.trim(),
+      body.trim(),
+      isoNow(),
+    );
+  }
+
+  async deleteDraftReviewComment(id: string): Promise<DraftReviewComment> {
+    if (!id.trim()) throw new Error("draft review comment id is required");
+    return this.requireDraftCommentStore().deleteDraftReviewComment(id.trim());
+  }
+
+  async publishDraftReviewComments(
+    input: {
+      draftIds?: string[];
+      actor?: CommentActor;
+    } = {},
+  ): Promise<{
+    reviewBatchId: string;
+    publishedAt: string;
+    threads: CommentThread[];
+  }> {
+    const store = this.requireDraftCommentStore();
+    const selected = new Set((input.draftIds ?? []).filter(Boolean));
+    const drafts = (await store.listDraftReviewComments()).filter(
+      (draft) => selected.size === 0 || selected.has(draft.id),
+    );
+    const publishedAt = isoNow();
+    const reviewBatchId = `review-${randomUUID()}`;
+    for (const draft of drafts) {
+      await this.createNormalizedComment({
+        threadId: draft.threadId,
+        path: draft.path,
+        viewerKind: draft.viewerKind,
+        reviewBatchId,
+        anchor: draft.anchor,
+        body: draft.body,
+        actor: input.actor ?? draft.createdBy,
+        author: draft.author,
+        source: draft.source,
+        status: "open",
+      });
+      await store.deleteDraftReviewComment(draft.id);
+    }
+    return {
+      reviewBatchId,
+      publishedAt,
+      threads: await this.listCommentThreads({ reviewBatchId }),
+    };
+  }
+
   async createCommentThread(input: unknown): Promise<CommentThread> {
     const comment = await this.createComment(input);
     return (await this.listCommentThreads()).find(
@@ -371,6 +467,7 @@ export class ViewerService {
       threadId: input.threadId ?? id,
       path: input.path,
       viewerKind: input.viewerKind ?? "unknown",
+      reviewBatchId: input.reviewBatchId,
       anchor: input.anchor,
       body: input.body,
       createdBy: input.actor ?? legacyActor(input.source, input.author),
@@ -419,6 +516,30 @@ export class ViewerService {
       throw new Error("comments are not configured for this server");
     }
     return this.commentStore;
+  }
+
+  private requireDraftCommentStore() {
+    const store = this.requireCommentStore();
+    if (
+      !store.listDraftReviewComments ||
+      !store.createDraftReviewComment ||
+      !store.updateDraftReviewComment ||
+      !store.deleteDraftReviewComment
+    ) {
+      throw new Error(
+        "draft review comments are not configured for this server",
+      );
+    }
+    return store as Required<
+      Pick<
+        typeof store,
+        | "listDraftReviewComments"
+        | "createDraftReviewComment"
+        | "updateDraftReviewComment"
+        | "deleteDraftReviewComment"
+      >
+    > &
+      typeof store;
   }
 }
 

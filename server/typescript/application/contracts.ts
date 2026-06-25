@@ -20,6 +20,7 @@ import type {
   CommentThread,
   CommentActor,
   CommentThreadActivityEvent,
+  DraftReviewComment,
   ViviComment,
 } from "../domain/comments.js";
 
@@ -71,6 +72,18 @@ export interface CommentStorePort {
   createComment(comment: ViviComment): Promise<ViviComment>;
   updateComment(comment: ViviComment): Promise<ViviComment>;
   getComment(id: string): Promise<ViviComment | null>;
+  listDraftReviewComments?(
+    filters?: CommentListFilters,
+  ): Promise<DraftReviewComment[]>;
+  createDraftReviewComment?(
+    draft: DraftReviewComment,
+  ): Promise<DraftReviewComment>;
+  updateDraftReviewComment?(
+    id: string,
+    body: string,
+    at: string,
+  ): Promise<DraftReviewComment>;
+  deleteDraftReviewComment?(id: string): Promise<DraftReviewComment>;
   listCommentThreads?(filters?: CommentListFilters): Promise<CommentThread[]>;
   createCommentThread?(thread: CommentThread): Promise<CommentThread>;
   updateCommentThreadStatus?(

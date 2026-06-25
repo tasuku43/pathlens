@@ -57,7 +57,9 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
   const previewHtml = await html.text();
   expect(previewHtml).toContain("data-vivi-mermaid-preview");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
-  expect(previewHtml).toContain("background:#0e1316");
+  expect(previewHtml).toContain("--vivi-rendered-palette:#0e1316");
+  expect(previewHtml).not.toContain("html{color-scheme:dark;background:");
+  expect(previewHtml).not.toContain("body{background:");
   expect(previewHtml).toContain('"primaryTextColor":"#edf7f5"');
   expect(previewHtml).toContain("/vivi/vendor/mermaid.min.js");
   expect(previewHtml).toContain("data-vivi-html-mermaid");
@@ -77,7 +79,9 @@ it("keeps the Mermaid example workspace usable across mmd, markdown, and html pr
     `${server.url}/preview/html?path=${encodeURIComponent("public/embedded.html")}&theme=light`,
   ).then((res) => res.text());
   expect(lightHtml).toContain('data-vivi-html-theme="light"');
-  expect(lightHtml).toContain("background:#fbfaf7");
+  expect(lightHtml).toContain("--vivi-rendered-palette:#fbfaf7");
+  expect(lightHtml).not.toContain("html{color-scheme:light;background:");
+  expect(lightHtml).not.toContain("body{background:");
   expect(lightHtml).toContain('"primaryTextColor":"#172426"');
 
   await server.close();

@@ -1720,6 +1720,7 @@ body.resizing-workbench-pane {
   --rendered-comment-block-bottom: 0px;
   isolation: isolate;
   position: relative;
+  z-index: 0;
   border-radius: 8px;
   cursor: pointer;
   transition:
@@ -1732,7 +1733,7 @@ body.resizing-workbench-pane {
 .markdown .vivi-rendered-comment-block:not(tr)::before {
   content: "";
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   top: var(--rendered-comment-block-top);
   right: var(--rendered-comment-block-right);
   bottom: var(--rendered-comment-block-bottom);
@@ -1742,6 +1743,10 @@ body.resizing-workbench-pane {
   transition:
     background 140ms ease,
     box-shadow 140ms ease;
+}
+.markdown .vivi-rendered-comment-block:not(tr) > * {
+  position: relative;
+  z-index: 1;
 }
 .markdown h1.vivi-rendered-comment-block {
   --rendered-comment-block-top: -4px;
