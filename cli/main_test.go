@@ -74,7 +74,7 @@ func TestServerReadyPayloadCanCarryAgentActor(t *testing.T) {
 		t.Fatalf("expected three suggested commands, got %#v", payload.SuggestedCommands)
 	}
 	workCommand := payload.SuggestedCommands[0]
-	if workCommand.Intent != "start_resident_work_loop" || workCommand.Command != "comments work" || !workCommand.Primary || workCommand.ClientEventID != "server-ready:codex:work" || !containsString(workCommand.Args, "--wait") || !containsString(workCommand.Args, "--loop") || !containsString(workCommand.Args, "--idle-events") || !containsString(workCommand.Args, "--activity-limit") || !containsString(workCommand.Args, "--comment-limit") {
+	if workCommand.Intent != "start_resident_work_loop" || workCommand.Command != "comments work" || !workCommand.Primary || workCommand.ClientEventID != "server-ready:codex:work" || !containsString(workCommand.Args, "--wait") || !containsString(workCommand.Args, "--loop") || !containsString(workCommand.Args, "--idle-events") || !containsString(workCommand.Args, "--idle-on-change") || !containsString(workCommand.Args, "--activity-limit") || !containsString(workCommand.Args, "--comment-limit") {
 		t.Fatalf("actor-ready payload should make comments work primary: %#v", workCommand)
 	}
 	for _, command := range payload.SuggestedCommands {
@@ -102,7 +102,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 	for _, text := range []string{
 		"Agent common path:",
 		"1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
-		"vivi comments work --actor <actor> --wait --loop --idle-events --url <url> --json",
+		"vivi comments work --actor <actor> --wait --loop --idle-events --idle-on-change --url <url> --json",
 		"Recovery and adapter discovery:",
 		"Safe write rules:",
 		"Read stdinSchemaCommand before stdinRequired writes",
@@ -114,7 +114,7 @@ func TestCommentsHelpTextSurfacesWorkSession(t *testing.T) {
 		"vivi comments protocol --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"vivi comments schema <list|protocol|doctor|triage|result|claim|inbox|mine|batch|check|commentTriageOutput|commentReleaseOutput|commentResultOutput|suggestedCommand|writeReceipt|receiptVerification|receiptLedgerVerification|activityBatch|workClaimed|workIdle|openWorklist|error|all> [--summary] --json",
 		"vivi comments work --once --actor claude-code --full --json",
-		"vivi comments work --actor claude-code --wait --loop --idle-events --json",
+		"vivi comments work --actor claude-code --wait --loop --idle-events --idle-on-change --json",
 		"vivi comments release <thread-id> --triage-file - --actor claude-code --require-claim --json",
 		"Advanced/debug commands:",
 		"vivi comments watch --actor claude-code --json",

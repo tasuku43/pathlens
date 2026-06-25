@@ -1114,7 +1114,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"principles": []string{
 			"Prefer suggestedCommands emitted by runtime events over hard-coded command recipes.",
 			"Recover owned live claims with compact comments mine before claiming new GUI feedback after an adapter restart.",
-			"Use comments work --wait --loop --idle-events as the resident owned-work intake for background agents.",
+			"Use comments work --wait --loop --idle-events --idle-on-change as the resident owned-work intake for background agents.",
 			"Run comments check immediately before guarded writes when ownership may be stale.",
 			"Use structured stdin schemas for triage and terminal results.",
 			"Keep a local write receipt ledger when the adapter needs restart-safe reconciliation of agent comments.",
@@ -1150,7 +1150,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"preferredLoop": map[string]any{
 			"intent":  "resident_owned_work_loop",
 			"command": "comments work",
-			"args":    withRuntimeArgs([]string{"comments", "work", "--actor", actor, "--client-event-id", "<client-event-id>", "--wait", "--loop", "--idle-events", "--json"}, serverURL, receiptLog),
+			"args":    withRuntimeArgs(append(residentCommentsWorkCommand(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
 			"events":  []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
 			"reason":  "Claim GUI feedback as owned work with compact events, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
 		},
@@ -3871,7 +3871,7 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 			RecommendedAction: "wait_for_gui_feedback",
 			OpenThreadCount:   0,
 			SuggestedCommands: []commentSuggestedCommand{
-				suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json")), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work.").withPrimary(),
+				suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work.").withPrimary(),
 			},
 		}
 	}
@@ -3882,7 +3882,7 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 		RecommendedAction: "wait_for_claim_release",
 		OpenThreadCount:   count,
 		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json")), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
+			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
 			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json")), serverURL, receiptLog), "", "Inspect compact open-thread routing before deciding whether to fetch thread context."),
 		},
 	}
@@ -4896,13 +4896,13 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json"), pathFilter)), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
+			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
 			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json"), pathFilter)), serverURL, receiptLog), "", "Inspect compact open-thread routing before deciding whether to fetch thread context."),
 		}
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "work"}, actorID, actorKind, "--wait", "--loop", "--idle-events", "--json"), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work."),
 	}
 	return summary
 }
@@ -5415,7 +5415,7 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
 	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "work"}, actorID, options.ActorKind, "--wait", "--loop", "--idle-events", "--json")), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.", clientSeed+":work").withPrimary(),
+		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, options.ActorKind)), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.", clientSeed+":work").withPrimary(),
 		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withURLArg(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL), "", "Recovery helper: after an adapter restart, inspect live claim routing before claiming new GUI feedback."),
 		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
@@ -7118,6 +7118,19 @@ func actorCommand(prefix []string, actorID string, actorKind string, suffix ...s
 	return args
 }
 
+func residentCommentsWorkCommand(actorID string, actorKind string) []string {
+	return actorCommand(
+		[]string{"comments", "work"},
+		actorID,
+		actorKind,
+		"--wait",
+		"--loop",
+		"--idle-events",
+		"--idle-on-change",
+		"--json",
+	)
+}
+
 func suggestedActorKind(actorKind string) string {
 	kind := strings.ReplaceAll(strings.TrimSpace(actorKind), "-", "_")
 	switch kind {
@@ -7169,7 +7182,7 @@ func commentsHelpText() string {
 		"Agent common path:",
 		"  1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
 		"  2. Run the primary suggested command, usually:",
-		"     vivi comments work --actor <actor> --wait --loop --idle-events --url <url> --json",
+		"     vivi comments work --actor <actor> --wait --loop --idle-events --idle-on-change --url <url> --json",
 		"  3. For each work event, prefer summary.recommendedAction and the primary suggestedCommands entry.",
 		"  4. Use triage/release/done/dismiss suggestions as emitted; do not invent guarded write argv.",
 		"",
@@ -7191,8 +7204,8 @@ func commentsHelpText() string {
 		"",
 		"Common commands:",
 		"  vivi comments work --once --actor claude-code --full --json",
-		"  vivi comments work --actor claude-code --wait --loop --idle-events --json",
-		"  vivi comments work --loop --actor claude-code --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  vivi comments work --actor claude-code --wait --loop --idle-events --idle-on-change --json",
+		"  vivi comments work --loop --actor claude-code --idle-events --idle-on-change --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
 		"  vivi comments mine --actor claude-code --json",
 		"  vivi comments check <thread-id> --actor claude-code --full --json",
 		"  vivi comments triage <thread-id> --actor claude-code --triage-file - --require-claim --json",

@@ -304,9 +304,10 @@ this `work` intake as the shorter runtime entrypoint: the command emits the
 claimed work item first, renews the lease during the session, continues with
 follow-up activity batches for the claimed thread, and exits after observing a
 terminal resolved or archived status batch.
-For a resident queue worker, add `--loop --idle-events`: after that terminal
-batch, the same NDJSON stream returns to claim selection and emits idle
-heartbeat events while waiting for the next matching GUI feedback thread.
+For a resident queue worker, add `--loop --idle-events --idle-on-change`:
+after that terminal batch, the same NDJSON stream returns to claim selection
+and emits a readiness idle event while waiting for the next matching GUI
+feedback thread.
 
 `--terminal cli` validates the matching terminal
 shortcuts: `comments done` for resolved outcomes and `comments dismiss` for

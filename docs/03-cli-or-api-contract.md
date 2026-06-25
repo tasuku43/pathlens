@@ -19,7 +19,7 @@ vivi [root] --port 0 --ready-json --actor codex
 vivi [root] --include md,html,ts,tsx,json
 vivi [root] --max-file-size 1048576
 vivi [root] --allow-html-scripts
-vivi comments work --actor codex --wait --loop --idle-events --json
+vivi comments work --actor codex --wait --loop --idle-events --idle-on-change --json
 vivi comments work --once --actor codex --full --json
 vivi comments mine --actor codex --json
 vivi comments check <thread-id> --actor codex --full --json
@@ -130,7 +130,7 @@ For a durable agent loop, use:
 
 ```bash
 vivi . --port 0 --ready-json --actor codex
-vivi comments work --actor codex --wait --loop --idle-events --receipt-log /tmp/vivi-agent-receipts.jsonl --json
+vivi comments work --actor codex --wait --loop --idle-events --idle-on-change --receipt-log /tmp/vivi-agent-receipts.jsonl --json
 ```
 
 `comments work` is the preferred integrated intake loop: it claims owned work,
@@ -260,7 +260,7 @@ change order. It also returns available diff bases and
 `summary.reviewUrl`, a browser deep link that opens the first queued file in
 HEAD diff mode, plus `summary.suggestedCommands` for both the first
 `review diff` command and an executable compact resident
-`comments work --actor <actor> --wait --loop --idle-events --json`
+`comments work --actor <actor> --wait --loop --idle-events --idle-on-change --json`
 feedback loop. Without `--actor`, the queue points agents at
 `comments doctor --json` so the next payload can return the `configure_actor`
 branch, instead of emitting a `comments work` recipe that cannot run. That
@@ -378,7 +378,7 @@ When no thread can be claimed, the payload still includes `summary` with
 routing counts and a next action. In particular,
 `summary.recommendedAction: "wait_for_claim_release"` means open threads exist
 but are currently leased by other actors; use the suggested resident
-`comments work --wait --loop --idle-events` command or `comments inbox`
+`comments work --wait --loop --idle-events --idle-on-change` command or `comments inbox`
 snapshot instead of immediately retrying the same claim.
 
 `claim --wait` is the lower-level blocking claim primitive underneath resident
@@ -462,7 +462,7 @@ while the agent is waiting. The idle summary uses
 `recommendedAction: "wait_for_gui_feedback"` when the queue is empty and
 `recommendedAction: "wait_for_claim_release"` when open threads exist but are
 currently claimed by other actors. Empty-queue idle events suggest the
-resident `comments work --wait --loop --idle-events` command, while
+resident `comments work --wait --loop --idle-events --idle-on-change` command, while
 claim-release waits suggest keeping that primary work loop open and using
 `comments inbox` only for diagnostic routing.
 Adapters that want a readiness signal without repeated identical idle
@@ -750,7 +750,7 @@ After caching the server-independent protocol and schemas, use
 readiness check for the selected Vivi server. It reads the open worklist cursor
 and count without recording read receipts, claims, or comments, then returns
 `recommendedAction` and startup `suggestedCommands` such as
-the primary `comments work --wait --loop --idle-events --json` resident loop,
+the primary `comments work --wait --loop --idle-events --idle-on-change --json` resident loop,
 plus recovery helpers such as `comments mine --json` and routing snapshots such
 as `comments inbox --json`.
 If `--actor` is omitted, doctor returns `recommendedAction: "configure_actor"`
@@ -1350,11 +1350,11 @@ source, diff, and activity payloads used by rich work items. The thread remains
 suggestions as the integrated `work` claimed event.
 Use `claim --wait --full` for a resident agent that should block until one
 claimable feedback item exists.
-Use `work --wait --loop --idle-events` when an adapter wants a compact resident
-stream that claims work, renews the lease, and follows human updates without
-embedding the full diff in every work event. Add `--full` only when the adapter
-needs rich source, diff, and activity payloads inline instead of fetching them
-on demand.
+Use `work --wait --loop --idle-events --idle-on-change` when an adapter wants
+a compact resident stream that claims work, renews the lease, and follows human
+updates without embedding the full diff in every work event. Add `--full` only
+when the adapter needs rich source, diff, and activity payloads inline instead
+of fetching them on demand.
 Use `batch <review-batch-id> --full` when the agent is responding to one
 published GUI review batch and needs progress plus routing in one payload.
 Use `mine --json` after an agent restart to recover compact live-claim routing

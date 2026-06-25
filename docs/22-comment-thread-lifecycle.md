@@ -239,10 +239,11 @@ handle.
 
 `comments work` is the integrated intake stream for coding-agent adapters that
 want the CLI to do the session orchestration. It is the preferred resident loop
-for terminal agents: with `--wait --loop --idle-events --json`, it waits for
-GUI feedback, claims the next matching thread, emits a compact
-`comment_work_claimed` NDJSON event, then follows that
-thread from the claim activity cursor and emits later
+for terminal agents: with the quiet resident flags
+`--wait --loop --idle-events --idle-on-change --json`, it waits for GUI
+feedback, claims the next matching thread, emits a compact
+`comment_work_claimed` NDJSON event, then follows that thread from the claim
+activity cursor and emits later
 `comment_thread_activity_batch` events. Pass `--full` only when the adapter
 needs the same rich source, diff, and activity payload as `claim --full`
 inline. It also renews the lease on `--renew-interval`, defaulting to
@@ -253,9 +254,9 @@ running `claim`, extracting the activity cursor, starting `follow`, and running
 `thread_status_changed` to `resolved` or `archived`, it emits that final
 activity batch and exits successfully.
 Adapters can discover that loop with `comments protocol --json`, which returns
-the preferred `work --wait --loop --idle-events` command, passive `watch`, companion
-`follow`/`check` commands, restart recovery commands, structured write recipes,
-and schema lookup argv without contacting the Vivi server. Commands in that
+the preferred `work --wait --loop --idle-events --idle-on-change --json`
+command, passive `watch`, companion `follow`/`check` commands, restart recovery
+commands, structured write recipes, and schema lookup argv without contacting the Vivi server. Commands in that
 manifest use
 `<client-event-id>` placeholders for durable read/claim attempts and generic
 structured writes; adapters should replace each placeholder with a stable id

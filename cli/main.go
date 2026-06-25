@@ -239,11 +239,10 @@ func newServerReadyPayload(root string, serverURL string, actor string) serverRe
 	if actor = strings.TrimSpace(actor); actor != "" {
 		reviewArgs = append(reviewArgs, "--actor", actor)
 		doctorArgs = append(doctorArgs, "--actor", actor)
-		workArgs = append(workArgs, "--actor", actor, "--wait", "--loop", "--idle-events")
+		workArgs = withURLArg(residentCommentsWorkCommand(actor, ""), serverURL)
 	}
 	reviewArgs = append(reviewArgs, "--json")
 	doctorArgs = append(doctorArgs, "--json")
-	workArgs = append(workArgs, "--json")
 	suggestions := []commentSuggestedCommand{}
 	if actor != "" {
 		suggestions = append(suggestions, suggestedCommentsCommandWithClientEventID(

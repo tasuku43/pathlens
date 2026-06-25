@@ -38,7 +38,7 @@ vivi [workspace] --ready-json --actor codex
 vivi review queue --actor codex --json
 vivi review diff README.md --base HEAD --json
 vivi comments doctor --actor codex --json
-vivi comments work --actor codex --wait --loop --idle-events --json
+vivi comments work --actor codex --wait --loop --idle-events --idle-on-change --json
 vivi --version
 vivi --help
 ```

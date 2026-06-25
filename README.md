@@ -65,7 +65,7 @@ vivi .
 vivi ./docs
 vivi ./dist --open
 vivi . --port 0 --ready-json --actor codex
-vivi comments work --actor codex --wait --loop --idle-events --json
+vivi comments work --actor codex --wait --loop --idle-events --idle-on-change --json
 vivi review queue --actor codex --json
 vivi . --include md,html,ts,tsx,json,css,png,jpg
 vivi . --max-file-size 2097152
@@ -105,7 +105,7 @@ agent-facing interface structured and deterministic.
 
 For coding agents, `comments work` is the primary feedback loop. Start Vivi
 with `--ready-json --actor <actor>`, then run the primary suggested
-`comments work --wait --loop --idle-events` command from that ready payload.
+`comments work --wait --loop --idle-events --idle-on-change` command from that ready payload.
 `review queue` and `review diff` are changed-file context helpers; they are not
 the human-feedback intake loop. `protocol`, `schema`, `watch`, `follow`, and
 raw `claim` remain available for adapter authors, debugging, and recovery.
