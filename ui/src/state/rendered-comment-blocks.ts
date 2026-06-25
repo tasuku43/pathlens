@@ -394,7 +394,14 @@ function ensureRenderedCommentAction(
   count.setAttribute("aria-hidden", "true");
   count.textContent = String(commentCount);
   action.append(count);
-  host.append(action);
+  const threadHost =
+    host.localName === "li"
+      ? Array.from(host.children).find((child) =>
+          child.classList.contains("rendered-comment-thread-host"),
+        )
+      : null;
+  if (threadHost) host.insertBefore(action, threadHost);
+  else host.append(action);
   return action;
 }
 

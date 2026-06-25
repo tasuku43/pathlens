@@ -235,6 +235,21 @@ export const RenderedMarkerPlacement: Story = {
         .getPropertyValue("--rendered-comment-marker-top")
         .trim(),
     ).toBe("18px");
+
+    const codeMarker = within(codeBlock).getByRole("button", {
+      name: /Open comment thread/,
+    });
+    await userEvent.click(codeMarker);
+    await expect(canvas.getByText("Lines 5-9")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        Math.abs(
+          within(listItem)
+            .getByRole("button", { name: /Open comment thread/ })
+            .getBoundingClientRect().top - listTopBefore,
+        ),
+      ).toBeLessThan(2),
+    );
   },
 };
 

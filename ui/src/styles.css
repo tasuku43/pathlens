@@ -1729,7 +1729,15 @@ body.resizing-workbench-pane {
 }
 .markdown li.vivi-rendered-comment-block {
   --rendered-comment-block-left: calc(-1.45em - 12px);
+  --rendered-comment-block-top: -3px;
+  --rendered-comment-block-bottom-pad: 5px;
   --rendered-comment-marker-top: calc(0.85em + 1px);
+}
+.markdown li.vivi-rendered-comment-block::before {
+  bottom: calc(
+    var(--rendered-comment-block-bottom) -
+      var(--rendered-comment-block-bottom-pad, 0px)
+  );
 }
 .markdown pre.vivi-rendered-comment-block {
   --rendered-comment-marker-top: 18px;
@@ -1869,6 +1877,13 @@ body.resizing-workbench-pane {
     background 140ms ease,
     border-color 140ms ease,
     transform 140ms ease;
+  transform: translateY(-50%);
+}
+.markdown pre.vivi-rendered-comment-block > .rendered-comment-marker {
+  position: absolute;
+  top: var(--rendered-comment-marker-top, 18px);
+  right: auto;
+  left: -8px;
   transform: translateY(-50%);
 }
 .rendered-comment-marker::before {
