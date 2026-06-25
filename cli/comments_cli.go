@@ -849,7 +849,7 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 		}
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && !commentsCommandWritesReceipt(command) && !commentsCommandVerifiesReceiptLog(command) && !commentsCommandPropagatesReceiptLog(command) && command != "doctor" {
-		return options, nil, fmt.Errorf("--receipt-log is only supported with comments reply, triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, mine, inbox, or batch")
+		return options, nil, fmt.Errorf("--receipt-log is only supported with comments reply, triage, release, done, dismiss, verify-receipts, doctor, claim, work, watch, follow, check, mine, inbox, batch, or next")
 	}
 	if strings.TrimSpace(options.ReceiptLog) != "" && (commentsCommandVerifiesReceiptLog(command) || command == "doctor") {
 		if strings.TrimSpace(options.Body) != "" || strings.TrimSpace(options.BodyFile) != "" || strings.TrimSpace(options.TriageFile) != "" || strings.TrimSpace(options.ResultFile) != "" || strings.TrimSpace(options.ReceiptFile) != "" {
@@ -3670,7 +3670,7 @@ func commentsCommandVerifiesReceiptLog(command string) bool {
 
 func commentsCommandPropagatesReceiptLog(command string) bool {
 	switch command {
-	case "claim", "work", "watch", "follow", "check", "mine", "inbox", "batch":
+	case "claim", "work", "watch", "follow", "check", "mine", "inbox", "batch", "next":
 		return true
 	default:
 		return false

@@ -536,7 +536,7 @@ whole ledger and returns per-receipt verification payloads plus total, verified,
 and failed counts. `comments doctor --receipt-log <path> --json` runs that same
 ledger check as part of online startup readiness and treats a missing ledger
 file as an empty OK ledger. Commands that emit agent suggestions, such as
-`doctor`, `watch`, `work`, `follow`, `check`, `mine`, `inbox`, and `batch`,
+`doctor`, `watch`, `work`, `follow`, `check`, `mine`, `inbox`, `batch`, and `next`,
 propagate their resolved `--url` into suggested argv, preserve `--actor-kind`
 alongside `--actor`, and propagate `--receipt-log <path>` into suggested renew,
 follow, check, and write argv, so adapters can execute those recipes without

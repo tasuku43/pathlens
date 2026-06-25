@@ -270,6 +270,7 @@ func TestCommentsCLIBatchSummarizesPublishedReviewRouting(t *testing.T) {
 func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
+	receiptLog := filepath.Join(t.TempDir(), "agent-receipts.jsonl")
 	firstID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "First open item")
 	time.Sleep(time.Millisecond)
 	secondID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Second open item")
@@ -334,7 +335,7 @@ func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 	}
 
 	runCommentsCLIForTest(t, "resolve", secondID, "--url", server.URL, "--actor", "codex:next-test", "--actor-kind", "codex", "--json")
-	empty := runCommentsCLIForTest(t, "next", "--url", server.URL, "--actor", "codex:next-test", "--actor-kind", "codex", "--json")
+	empty := runCommentsCLIForTest(t, "next", "--url", server.URL, "--actor", "codex:next-test", "--actor-kind", "codex", "--receipt-log", receiptLog, "--json")
 	decodeCLIJSON(t, empty, &nextPayload)
 	if nextPayload.Thread != nil || nextPayload.Count != 0 || nextPayload.Remaining != 0 {
 		t.Fatalf("empty next = %s", empty.String())
@@ -342,7 +343,7 @@ func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 	if nextPayload.Summary.RequiresAttention || nextPayload.Summary.RecommendedAction != "wait_for_gui_feedback" || nextPayload.Summary.OpenThreadCount != 0 || nextPayload.Summary.UnclaimedCount != 0 || nextPayload.Summary.ClaimedByOthersCount != 0 {
 		t.Fatalf("empty next summary = %#v", nextPayload.Summary)
 	}
-	if len(nextPayload.Summary.SuggestedCommands) != 1 || nextPayload.Summary.SuggestedCommands[0].Command != "comments work" || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--loop") {
+	if len(nextPayload.Summary.SuggestedCommands) != 1 || nextPayload.Summary.SuggestedCommands[0].Command != "comments work" || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, receiptLog) {
 		t.Fatalf("empty next suggestions = %#v", nextPayload.Summary.SuggestedCommands)
 	}
 }
