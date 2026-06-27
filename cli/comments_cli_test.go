@@ -343,7 +343,7 @@ func TestCommentsCLINextReturnsOldestOpenThreadForAgentWork(t *testing.T) {
 	if nextPayload.Summary.RequiresAttention || nextPayload.Summary.RecommendedAction != "wait_for_gui_feedback" || nextPayload.Summary.OpenThreadCount != 0 || nextPayload.Summary.UnclaimedCount != 0 || nextPayload.Summary.ClaimedByOthersCount != 0 {
 		t.Fatalf("empty next summary = %#v", nextPayload.Summary)
 	}
-	if len(nextPayload.Summary.SuggestedCommands) != 1 || nextPayload.Summary.SuggestedCommands[0].Command != "comments work" || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, receiptLog) {
+	if len(nextPayload.Summary.SuggestedCommands) != 1 || nextPayload.Summary.SuggestedCommands[0].Command != "comments work" || containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, "--receipt-log") || !containsString(nextPayload.Summary.SuggestedCommands[0].Args, receiptLog) {
 		t.Fatalf("empty next suggestions = %#v", nextPayload.Summary.SuggestedCommands)
 	}
 }
@@ -438,7 +438,7 @@ func TestCommentsCLIClaimLeasesNextOpenThreadForAgentWork(t *testing.T) {
 	if !contendedPayload.Summary.RequiresAttention || contendedPayload.Summary.RecommendedAction != "wait_for_claim_release" || contendedPayload.Summary.OpenThreadCount != 2 || contendedPayload.Summary.MineCount != 0 || contendedPayload.Summary.UnclaimedCount != 0 || contendedPayload.Summary.ClaimedByOthersCount != 2 || !containsString(contendedPayload.Summary.AttentionReasons, "open_threads_claimed_by_others") {
 		t.Fatalf("contended claim summary = %#v", contendedPayload.Summary)
 	}
-	if len(contendedPayload.Summary.SuggestedCommands) != 2 || contendedPayload.Summary.SuggestedCommands[0].Command != "comments work" || !contendedPayload.Summary.SuggestedCommands[0].Primary || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--loop") || contendedPayload.Summary.SuggestedCommands[1].Command != "comments inbox" {
+	if len(contendedPayload.Summary.SuggestedCommands) != 2 || contendedPayload.Summary.SuggestedCommands[0].Command != "comments work" || !contendedPayload.Summary.SuggestedCommands[0].Primary || containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(contendedPayload.Summary.SuggestedCommands[0].Args, "--loop") || contendedPayload.Summary.SuggestedCommands[1].Command != "comments inbox" {
 		t.Fatalf("contended claim suggestions = %#v", contendedPayload.Summary.SuggestedCommands)
 	}
 
@@ -650,6 +650,9 @@ func TestCommentsCLIWorkTailorsSuggestionsForSourceUnavailableThread(t *testing.
 	if claimed.Source.SourceState != "unavailable" {
 		t.Fatalf("work source-unavailable source state = %#v", claimed.Source)
 	}
+	if claimed.Brief.LatestUserIntent != "Feedback on a file that will disappear" || claimed.Brief.SourceAvailable == nil || *claimed.Brief.SourceAvailable || claimed.Brief.SourcePath != "stale.md" || claimed.Brief.SourceReason != "source_unavailable" || claimed.Brief.SourceState != "unavailable" || claimed.Brief.ClaimState != "claimed" || claimed.Brief.AttemptHint != "work-missing-source-1" {
+		t.Fatalf("work source-unavailable brief = %#v", claimed.Brief)
+	}
 	if claimed.Diff == nil || claimed.Diff.Status != "unavailable" || claimed.Diff.Reason != "source_unavailable" {
 		t.Fatalf("work source-unavailable diff = %#v", claimed.Diff)
 	}
@@ -821,7 +824,7 @@ func TestCommentsCLIInboxClassifiesOpenAgentWork(t *testing.T) {
 	if inboxPayload.SourceUnavailable.Count != 1 || len(inboxPayload.SourceUnavailable.Threads) != 1 || inboxPayload.SourceUnavailable.Threads[0].Path != "stale.md" {
 		t.Fatalf("source-unavailable group = %#v", inboxPayload.SourceUnavailable)
 	}
-	if len(inboxPayload.SourceUnavailable.Items) != 1 || inboxPayload.SourceUnavailable.Items[0].Brief == nil || inboxPayload.SourceUnavailable.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || inboxPayload.SourceUnavailable.Items[0].Brief.SourceState != "unavailable" || !containsString(inboxPayload.SourceUnavailable.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
+	if len(inboxPayload.SourceUnavailable.Items) != 1 || inboxPayload.SourceUnavailable.Items[0].Brief == nil || inboxPayload.SourceUnavailable.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || inboxPayload.SourceUnavailable.Items[0].Brief.LatestUserIntent == "" || inboxPayload.SourceUnavailable.Items[0].Brief.SourceAvailable == nil || *inboxPayload.SourceUnavailable.Items[0].Brief.SourceAvailable || inboxPayload.SourceUnavailable.Items[0].Brief.SourceState != "unavailable" || !containsString(inboxPayload.SourceUnavailable.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
 		t.Fatalf("source-unavailable items = %#v", inboxPayload.SourceUnavailable.Items)
 	}
 
@@ -1366,16 +1369,20 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 			Args    []string `json:"args"`
 		} `json:"recovery"`
 		PreferredLoop struct {
-			Intent  string   `json:"intent"`
-			Command string   `json:"command"`
-			Args    []string `json:"args"`
-			Events  []string `json:"events"`
+			Intent     string   `json:"intent"`
+			Command    string   `json:"command"`
+			Args       []string `json:"args"`
+			Events     []string `json:"events"`
+			OutputMode string   `json:"outputMode"`
+			IdlePolicy string   `json:"idlePolicy"`
 		} `json:"preferredLoop"`
 		IntakeAlternatives []struct {
-			Intent string   `json:"intent"`
-			Args   []string `json:"args"`
-			Events []string `json:"events"`
-			Reason string   `json:"reason"`
+			Intent     string   `json:"intent"`
+			Args       []string `json:"args"`
+			Events     []string `json:"events"`
+			OutputMode string   `json:"outputMode"`
+			IdlePolicy string   `json:"idlePolicy"`
+			Reason     string   `json:"reason"`
 		} `json:"intakeAlternatives"`
 		ThreadCompanions []struct {
 			Intent string   `json:"intent"`
@@ -1413,10 +1420,10 @@ func TestCommentsCLIProtocolSurfacesAgentStartupManifest(t *testing.T) {
 	if len(payload.Recovery) != 1 || payload.Recovery[0].Intent != "recover_owned_live_claims" || payload.Recovery[0].Command != "comments mine" || containsString(payload.Recovery[0].Args, "--full") {
 		t.Fatalf("protocol recovery = %#v", payload.Recovery)
 	}
-	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || !containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || !containsString(payload.PreferredLoop.Args, "--idle-events") || !containsString(payload.PreferredLoop.Args, "--idle-on-change") || containsString(payload.PreferredLoop.Args, "--full") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") {
+	if payload.PreferredLoop.Intent != "resident_owned_work_loop" || payload.PreferredLoop.Command != "comments work" || payload.PreferredLoop.OutputMode != "agent_safe" || payload.PreferredLoop.IdlePolicy == "" || !containsString(payload.PreferredLoop.Args, "--client-event-id") || !containsString(payload.PreferredLoop.Args, "<client-event-id>") || containsString(payload.PreferredLoop.Args, "--wait") || !containsString(payload.PreferredLoop.Args, "--loop") || containsString(payload.PreferredLoop.Args, "--idle-events") || containsString(payload.PreferredLoop.Args, "--full") || !containsString(payload.PreferredLoop.Events, "commentWorkClaimedEvent") || containsString(payload.PreferredLoop.Events, "commentWorkIdleEvent") {
 		t.Fatalf("preferred loop = %#v", payload.PreferredLoop)
 	}
-	if len(payload.IntakeAlternatives) != 3 || payload.IntakeAlternatives[0].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[0].Args, "--full") || !containsString(payload.IntakeAlternatives[0].Events, "commentOpenWorklistEvent") || payload.IntakeAlternatives[1].Intent != "passive_rich_open_worklist" || !containsString(payload.IntakeAlternatives[1].Args, "--full") || !strings.Contains(payload.IntakeAlternatives[1].Reason, "items[].brief") || payload.IntakeAlternatives[2].Intent != "blocking_single_claim" {
+	if len(payload.IntakeAlternatives) != 4 || payload.IntakeAlternatives[0].Intent != "observable_idle_work_loop" || payload.IntakeAlternatives[0].OutputMode != "high_output_opt_in" || !containsString(payload.IntakeAlternatives[0].Args, "--idle-events") || !containsString(payload.IntakeAlternatives[0].Events, "commentWorkIdleEvent") || payload.IntakeAlternatives[1].Intent != "passive_open_worklist" || containsString(payload.IntakeAlternatives[1].Args, "--full") || !containsString(payload.IntakeAlternatives[1].Events, "commentOpenWorklistEvent") || payload.IntakeAlternatives[2].Intent != "passive_rich_open_worklist" || !containsString(payload.IntakeAlternatives[2].Args, "--full") || !strings.Contains(payload.IntakeAlternatives[2].Reason, "items[].brief") || payload.IntakeAlternatives[3].Intent != "blocking_single_claim" {
 		t.Fatalf("intake alternatives = %#v", payload.IntakeAlternatives)
 	}
 	if len(payload.ThreadCompanions) != 2 || payload.ThreadCompanions[1].Intent != "preflight_guarded_write" || !containsString(payload.ThreadCompanions[1].Args, "check") {
@@ -1496,7 +1503,7 @@ func TestCommentsCLIProtocolPropagatesReceiptLogIntoAgentRecipes(t *testing.T) {
 	if !containsString(payload.PreferredLoop.Args, receiptLog) {
 		t.Fatalf("preferred loop receipt-log propagation = %#v", payload.PreferredLoop)
 	}
-	if len(payload.IntakeAlternatives) != 3 {
+	if len(payload.IntakeAlternatives) != 4 {
 		t.Fatalf("intake receipt-log propagation = %#v", payload.IntakeAlternatives)
 	}
 	for _, alternative := range payload.IntakeAlternatives {
@@ -1674,7 +1681,7 @@ func TestCommentsCLIDoctorSurfacesAgentReadiness(t *testing.T) {
 		t.Fatalf("doctor guidance = %#v %#v", payload.RecommendedAction, payload.SuggestedCommands)
 	}
 	work := payload.SuggestedCommands[0]
-	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || work.ClientEventID != "doctor-start-1:work" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || !containsString(work.Args, "--idle-events") || !containsString(work.Args, "--idle-on-change") || containsString(work.Args, "--full") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || work.ClientEventID != "doctor-start-1:work" || work.OutputMode != "agent_safe" || work.IdlePolicy == "" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--loop") || containsString(work.Args, "--idle-events") || containsString(work.Args, "--full") || !containsString(work.Args, work.ClientEventID) || !containsString(work.Args, server.URL) {
 		t.Fatalf("doctor resident work suggestion = %#v", work)
 	}
 	mine := payload.SuggestedCommands[1]
@@ -1735,7 +1742,7 @@ func TestCommentsCLIDoctorPreservesActorKindInWaitSuggestion(t *testing.T) {
 		t.Fatalf("doctor wait guidance = %#v", payload)
 	}
 	work := payload.SuggestedCommands[0]
-	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") || !containsString(work.Args, "--idle-on-change") {
+	if work.Intent != "start_resident_work_loop" || work.Command != "comments work" || !work.Primary || work.OutputMode != "agent_safe" || !containsString(work.Args, "--actor-kind") || !containsString(work.Args, "codex") {
 		t.Fatalf("doctor primary work suggestion = %#v", work)
 	}
 	for _, suggestion := range payload.SuggestedCommands {
@@ -2240,7 +2247,7 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 	}
 
 	inboxSummaryBuffer := runCommentsCLIForTest(t, "schema", "commentInboxOutput", "--summary", "--json")
-	if inboxSummaryBuffer.Len() >= 8_000 {
+	if inboxSummaryBuffer.Len() >= 9_000 {
 		t.Fatalf("inbox schema summary should stay compact, got %d bytes", inboxSummaryBuffer.Len())
 	}
 	var inboxSummaryPayload commentSchemaSummaryOutput
@@ -2257,7 +2264,10 @@ func TestCommentsCLISchemaSurfacesStructuredStdinContracts(t *testing.T) {
 		"unclaimed.threads[].path",
 		"unclaimed.threads[].comments[].body",
 		"sourceUnavailable.items[].brief.recommendedAction",
+		"sourceUnavailable.items[].brief.latestUserIntent",
+		"sourceUnavailable.items[].brief.sourceAvailable",
 		"sourceUnavailable.items[].brief.sourceState",
+		"sourceUnavailable.items[].brief.claimState",
 		"sourceUnavailable.items[].brief.suggestedCommandIntents",
 	} {
 		if !summaryPaths[path] {
@@ -2819,7 +2829,7 @@ func TestCommentsCLIWatchFullMarksSourceUnavailableItemBrief(t *testing.T) {
 	if watchEvent.Items[0].Source == nil || watchEvent.Items[0].Source.Available || watchEvent.Items[0].Source.Reason != "source_unavailable" {
 		t.Fatalf("watch source-unavailable context = %#v", watchEvent.Items[0].Source)
 	}
-	if watchEvent.Items[0].Brief == nil || watchEvent.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || watchEvent.Items[0].Brief.SourceState != "unavailable" || !containsString(watchEvent.Items[0].Brief.AttentionReasons, "source_unavailable") || !containsString(watchEvent.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
+	if watchEvent.Items[0].Brief == nil || watchEvent.Items[0].Brief.RecommendedAction != "handle_source_unavailable" || watchEvent.Items[0].Brief.LatestUserIntent == "" || watchEvent.Items[0].Brief.SourceAvailable == nil || *watchEvent.Items[0].Brief.SourceAvailable || watchEvent.Items[0].Brief.SourceState != "unavailable" || !containsString(watchEvent.Items[0].Brief.AttentionReasons, "source_unavailable") || !containsString(watchEvent.Items[0].Brief.SuggestedCommandIntents, "claim_source_unavailable_thread") {
 		t.Fatalf("watch source-unavailable brief = %#v", watchEvent.Items[0].Brief)
 	}
 }
@@ -3273,12 +3283,12 @@ func TestCommentsCLIWorkIdleEventIsSelfDescribing(t *testing.T) {
 	if event.Summary.RecommendedAction != "wait_for_gui_feedback" || event.Summary.RequiresAttention {
 		t.Fatalf("idle work summary = %#v", event.Summary)
 	}
-	if len(event.Summary.SuggestedCommands) != 1 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].Intent != "start_resident_work_loop" || !event.Summary.SuggestedCommands[0].Primary || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--loop") || !containsString(event.Summary.SuggestedCommands[0].Args, "--idle-on-change") || !containsString(event.Summary.SuggestedCommands[0].Args, server.URL) {
+	if len(event.Summary.SuggestedCommands) != 1 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].Intent != "start_resident_work_loop" || event.Summary.SuggestedCommands[0].OutputMode != "agent_safe" || !event.Summary.SuggestedCommands[0].Primary || containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--loop") || containsString(event.Summary.SuggestedCommands[0].Args, "--idle-events") || !containsString(event.Summary.SuggestedCommands[0].Args, server.URL) {
 		t.Fatalf("idle work suggestions = %#v", event.Summary.SuggestedCommands)
 	}
 }
 
-func TestCommentsCLIWorkWaitCanEmitIdleHeartbeat(t *testing.T) {
+func TestCommentsCLIWorkWaitCanEmitIdleState(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 	threadID := createCommentThreadForCLIWithBody(t, server.URL, "README.md", "Please handle this when the other claim releases")
@@ -3289,26 +3299,26 @@ func TestCommentsCLIWorkWaitCanEmitIdleHeartbeat(t *testing.T) {
 	var event commentWorkStreamEvent
 	decodeCLIJSON(t, out, &event)
 	if event.Type != "comment_work_idle" || event.SchemaVersion != 1 || event.EventSchema != "commentWorkIdleEvent" || event.Sequence != 1 {
-		t.Fatalf("idle heartbeat metadata = %s", out.String())
+		t.Fatalf("idle state metadata = %s", out.String())
 	}
 	if event.Reason != "no_claimable_work" || event.Count != 1 || event.Thread.ID != "" || event.Claim.ID != "" {
-		t.Fatalf("idle heartbeat payload = %#v", event)
+		t.Fatalf("idle state payload = %#v", event)
 	}
 	if event.Summary.RecommendedAction != "wait_for_claim_release" || !event.Summary.RequiresAttention || !hasAttentionReason(event.Summary, "open_threads_claimed_by_others") {
-		t.Fatalf("idle heartbeat summary = %#v", event.Summary)
+		t.Fatalf("idle state summary = %#v", event.Summary)
 	}
-	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments work" || !event.Summary.SuggestedCommands[0].Primary || !containsString(event.Summary.SuggestedCommands[0].Args, "codex:idle-wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || !containsString(event.Summary.SuggestedCommands[0].Args, "--idle-on-change") || event.Summary.SuggestedCommands[1].Command != "comments inbox" || !containsString(event.Summary.SuggestedCommands[1].Args, "codex:idle-wait") {
-		t.Fatalf("idle heartbeat suggestions = %#v", event.Summary.SuggestedCommands)
+	if len(event.Summary.SuggestedCommands) != 2 || event.Summary.SuggestedCommands[0].Command != "comments work" || event.Summary.SuggestedCommands[0].OutputMode != "agent_safe" || !event.Summary.SuggestedCommands[0].Primary || !containsString(event.Summary.SuggestedCommands[0].Args, "codex:idle-wait") || containsString(event.Summary.SuggestedCommands[0].Args, "--wait") || containsString(event.Summary.SuggestedCommands[0].Args, "--idle-events") || event.Summary.SuggestedCommands[1].Command != "comments inbox" || !containsString(event.Summary.SuggestedCommands[1].Args, "codex:idle-wait") {
+		t.Fatalf("idle state suggestions = %#v", event.Summary.SuggestedCommands)
 	}
 }
 
-func TestCommentsCLIWorkIdleOnChangeSuppressesDuplicateIdleEvents(t *testing.T) {
+func TestCommentsCLIWorkIdleEventsSuppressDuplicateIdleState(t *testing.T) {
 	server := newCommentsCLITestServer(t)
 	defer server.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	events, done := startCommentsWorkForTest(t, ctx, "work", "--url", server.URL, "--actor", "codex:idle-change", "--actor-kind", "codex", "--client-event-id", "idle-change-1", "--wait", "--idle-events", "--idle-on-change", "--interval", "10ms", "--max-events", "2", "--json")
+	events, done := startCommentsWorkForTest(t, ctx, "work", "--url", server.URL, "--actor", "codex:idle-change", "--actor-kind", "codex", "--client-event-id", "idle-change-1", "--wait", "--idle-events", "--interval", "10ms", "--max-events", "2", "--json")
 
 	idle := receiveWorkEvent(t, events)
 	if idle.Type != "comment_work_idle" || idle.Sequence != 1 || idle.Count != 0 {

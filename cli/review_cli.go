@@ -630,7 +630,7 @@ func reviewQueueCommentsWorkSuggestion(actorID string, serverURL string, descrip
 	if actorID == "" {
 		return suggestedCommentsCommand("choose_agent_actor", "comments doctor", withURLArg([]string{"comments", "doctor", "--json"}, serverURL), "", "Run startup readiness without an actor to get the configure_actor branch before starting a resident GUI feedback loop.")
 	}
-	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, "")), serverURL), "", description, "review-queue:"+actorID+":work")
+	return suggestedCommentsCommandWithClientEventID("wait_for_gui_feedback", "comments work", withURLArg(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, "")), serverURL), "", description, "review-queue:"+actorID+":work").withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity")
 }
 
 func reviewHelpText() string {
@@ -640,7 +640,7 @@ func reviewHelpText() string {
 		"Agent quick path:",
 		"  1. List the Git working-tree review queue: vivi review queue --actor <actor> --json",
 		"  2. Inspect a changed file: vivi review diff <path> --base HEAD --json",
-		"  3. Use vivi comments work --actor <actor> --wait --loop --idle-events --idle-on-change --json for compact human GUI feedback",
+		"  3. Use vivi comments work --actor <actor> --loop --json for compact human GUI feedback",
 		"  Without --json, review queue prints a short human summary.",
 		"",
 		"Usage:",

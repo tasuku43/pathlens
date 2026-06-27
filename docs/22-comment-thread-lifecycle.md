@@ -245,7 +245,7 @@ handle.
 `comments work` is the integrated intake stream for coding-agent adapters that
 want the CLI to do the session orchestration. It is the preferred resident loop
 for terminal agents: with the quiet resident flags
-`--wait --loop --idle-events --idle-on-change --json`, it waits for GUI
+`--loop --json`, it waits for GUI
 feedback, claims the next matching thread, emits a compact
 `comment_work_claimed` NDJSON event, then follows that thread from the claim
 activity cursor and emits later
@@ -259,7 +259,7 @@ running `claim`, extracting the activity cursor, starting `follow`, and running
 `thread_status_changed` to `resolved` or `archived`, it emits that final
 activity batch and exits successfully.
 Adapters can discover that loop with `comments protocol --json`, which returns
-the preferred `work --wait --loop --idle-events --idle-on-change --json`
+the preferred `work --loop --json`
 command, passive `watch`, rich passive `watch --full` for monitor-to-worker
 handoffs, companion `follow`/`check` commands, restart recovery commands,
 structured write recipes, and schema lookup argv without contacting the Vivi server. Commands in that

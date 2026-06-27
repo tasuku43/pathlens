@@ -60,8 +60,11 @@ observes the terminal status batch and exits successfully. This is the shortest
 adapter-facing loop for the target GUI feedback experience: a resident coding
 agent can claim, listen, reply, and finish without stitching together separate
 CLI processes for each primitive.
-Resident adapters that need an explicit readiness heartbeat can add
-`--idle-events`: the same stream emits `comment_work_idle` while waiting, with
+The default resident `work --loop` intake is agent-safe: while no work is
+claimable and no followed thread activity arrives, it does not emit idle
+events into stdout. Resident adapters that need explicit waiting-state
+visibility can add `--idle-events`: the same stream emits `comment_work_idle`
+while waiting, with
 `summary.recommendedAction` set to `wait_for_gui_feedback` for an empty queue
 or `wait_for_claim_release` when open threads are currently owned by other
 actors. Empty-queue idle events also keep `comments work` as the primary
@@ -74,10 +77,9 @@ When adapters do use `comments watch --full` as a monitor process, each
 item-specific command intents. Harnesses can assert those item briefs before
 forking per-thread worker agents instead of depending only on the event-level
 summary.
-Adapters that do not need repeated identical heartbeats can add
-`--idle-on-change` beside `--idle-events`; the loop emits the first idle event
-for readiness, then stays quiet until the idle cursor changes or work becomes
-claimable.
+When `--idle-events` is enabled, repeated identical waiting states are
+suppressed; the loop emits the first idle event, then stays quiet until the
+idle cursor changes or work becomes claimable.
 The claimed payload also carries `summary.recommendedAction: "start_work"` and
 structured `summary.suggestedCommands`, so the fake agent verifies the same
 command-discovery path for initial feedback that it uses for follow-up
@@ -315,10 +317,10 @@ this `work` intake as the shorter runtime entrypoint: the command emits the
 claimed work item first, renews the lease during the session, continues with
 follow-up activity batches for the claimed thread, and exits after observing a
 terminal resolved or archived status batch.
-For a resident queue worker, add `--loop --idle-events --idle-on-change`:
-after that terminal batch, the same NDJSON stream returns to claim selection
-and emits a readiness idle event while waiting for the next matching GUI
-feedback thread.
+For a resident queue worker, add `--loop`: after that terminal batch, the same
+NDJSON stream returns to claim selection and stays quiet until the next matching
+GUI feedback thread. Add `--idle-events` only when the harness or adapter needs
+visible waiting-state events while waiting.
 
 `--terminal cli` validates the matching terminal
 shortcuts: `comments done` for resolved outcomes and `comments dismiss` for

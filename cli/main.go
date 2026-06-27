@@ -250,9 +250,9 @@ func newServerReadyPayload(root string, serverURL string, actor string) serverRe
 			"comments work",
 			withAgentHistoryLimitArgs(workArgs),
 			"",
-			"Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.",
+			"Primary agent feedback loop: wait silently for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions only when work or thread activity changes.",
 			"server-ready:"+actor+":work",
-		).withPrimary())
+		).withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"))
 	} else {
 		suggestions = append(suggestions, suggestedCommentsCommand(
 			"configure_agent_actor",

@@ -356,16 +356,14 @@ it("explains claim contention when all open threads are leased by another actor"
       expect.objectContaining({
         command: "comments work",
         intent: "start_resident_work_loop",
+        outputMode: "agent_safe",
         primary: true,
-        args: expect.arrayContaining([
-          "comments",
-          "work",
-          "--wait",
-          "--loop",
-          "--idle-events",
-        ]),
+        args: expect.arrayContaining(["comments", "work", "--loop"]),
       }),
     ]),
+  );
+  expect(contended.summary.suggestedCommands[0].args).not.toContain(
+    "--idle-events",
   );
 });
 

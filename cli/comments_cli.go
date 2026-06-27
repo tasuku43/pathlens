@@ -28,46 +28,45 @@ const (
 )
 
 type commentsCommandOptions struct {
-	URL              string
-	JSON             bool
-	Path             string
-	Status           string
-	ReviewBatchID    string
-	ActorID          string
-	ActorKind        string
-	ActorName        string
-	ClientEventID    string
-	Body             string
-	BodyFile         string
-	TriageFile       string
-	ResultFile       string
-	ReceiptFile      string
-	ReceiptLog       string
-	Result           *commentResultOutput
-	TriageDecision   string
-	TriageSummary    string
-	TriageNext       string
-	Full             bool
-	WithContext      bool
-	WithDiff         bool
-	WithActivities   bool
-	ActivityLimit    int
-	CommentLimit     int
-	RequireClaim     bool
-	WaitForWork      bool
-	DiffBase         string
-	ContextLines     int
-	WatchInterval    time.Duration
-	WatchInitial     bool
-	WatchOnce        bool
-	WorkIdleEvents   bool
-	WorkIdleOnChange bool
-	WorkLoop         bool
-	WatchMaxEvents   int
-	ResumeCursor     string
-	LeaseDuration    time.Duration
-	RenewInterval    time.Duration
-	SchemaSummary    bool
+	URL            string
+	JSON           bool
+	Path           string
+	Status         string
+	ReviewBatchID  string
+	ActorID        string
+	ActorKind      string
+	ActorName      string
+	ClientEventID  string
+	Body           string
+	BodyFile       string
+	TriageFile     string
+	ResultFile     string
+	ReceiptFile    string
+	ReceiptLog     string
+	Result         *commentResultOutput
+	TriageDecision string
+	TriageSummary  string
+	TriageNext     string
+	Full           bool
+	WithContext    bool
+	WithDiff       bool
+	WithActivities bool
+	ActivityLimit  int
+	CommentLimit   int
+	RequireClaim   bool
+	WaitForWork    bool
+	DiffBase       string
+	ContextLines   int
+	WatchInterval  time.Duration
+	WatchInitial   bool
+	WatchOnce      bool
+	WorkIdleEvents bool
+	WorkLoop       bool
+	WatchMaxEvents int
+	ResumeCursor   string
+	LeaseDuration  time.Duration
+	RenewInterval  time.Duration
+	SchemaSummary  bool
 }
 
 type graphqlRequest struct {
@@ -827,8 +826,7 @@ func parseCommentsFlags(command string, args []string) (commentsCommandOptions, 
 	suppressInitial := false
 	flags.BoolVar(&suppressInitial, "no-initial", false, "suppress current open worklist on startup")
 	flags.BoolVar(&options.WatchOnce, "once", false, "poll once and exit")
-	flags.BoolVar(&options.WorkIdleEvents, "idle-events", false, "emit comment_work_idle events while comments work is waiting")
-	flags.BoolVar(&options.WorkIdleOnChange, "idle-on-change", false, "with --idle-events, emit waiting idle events only when the idle cursor changes")
+	flags.BoolVar(&options.WorkIdleEvents, "idle-events", false, "emit comment_work_idle events when the waiting state changes")
 	flags.BoolVar(&options.WorkLoop, "loop", false, "keep comments work running after terminal status and claim the next item")
 	flags.IntVar(&options.WatchMaxEvents, "max-events", 0, "stop after emitting this many watch events")
 	flags.DurationVar(&options.LeaseDuration, "lease", options.LeaseDuration, "claim lease duration")
@@ -1114,7 +1112,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 		"principles": []string{
 			"Prefer suggestedCommands emitted by runtime events over hard-coded command recipes.",
 			"Recover owned live claims with compact comments mine before claiming new GUI feedback after an adapter restart.",
-			"Use comments work --wait --loop --idle-events --idle-on-change as the resident owned-work intake for background agents.",
+			"Use comments work --loop as the agent-safe resident owned-work intake; add --idle-events only for explicit observability/debugging.",
 			"Run comments check immediately before guarded writes when ownership may be stale.",
 			"Use structured stdin schemas for triage and terminal results.",
 			"Keep a local write receipt ledger when the adapter needs restart-safe reconciliation of agent comments.",
@@ -1148,13 +1146,24 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			},
 		},
 		"preferredLoop": map[string]any{
-			"intent":  "resident_owned_work_loop",
-			"command": "comments work",
-			"args":    withRuntimeArgs(append(residentCommentsWorkCommand(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
-			"events":  []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
-			"reason":  "Claim GUI feedback as owned work with compact events, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
+			"intent":     "resident_owned_work_loop",
+			"command":    "comments work",
+			"args":       withRuntimeArgs(append(residentCommentsWorkCommand(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
+			"events":     []string{"commentWorkClaimedEvent", "commentActivityBatchEvent"},
+			"outputMode": "agent_safe",
+			"idlePolicy": "silent_until_claimable_work_or_thread_activity",
+			"reason":     "Claim GUI feedback as owned work with compact events, keep the lease alive while working, observe follow-up activity, and continue to the next thread after terminal status.",
 		},
 		"intakeAlternatives": []map[string]any{
+			{
+				"intent":     "observable_idle_work_loop",
+				"command":    "comments work",
+				"args":       withRuntimeArgs(append(residentCommentsWorkCommandWithIdle(actor, ""), "--client-event-id", "<client-event-id>"), serverURL, receiptLog),
+				"events":     []string{"commentWorkClaimedEvent", "commentActivityBatchEvent", "commentWorkIdleEvent"},
+				"outputMode": "high_output_opt_in",
+				"idlePolicy": "emits_initial_idle_and_idle_cursor_changes",
+				"reason":     "Use only when an adapter needs visible idle state; repeated identical waiting states are suppressed.",
+			},
 			{
 				"intent":  "passive_open_worklist",
 				"command": "comments watch",
@@ -1276,6 +1285,7 @@ func commentsProtocolPayload(options commentsCommandOptions) map[string]any {
 			"Command args are subcommand argv beginning with comments; prefix the Vivi executable selected by the host adapter.",
 			"Runtime events and write preflight responses may include more specific suggestedCommands than this startup manifest.",
 			"Replace <client-event-id> with a stable id for a single logical attempt; reuse it only for retries of that attempt.",
+			"The preferred resident loop intentionally omits --idle-events so unchanged idle periods do not spend agent conversation context.",
 			"Structured stdin examples are available on each suggested command when stdinSchema is present.",
 		},
 	}
@@ -1432,6 +1442,10 @@ func commentSchemaSummaryKeepsWorkItemBriefPath(path string) bool {
 	switch {
 	case strings.HasSuffix(path, "items[].brief.recommendedAction"),
 		strings.HasSuffix(path, "items[].brief.sourceState"),
+		strings.HasSuffix(path, "items[].brief.sourceAvailable"),
+		strings.HasSuffix(path, "items[].brief.latestUserIntent"),
+		strings.HasSuffix(path, "items[].brief.claimState"),
+		strings.HasSuffix(path, "items[].brief.attemptHint"),
 		strings.HasSuffix(path, "items[].brief.suggestedCommandIntents"):
 		return true
 	default:
@@ -1686,11 +1700,13 @@ func commentProtocolManifestSchema() commentSchemaOutput {
 		"additionalProperties": true,
 		"required":             []string{"intent", "command", "args", "reason"},
 		"properties": map[string]any{
-			"intent":  map[string]any{"type": "string"},
-			"command": map[string]any{"type": "string"},
-			"args":    arraySchema(map[string]any{"type": "string"}),
-			"events":  arraySchema(map[string]any{"type": "string"}),
-			"reason":  map[string]any{"type": "string"},
+			"intent":     map[string]any{"type": "string"},
+			"command":    map[string]any{"type": "string"},
+			"args":       arraySchema(map[string]any{"type": "string"}),
+			"events":     arraySchema(map[string]any{"type": "string"}),
+			"outputMode": map[string]any{"type": "string"},
+			"idlePolicy": map[string]any{"type": "string"},
+			"reason":     map[string]any{"type": "string"},
 		},
 	}
 	schemaCommandMap := map[string]any{
@@ -3371,6 +3387,8 @@ func commentSuggestedCommandSchema() map[string]any {
 			"stdinSchema":        map[string]any{"type": "string"},
 			"stdinSchemaCommand": arraySchema(map[string]any{"type": "string"}),
 			"stdinExample":       map[string]any{"type": "object"},
+			"outputMode":         map[string]any{"type": "string"},
+			"idlePolicy":         map[string]any{"type": "string"},
 			"reason":             map[string]any{"type": "string"},
 		},
 	}
@@ -3593,7 +3611,17 @@ func commentBriefSchema() map[string]any {
 			"attentionReasons":        arraySchema(map[string]any{"type": "string"}),
 			"latestComment":           map[string]any{"type": "string"},
 			"latestCommentAuthor":     map[string]any{"type": "string"},
+			"latestUserIntent":        map[string]any{"type": "string"},
+			"sourcePath":              map[string]any{"type": "string"},
+			"sourceAvailable":         map[string]any{"type": "boolean"},
+			"sourceReason":            map[string]any{"type": "string"},
 			"sourceState":             map[string]any{"type": "string"},
+			"lineStart":               map[string]any{"type": "integer"},
+			"lineEnd":                 map[string]any{"type": "integer"},
+			"anchorStartLine":         map[string]any{"type": "integer"},
+			"anchorEndLine":           map[string]any{"type": "integer"},
+			"claimState":              map[string]any{"type": "string"},
+			"attemptHint":             map[string]any{"type": "string"},
 			"suggestedCommands":       arraySchema(commentSuggestedCommandSchema()),
 			"suggestedCommandIntents": arraySchema(map[string]any{"type": "string"}),
 		},
@@ -3822,6 +3850,7 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 	sessionID := newCommentsStreamSessionID(options, "work")
 	emitted := 0
 	lastIdleCursor := ""
+	seenIdleCursor := false
 	for {
 		payload, claimed, err := commentClaimPayload(ctx, options, threadID)
 		if err != nil {
@@ -3840,12 +3869,13 @@ func commentsWork(ctx context.Context, stdout io.Writer, options commentsCommand
 			if (options.WaitForWork || options.WorkLoop) && !options.WatchOnce {
 				if options.WorkIdleEvents {
 					idleCursor := commentWorkIdleCursor(payload)
-					if !options.WorkIdleOnChange || idleCursor != lastIdleCursor {
+					if !seenIdleCursor || idleCursor != lastIdleCursor {
 						if err := emitCommentsWorkIdleEvent(encoder, payload, sessionID, emitted+1, options.ActorID, options.ActorKind, options.URL, options.ReceiptLog); err != nil {
 							return err
 						}
 						emitted++
 						lastIdleCursor = idleCursor
+						seenIdleCursor = true
 						if reachedWatchMaxEvents(options, emitted) {
 							return nil
 						}
@@ -3932,7 +3962,7 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 			RecommendedAction: "wait_for_gui_feedback",
 			OpenThreadCount:   0,
 			SuggestedCommands: []commentSuggestedCommand{
-				suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work.").withPrimary(),
+				suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Wait silently for the next GUI feedback item, then claim it as owned work with compact events.").withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
 			},
 		}
 	}
@@ -3943,7 +3973,7 @@ func commentWorkIdleSummary(payload map[string]any, actorID string, actorKind st
 		RecommendedAction: "wait_for_claim_release",
 		OpenThreadCount:   count,
 		SuggestedCommands: []commentSuggestedCommand{
-			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
+			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, actorKind)), serverURL, receiptLog), "", "Keep the primary work loop waiting silently until another actor releases or finishes the open feedback.").withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
 			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json")), serverURL, receiptLog), "", "Inspect compact open-thread routing before deciding whether to fetch thread context."),
 		},
 	}
@@ -4452,6 +4482,12 @@ func (suggestion commentSuggestedCommand) withPrimary() commentSuggestedCommand 
 	return suggestion
 }
 
+func (suggestion commentSuggestedCommand) withOutput(outputMode string, idlePolicy string) commentSuggestedCommand {
+	suggestion.OutputMode = outputMode
+	suggestion.IdlePolicy = idlePolicy
+	return suggestion
+}
+
 func suggestedCommandStdinExample(intent string, command string, stdinSchema string) map[string]any {
 	switch stdinSchema {
 	case "commentTriageFileInput":
@@ -4818,11 +4854,66 @@ func commentBriefForWorkItem(thread commentThreadOutput, item *commentWorkItemOu
 		latest := thread.Comments[len(thread.Comments)-1]
 		brief.LatestComment = commentExcerpt(latest.Body, 240)
 		brief.LatestCommentAuthor = latest.CreatedBy.ID
+		if latestUser := latestHumanComment(thread); latestUser != nil {
+			brief.LatestUserIntent = commentExcerpt(latestUser.Body, 320)
+		}
 	}
 	if item != nil && item.Source != nil {
+		brief.SourcePath = item.Source.Path
+		available := item.Source.Available
+		brief.SourceAvailable = &available
+		brief.SourceReason = item.Source.Reason
 		brief.SourceState = item.Source.SourceState
+		brief.LineStart = item.Source.StartLine
+		brief.LineEnd = item.Source.EndLine
+		brief.AnchorStartLine = item.Source.AnchorStartLine
+		brief.AnchorEndLine = item.Source.AnchorEndLine
+	}
+	if item != nil {
+		brief.ClaimState = commentBriefClaimState(item.Activities)
+		if attempt := latestAgentAttemptHint(item.Activities); attempt != "" {
+			brief.AttemptHint = attempt
+		}
 	}
 	return brief
+}
+
+func latestHumanComment(thread commentThreadOutput) *commentOutput {
+	for index := len(thread.Comments) - 1; index >= 0; index-- {
+		if thread.Comments[index].CreatedBy.Kind == "human" {
+			return &thread.Comments[index]
+		}
+	}
+	return nil
+}
+
+func commentBriefClaimState(activities []commentActivityOutput) string {
+	claim := activeClaim(activities, time.Now().UTC())
+	if claim == nil {
+		return "unclaimed"
+	}
+	return "claimed"
+}
+
+func latestAgentAttemptHint(activities []commentActivityOutput) string {
+	for index := len(activities) - 1; index >= 0; index-- {
+		activity := activities[index]
+		switch activity.Type {
+		case "thread_claimed":
+			if strings.TrimSpace(activity.ClientEventID) != "" {
+				return activity.ClientEventID
+			}
+			return activity.ID
+		case "comment_added", "thread_status_changed", "thread_claim_released":
+			if activity.Actor.Kind != "human" {
+				if strings.TrimSpace(activity.ClientEventID) != "" {
+					return activity.ClientEventID
+				}
+				return activity.ID
+			}
+		}
+	}
+	return ""
 }
 
 func suggestedCommandIntents(commands []commentSuggestedCommand) []string {
@@ -5005,13 +5096,13 @@ func summarizeOpenRouting(routing commentOpenRoutingOutput, actorID string, acto
 		summary.AttentionReasons = []string{"open_threads_claimed_by_others"}
 		summary.RecommendedAction = "wait_for_claim_release"
 		summary.SuggestedCommands = []commentSuggestedCommand{
-			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Keep the primary work loop waiting until another actor releases or finishes the open feedback.").withPrimary(),
+			suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Keep the primary work loop waiting silently until another actor releases or finishes the open feedback.").withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
 			suggestedCommentsCommand("inspect_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(actorCommand([]string{"comments", "inbox"}, actorID, actorKind, "--json"), pathFilter)), serverURL, receiptLog), "", "Inspect compact open-thread routing before deciding whether to fetch thread context."),
 		}
 		return summary
 	}
 	summary.SuggestedCommands = []commentSuggestedCommand{
-		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Wait for the next GUI feedback item with compact events and claim it as owned work."),
+		suggestedCommentsCommand("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(withCommentPathArg(residentCommentsWorkCommand(actorID, actorKind), pathFilter)), serverURL, receiptLog), "", "Wait silently for the next GUI feedback item, then claim it as owned work with compact events.").withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
 	}
 	return summary
 }
@@ -5610,7 +5701,7 @@ func commentsDoctorSuggestedCommands(options commentsCommandOptions, openThreadC
 		clientSeed = commentSuggestedClientEventID("doctor", "startup", actorID)
 	}
 	suggestions := []commentSuggestedCommand{
-		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, options.ActorKind)), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions.", clientSeed+":work").withPrimary(),
+		suggestedCommentsCommandWithClientEventID("start_resident_work_loop", "comments work", withRuntimeArgs(withAgentHistoryLimitArgs(residentCommentsWorkCommand(actorID, options.ActorKind)), options.URL, options.ReceiptLog), "", "Primary agent feedback loop: wait silently for GUI comments, claim work safely, keep the lease warm, and emit next-action suggestions only when work or thread activity changes.", clientSeed+":work").withPrimary().withOutput("agent_safe", "silent_until_claimable_work_or_thread_activity"),
 		suggestedCommentsCommand("recover_owned_live_claims", "comments mine", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "mine"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Recovery helper: after an adapter restart, inspect live claim routing before claiming new GUI feedback."),
 		suggestedCommentsCommand("snapshot_agent_inbox", "comments inbox", withRuntimeArgs(withAgentHistoryLimitArgs(actorCommand([]string{"comments", "inbox"}, actorID, options.ActorKind, "--json")), options.URL, options.ReceiptLog), "", "Read compact owned, unclaimed, and other-claimed routing without creating read receipts."),
 	}
@@ -7321,12 +7412,14 @@ func residentCommentsWorkCommand(actorID string, actorKind string) []string {
 		[]string{"comments", "work"},
 		actorID,
 		actorKind,
-		"--wait",
 		"--loop",
-		"--idle-events",
-		"--idle-on-change",
 		"--json",
 	)
+}
+
+func residentCommentsWorkCommandWithIdle(actorID string, actorKind string) []string {
+	args := residentCommentsWorkCommand(actorID, actorKind)
+	return append(args[:len(args)-1], "--idle-events", "--json")
 }
 
 func suggestedActorKind(actorKind string) string {
@@ -7380,7 +7473,7 @@ func commentsHelpText() string {
 		"Agent common path:",
 		"  1. Start Vivi: vivi <root> --port 0 --ready-json --actor <actor>",
 		"  2. Run the primary suggested command, usually:",
-		"     vivi comments work --actor <actor> --wait --loop --idle-events --idle-on-change --url <url> --json",
+		"     vivi comments work --actor <actor> --loop --url <url> --json",
 		"  3. For each work event, prefer summary.recommendedAction and the primary suggestedCommands entry.",
 		"  4. Use triage/release/done/dismiss suggestions as emitted; do not invent guarded write argv.",
 		"",
@@ -7402,8 +7495,9 @@ func commentsHelpText() string {
 		"",
 		"Common commands:",
 		"  vivi comments work --once --actor claude-code --full --json",
-		"  vivi comments work --actor claude-code --wait --loop --idle-events --idle-on-change --json",
-		"  vivi comments work --loop --actor claude-code --idle-events --idle-on-change --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  vivi comments work --actor claude-code --loop --json",
+		"  vivi comments work --loop --actor claude-code --receipt-log /tmp/vivi-agent-receipts.jsonl --json",
+		"  vivi comments work --loop --actor claude-code --idle-events --json  # opt-in idle-state/debug mode",
 		"  vivi comments mine --actor claude-code --json",
 		"  vivi comments check <thread-id> --actor claude-code --full --json",
 		"  vivi comments triage <thread-id> --actor claude-code --triage-file - --require-claim --json",
@@ -7454,9 +7548,8 @@ func commentsHelpText() string {
 		"  --context-lines <count>    Source lines around a comment anchor (default 6)",
 		"  --interval <duration>      Watch, follow, hold, or work polling interval (default 2s)",
 		"  --renew-interval <dur>     Work lease renewal interval (default min(lease/2, 2m))",
-		"  --idle-events              Emit comment_work_idle heartbeat events while comments work is waiting",
-		"  --idle-on-change           With --idle-events, emit waiting idle events only when the idle cursor changes",
-		"  --loop                     Keep comments work running and claim the next item after terminal status",
+		"  --idle-events              Emit comment_work_idle events when the waiting state changes",
+		"  --loop                     Wait for work and keep running after terminal status",
 		"  --cursor <cursor>          Suppress an already delivered watch/follow snapshot",
 		"  --no-initial               Wait for the next watch/follow change",
 		"  --once                     Poll once, emit at most one idle/claimed work event, and exit",
@@ -7562,6 +7655,8 @@ type commentSuggestedCommand struct {
 	StdinSchema        string         `json:"stdinSchema,omitempty"`
 	StdinSchemaCommand []string       `json:"stdinSchemaCommand,omitempty"`
 	StdinExample       map[string]any `json:"stdinExample,omitempty"`
+	OutputMode         string         `json:"outputMode,omitempty"`
+	IdlePolicy         string         `json:"idlePolicy,omitempty"`
 	Reason             string         `json:"reason"`
 }
 
@@ -7712,7 +7807,17 @@ type commentBriefOutput struct {
 	AttentionReasons        []string                  `json:"attentionReasons,omitempty"`
 	LatestComment           string                    `json:"latestComment,omitempty"`
 	LatestCommentAuthor     string                    `json:"latestCommentAuthor,omitempty"`
+	LatestUserIntent        string                    `json:"latestUserIntent,omitempty"`
+	SourcePath              string                    `json:"sourcePath,omitempty"`
+	SourceAvailable         *bool                     `json:"sourceAvailable,omitempty"`
+	SourceReason            string                    `json:"sourceReason,omitempty"`
 	SourceState             string                    `json:"sourceState,omitempty"`
+	LineStart               int                       `json:"lineStart,omitempty"`
+	LineEnd                 int                       `json:"lineEnd,omitempty"`
+	AnchorStartLine         int                       `json:"anchorStartLine,omitempty"`
+	AnchorEndLine           int                       `json:"anchorEndLine,omitempty"`
+	ClaimState              string                    `json:"claimState,omitempty"`
+	AttemptHint             string                    `json:"attemptHint,omitempty"`
 	SuggestedCommands       []commentSuggestedCommand `json:"suggestedCommands,omitempty"`
 	SuggestedCommandIntents []string                  `json:"suggestedCommandIntents,omitempty"`
 }
