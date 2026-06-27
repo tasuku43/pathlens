@@ -203,6 +203,14 @@ export function activityNeedsHumanAttention(
   );
 }
 
+export function reviewQueueItemHasAgentReply(item: ReviewQueueItem): boolean {
+  return (
+    item.threadCounts.open > 0 &&
+    item.latestActivity?.type === "comment_added" &&
+    item.latestActivity.actor.kind !== "human"
+  );
+}
+
 function collectThreads(comments: ViviComment[]) {
   const threads = new Map<
     string,

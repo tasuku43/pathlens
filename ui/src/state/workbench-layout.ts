@@ -1,7 +1,7 @@
 export const defaultSidebarWidth = 280;
 export const minSidebarWidth = 220;
 export const maxSidebarWidth = 520;
-export const defaultInspectorWidth = 280;
+export const defaultInspectorWidth = 396;
 export const minInspectorWidth = 220;
 export const maxInspectorWidth = 520;
 export const inspectorCollapseBreakpoint = 1040;

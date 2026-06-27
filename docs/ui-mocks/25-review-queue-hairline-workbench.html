@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review queue hairline workbench - Vivi</title>
+    <style>
+      :root {
+        --bg: #0a0f15;
+        --chrome: #111720;
+        --panel: #101821;
+        --panel-2: #141e2a;
+        --panel-3: #182333;
+        --line: #273449;
+        --line-soft: #202b3c;
+        --text: #eef3f8;
+        --muted: #a6b3c3;
+        --soft: #77869a;
+        --queued: #74a9ff;
+        --queued-soft: rgba(116, 169, 255, 0.13);
+        --reviewing: #b694ff;
+        --reviewing-soft: rgba(182, 148, 255, 0.13);
+        --reviewed: #72d78c;
+        --reviewed-soft: rgba(114, 215, 140, 0.12);
+        --red: #ff7676;
+        --green: #68e087;
+        --yellow: #f0bf69;
+        --teal: #63d2c4;
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button {
+        color: inherit;
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: 40px 1fr 28px;
+        height: 100vh;
+        min-width: 960px;
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) auto;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        background: #121925;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-width: 0;
+        border-right: 1px solid var(--line);
+        padding: 0 12px;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border: 1px solid rgba(99, 210, 196, 0.42);
+        border-radius: 6px;
+        color: var(--teal);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .brand strong {
+        overflow: hidden;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tabs {
+        display: flex;
+        align-items: stretch;
+        min-width: 0;
+        height: 100%;
+      }
+
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+        border-right: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        padding: 0 12px;
+      }
+
+      .tab.active {
+        background: var(--panel);
+        color: var(--text);
+        box-shadow: inset 0 -2px 0 var(--reviewing);
+      }
+
+      .tab b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 10px;
+      }
+
+      .button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #151f2d;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 720;
+        padding: 6px 9px;
+      }
+
+      .button.primary {
+        border-color: rgba(114, 215, 140, 0.5);
+        background: var(--reviewed-soft);
+        color: #bbefc7;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 280px minmax(0, 1fr) 396px;
+        min-height: 0;
+      }
+
+      .sidebar,
+      .viewer,
+      .inspector {
+        min-width: 0;
+        min-height: 0;
+        background: var(--panel);
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        border-right: 1px solid var(--line);
+      }
+
+      .sidebar-head {
+        display: grid;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      .path-line {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .search {
+        display: flex;
+        align-items: center;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #0d141d;
+        color: var(--soft);
+        font-size: 12px;
+        padding: 0 9px;
+      }
+
+      .tree-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        padding: 9px 12px;
+      }
+
+      .tree {
+        overflow: hidden;
+        padding: 8px 0;
+      }
+
+      .tree-section {
+        color: var(--soft);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0;
+        padding: 8px 12px 5px;
+        text-transform: uppercase;
+      }
+
+      .tree-row {
+        display: grid;
+        grid-template-columns: 12px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-height: 34px;
+        border-left: 2px solid transparent;
+        color: var(--muted);
+        padding: 5px 10px;
+      }
+
+      .tree-row.active {
+        border-left-color: var(--reviewing);
+        background: linear-gradient(90deg, var(--reviewing-soft), transparent 70%);
+        color: var(--text);
+      }
+
+      .tree-main {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .tree-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .tree-title b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-path {
+        overflow: hidden;
+        color: var(--soft);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .viewer {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+      }
+
+      .crumbbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+        border-bottom: 1px solid var(--line);
+        background: #0f161f;
+        padding: 10px 14px;
+      }
+
+      .crumbs {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+        padding: 14px;
+      }
+
+      .file-title-block {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .file-name-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .file-name-line h1 {
+        overflow: hidden;
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-subtitle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .file-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 260px;
+        min-height: 0;
+      }
+
+      .document {
+        overflow: hidden;
+        border-right: 1px solid var(--line);
+        background: #0c1219;
+        padding: 20px 26px;
+      }
+
+      .doc-card {
+        max-width: 760px;
+      }
+
+      .doc-card h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+        line-height: 1.2;
+      }
+
+      .doc-card p {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.65;
+      }
+
+      .thread-strip {
+        display: grid;
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .thread-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .thread-row:last-child {
+        border-bottom: 0;
+      }
+
+      .thread-row.agent {
+        background: linear-gradient(90deg, var(--reviewing-soft), transparent 70%);
+      }
+
+      .outline {
+        overflow: hidden;
+        background: #0f161f;
+        padding: 13px;
+      }
+
+      .outline h2 {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .outline a {
+        display: block;
+        overflow: hidden;
+        border-left: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 7px 0 7px 10px;
+        text-decoration: none;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .outline a.active {
+        border-left-color: var(--reviewing);
+        color: var(--text);
+      }
+
+      .inspector {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        border-left: 1px solid var(--line);
+      }
+
+      .inspector-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px 14px;
+      }
+
+      .inspector-head span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .inspector-head strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 15px;
+      }
+
+      .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-bottom: 1px solid var(--line);
+      }
+
+      .summary-strip span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        border-right: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .summary-strip span:last-child {
+        border-right: 0;
+      }
+
+      .summary-strip strong {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .summary-strip small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .inspector-body {
+        overflow: hidden;
+      }
+
+      .hairline-section + .hairline-section {
+        border-top: 1px solid var(--line);
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 740;
+        padding: 10px 14px 8px;
+      }
+
+      .section-heading strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .section-heading small {
+        color: var(--soft);
+        font-size: 11px;
+        font-weight: 640;
+      }
+
+      .file-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-width: 0;
+        border-top: 1px solid var(--line-soft);
+        padding: 10px 14px;
+      }
+
+      .file-row.active {
+        background: linear-gradient(90deg, var(--reviewing-soft), transparent 58%);
+        box-shadow: inset 2px 0 0 var(--reviewing);
+      }
+
+      .file-row.quiet {
+        color: var(--muted);
+      }
+
+      .file-main {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .row-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .row-title b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .kind {
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        line-height: 1;
+        padding: 3px 5px;
+      }
+
+      .state-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        line-height: 1;
+        padding: 4px 7px;
+        white-space: nowrap;
+      }
+
+      .state-pill.queued {
+        border-color: rgba(116, 169, 255, 0.56);
+        background: var(--queued-soft);
+        color: #bdd6ff;
+      }
+
+      .state-pill.reviewing {
+        border-color: rgba(182, 148, 255, 0.58);
+        background: var(--reviewing-soft);
+        color: #d8caff;
+      }
+
+      .state-pill.reviewed {
+        border-color: rgba(114, 215, 140, 0.52);
+        background: var(--reviewed-soft);
+        color: #bbefc7;
+      }
+
+      .stat {
+        display: inline-flex;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .plus {
+        color: var(--green);
+      }
+
+      .minus {
+        color: var(--red);
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--soft);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .dot.queued,
+      .dot.unread {
+        background: var(--queued);
+        box-shadow: 0 0 0 3px rgba(116, 169, 255, 0.18);
+      }
+
+      .dot.agent-reply {
+        width: 9px;
+        height: 9px;
+        background: var(--reviewing);
+        box-shadow:
+          0 0 0 3px rgba(182, 148, 255, 0.2),
+          0 0 18px rgba(182, 148, 255, 0.42);
+      }
+
+      .dot.reviewed {
+        background: var(--reviewed);
+      }
+
+      .status-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        padding: 10px 14px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        border-top: 1px solid var(--line);
+        color: var(--soft);
+        font-size: 10px;
+        padding: 10px 14px;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .statusbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-top: 1px solid var(--line);
+        background: #0e151d;
+        color: var(--soft);
+        font-size: 11px;
+        padding: 0 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">V</span>
+          <strong>vivi / review queue workspace</strong>
+        </div>
+        <nav class="tabs" aria-label="Open files">
+          <span class="tab">TSX <b>FileViewer.tsx</b></span>
+          <span class="tab active">MD <b>README.md</b></span>
+          <span class="tab">TS <b>review-state.ts</b></span>
+        </nav>
+        <div class="top-actions">
+          <button class="button" type="button">Keep tab</button>
+          <button class="button" type="button">Close clean</button>
+        </div>
+      </header>
+
+      <main class="shell">
+        <aside class="sidebar" aria-label="File tree">
+          <div class="sidebar-head">
+            <div class="path-line">/Users/tasuku/work/github.com/tasuku43/vivi</div>
+            <div class="search">Search files or commands</div>
+          </div>
+          <div class="tree-meta">
+            <span>Review state shown beside files</span>
+            <span>24 files</span>
+          </div>
+          <div class="tree">
+            <div class="tree-section">Queued</div>
+            <div class="tree-row">
+              <span class="dot queued"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>FileViewer.tsx</b><span class="state-pill queued">Queued</span></span>
+                <span class="tree-path">ui/src/features/file-context/components</span>
+              </span>
+            </div>
+            <div class="tree-row">
+              <span class="dot queued"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>ViewerControlButton.tsx</b><span class="state-pill queued">Queued</span></span>
+                <span class="tree-path">ui/src/features/file-context/components</span>
+              </span>
+            </div>
+            <div class="tree-row">
+              <span class="dot"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>review-next-action.ts</b><span class="state-pill queued">Queued</span></span>
+                <span class="tree-path">ui/src/state</span>
+              </span>
+            </div>
+
+            <div class="tree-section">In Review</div>
+            <div class="tree-row active">
+              <span class="dot agent-reply"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>README.md</b><span class="state-pill reviewing">In Review</span></span>
+                <span class="tree-path">agent replied 2m ago</span>
+              </span>
+            </div>
+            <div class="tree-row">
+              <span class="dot"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>DraftReviewTray.tsx</b><span class="state-pill reviewing">In Review</span></span>
+                <span class="tree-path">no new movement</span>
+              </span>
+            </div>
+
+            <div class="tree-section">Reviewed</div>
+            <div class="tree-row">
+              <span class="dot reviewed"></span>
+              <span class="tree-main">
+                <span class="tree-title"><b>ReviewQueuePanel.tsx</b><span class="state-pill reviewed">Reviewed</span></span>
+                <span class="tree-path">quiet until new HEAD evidence</span>
+              </span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="viewer" aria-label="File viewer">
+          <div class="crumbbar">
+            <span class="crumbs">docs / README.md</span>
+            <span class="state-pill reviewing"><span class="dot agent-reply"></span>In Review</span>
+          </div>
+          <header class="file-head">
+            <div class="file-title-block">
+              <div class="file-name-line">
+                <h1>README.md</h1>
+                <span class="state-pill reviewing"><span class="dot agent-reply"></span>Agent reply</span>
+              </div>
+              <div class="file-subtitle">2 open threads. Latest agent reply needs a human decision.</div>
+            </div>
+            <div class="file-actions">
+              <button class="button primary" type="button">Mark as reviewed</button>
+              <button class="button" type="button">Open thread</button>
+              <button class="button" type="button">Diff from HEAD</button>
+            </div>
+          </header>
+          <div class="content">
+            <article class="document">
+              <div class="doc-card">
+                <h2>Review queue language</h2>
+                <p>
+                  Queued files are waiting for a decision. In Review files have
+                  open threads or active review work. Reviewed files stay quiet
+                  until new change evidence appears.
+                </p>
+                <p>
+                  This file has an active agent reply, so the left indicator is
+                  intentionally stronger than ordinary In Review rows.
+                </p>
+                <div class="thread-strip" aria-label="Open threads">
+                  <div class="thread-row">
+                    <span class="dot"></span>
+                    <span class="file-main">
+                      <span class="row-title"><b>Human note</b></span>
+                      <span class="meta">Line 18: clarify whether Reviewed returns to Queued</span>
+                    </span>
+                    <span class="meta">18m ago</span>
+                  </div>
+                  <div class="thread-row agent">
+                    <span class="dot agent-reply"></span>
+                    <span class="file-main">
+                      <span class="row-title"><b>Agent reply</b></span>
+                      <span class="meta">New HEAD evidence should move reviewed files back to Queued.</span>
+                    </span>
+                    <span class="meta">2m ago</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <aside class="outline" aria-label="Document outline">
+              <h2>Outline</h2>
+              <a class="active" href="#">Review queue language</a>
+              <a href="#">Queued</a>
+              <a href="#">In Review</a>
+              <a href="#">Reviewed</a>
+              <a href="#">State transitions</a>
+            </aside>
+          </div>
+        </section>
+
+        <aside class="inspector" aria-label="Review inspector">
+          <header class="inspector-head">
+            <span><span>Review</span><strong>3 need attention</strong></span>
+            <button class="button" type="button">Next</button>
+          </header>
+          <div class="summary-strip">
+            <span><strong>6</strong><small>Queued</small></span>
+            <span><strong>2</strong><small>In Review</small></span>
+            <span><strong>16</strong><small>Reviewed</small></span>
+          </div>
+          <div class="inspector-body">
+            <section class="hairline-section">
+              <div class="section-heading"><strong>Queued</strong><small>6 files waiting</small></div>
+              <div class="file-row">
+                <span class="dot queued"></span>
+                <span class="file-main">
+                  <span class="row-title"><span class="kind">TSX</span><b>FileViewer.tsx</b></span>
+                  <span class="meta">unread HEAD diff</span>
+                </span>
+                <span class="stat"><span class="plus">+43</span><span class="minus">-0</span></span>
+              </div>
+              <div class="file-row">
+                <span class="dot queued"></span>
+                <span class="file-main">
+                  <span class="row-title"><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span>
+                  <span class="meta">unread HEAD diff</span>
+                </span>
+                <span class="stat"><span class="plus">+19</span><span class="minus">-0</span></span>
+              </div>
+              <div class="file-row quiet">
+                <span class="dot"></span>
+                <span class="file-main">
+                  <span class="row-title"><span class="kind">TS</span><b>review-next-action.ts</b></span>
+                  <span class="meta">read HEAD diff</span>
+                </span>
+                <span class="stat"><span class="plus">+120</span><span class="minus">-0</span></span>
+              </div>
+            </section>
+
+            <section class="hairline-section">
+              <div class="section-heading"><strong>In Review</strong><small>2 files with open threads</small></div>
+              <div class="file-row active">
+                <span class="dot agent-reply"></span>
+                <span class="file-main">
+                  <span class="row-title"><span class="kind">MD</span><b>README.md</b></span>
+                  <span class="meta">agent replied 2m ago, needs decision</span>
+                </span>
+                <span class="state-pill reviewing">Reply</span>
+              </div>
+              <div class="file-row quiet">
+                <span class="dot"></span>
+                <span class="file-main">
+                  <span class="row-title"><span class="kind">TSX</span><b>DraftReviewTray.tsx</b></span>
+                  <span class="meta">open thread, no new movement</span>
+                </span>
+                <span class="state-pill reviewing">Open</span>
+              </div>
+            </section>
+
+            <section class="hairline-section">
+              <div class="section-heading"><strong>Reviewed</strong><small>16 hidden</small></div>
+              <div class="status-note">
+                <span>Reviewed files stay quiet until new HEAD evidence appears.</span>
+                <button class="button" type="button">Show</button>
+              </div>
+            </section>
+
+            <div class="legend" aria-label="Indicator legend">
+              <span><span class="dot queued"></span>Queued or unread</span>
+              <span><span class="dot agent-reply"></span>Agent reply</span>
+              <span><span class="dot"></span>No new movement</span>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="statusbar">
+        <span>refreshed 21:02:53</span>
+        <span>Right inspector uses Hairline Groups. Agent replies get the stronger In Review dot.</span>
+      </footer>
+    </div>
+  </body>
+</html>

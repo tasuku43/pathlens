@@ -340,7 +340,7 @@ export function ReviewWorkbenchStory({
         style={
           {
             "--sidebar-width": "290px",
-            "--inspector-width": "350px",
+            "--inspector-width": "396px",
           } as CSSProperties
         }
       >

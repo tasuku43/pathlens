@@ -10,6 +10,7 @@ import {
   manyReviewComments,
   markdownDiff,
   sampleComments,
+  codexAgent,
   sampleDiff,
   sampleDraftComments,
   sampleFiles,
@@ -168,6 +169,22 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     viewerMode: "rendered",
     compactInspector: true,
     draftComments: [],
+    reviewItems: sampleReviewQueueItems.map((item) =>
+      item.path === sampleFiles.code.path
+        ? {
+            ...item,
+            latestActivity: {
+              id: "activity-compact-agent-reply",
+              threadId: "thread-workbench-open",
+              type: "comment_added" as const,
+              actor: codexAgent,
+              commentId: "comment-workbench-agent-1",
+              createdAt: "2026-06-20T09:28:00.000Z",
+            },
+            unread: true,
+          }
+        : item,
+    ),
     inspectorTitle:
       "Narrow workbench keeps an explicit route back to the Review Queue.",
   },
@@ -196,6 +213,13 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     await expect(
       within(inspector).getByText("In Review", { selector: "summary span" }),
     ).toBeVisible();
+    await expect(
+      inspector
+        .querySelector(
+          '.change-open.has-agent-reply[data-review-path="ui/src/features/workbench/WorkbenchContainer.tsx"]',
+        )
+        ?.querySelector(".unread-dot.agent-reply"),
+    ).toBeInTheDocument();
     await expect(
       within(inspector).getByText("Reviewed", { selector: "summary span" }),
     ).toBeVisible();

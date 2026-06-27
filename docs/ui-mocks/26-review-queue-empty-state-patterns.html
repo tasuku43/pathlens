@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review queue empty state patterns - Vivi</title>
+    <style>
+      :root {
+        --bg: #0a0f15;
+        --panel: #111821;
+        --panel-2: #151f2b;
+        --line: #273449;
+        --line-soft: #202b3c;
+        --text: #eef3f8;
+        --muted: #a6b3c3;
+        --soft: #77869a;
+        --queued: #74a9ff;
+        --reviewing: #b694ff;
+        --reviewed: #72d78c;
+        --reviewed-soft: rgba(114, 215, 140, 0.11);
+        --shadow: rgba(0, 0, 0, 0.32);
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .page {
+        display: grid;
+        gap: 22px;
+        padding: 28px;
+      }
+
+      header {
+        max-width: 980px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      header p {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(280px, 396px));
+        gap: 18px;
+        align-items: start;
+        overflow-x: auto;
+        padding-bottom: 10px;
+      }
+
+      .concept {
+        min-width: 280px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 18px 32px var(--shadow);
+      }
+
+      .concept-title {
+        display: grid;
+        gap: 5px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px 14px;
+      }
+
+      .concept-title h2 {
+        font-size: 14px;
+      }
+
+      .concept-title p {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .inspector {
+        width: 100%;
+        background: var(--panel);
+      }
+
+      .inspector-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 60px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 14px;
+      }
+
+      .inspector-head span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .inspector-head strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 15px;
+        line-height: 1.2;
+      }
+
+      .button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #151f2d;
+        color: var(--muted);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 720;
+        padding: 6px 9px;
+      }
+
+      .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-bottom: 1px solid var(--line);
+      }
+
+      .summary-strip span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        border-right: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .summary-strip span:last-child {
+        border-right: 0;
+      }
+
+      .summary-strip strong {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .summary-strip small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .section + .section {
+        border-top: 1px solid var(--line);
+      }
+
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 14px 8px;
+      }
+
+      .section-head strong {
+        font-size: 13px;
+      }
+
+      .section-head small {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .empty-row {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr);
+        gap: 9px;
+        align-items: start;
+        min-height: 46px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted);
+        padding: 11px 14px 13px;
+      }
+
+      .empty-row b {
+        display: block;
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.2;
+      }
+
+      .empty-row span:last-child {
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .empty-row.compact {
+        min-height: 36px;
+        padding-block: 10px;
+      }
+
+      .empty-row.single {
+        color: var(--soft);
+      }
+
+      .empty-row.positive {
+        background: linear-gradient(90deg, var(--reviewed-soft), transparent 72%);
+      }
+
+      .empty-row.centered {
+        grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
+        min-height: 58px;
+        text-align: center;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        margin-top: 3px;
+        border-radius: 999px;
+        background: var(--soft);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .dot.good {
+        background: var(--reviewed);
+        box-shadow: 0 0 0 3px rgba(114, 215, 140, 0.14);
+      }
+
+      .dot.muted {
+        opacity: 0.6;
+      }
+
+      .file-row {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 56px;
+        border-top: 1px solid var(--line-soft);
+        padding: 10px 14px;
+      }
+
+      .file-row b {
+        display: block;
+        overflow: hidden;
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-row small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .status-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-top: 1px solid var(--line-soft);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+        padding: 12px 14px;
+      }
+
+      .collapsed-zero .section.empty {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .collapsed-zero .section.empty .section-head {
+        color: var(--muted);
+      }
+
+      .collapsed-zero .section.empty .section-head strong {
+        color: var(--muted);
+      }
+
+      .unified-clear {
+        display: grid;
+        gap: 10px;
+        border-top: 1px solid var(--line);
+        padding: 14px;
+      }
+
+      .unified-clear .clear-line {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .unified-clear p {
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 720px) {
+        .page {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <h1>Review queue empty state patterns</h1>
+        <p>
+          These options explore how the right inspector should look when Queued
+          and In Review are empty, while Reviewed contains history. The empty
+          state should feel calm and intentional, not like missing layout.
+        </p>
+      </header>
+
+      <section class="grid" aria-label="Empty state concepts">
+        <article class="concept">
+          <div class="concept-title">
+            <h2>A. Quiet Empty Rows</h2>
+            <p>Keep every section open. Replace "No files here" with a proper hairline row and state-specific copy.</p>
+          </div>
+          <div class="inspector">
+            <div class="inspector-head">
+              <span><span>Review</span><strong>clear</strong></span>
+              <button class="button" type="button">Next</button>
+            </div>
+            <div class="summary-strip">
+              <span><strong>0</strong><small>Queued</small></span>
+              <span><strong>0</strong><small>In Review</small></span>
+              <span><strong>1</strong><small>Reviewed</small></span>
+            </div>
+            <section class="section">
+              <div class="section-head"><strong>Queued</strong><small>0 files waiting for review</small></div>
+              <div class="empty-row compact">
+                <i class="dot muted"></i>
+                <span><b>No queued files</b><span>New HEAD evidence will appear here.</span></span>
+              </div>
+            </section>
+            <section class="section">
+              <div class="section-head"><strong>In Review</strong><small>0 files open threads</small></div>
+              <div class="empty-row compact">
+                <i class="dot muted"></i>
+                <span><b>No active review work</b><span>Agent replies and open threads will rise here.</span></span>
+              </div>
+            </section>
+            <section class="section">
+              <div class="section-head"><strong>Reviewed</strong><small>1 reviewed</small></div>
+              <div class="file-row">
+                <i class="dot good"></i>
+                <span><b>ReviewQueuePanel.tsx</b><small>coding-agent marked resolved</small></span>
+                <small>resolved</small>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-title">
+            <h2>B. Header-Only Empty</h2>
+            <p>For zero-count sections, the header carries the state. No body row appears, so the list stays very lean.</p>
+          </div>
+          <div class="inspector">
+            <div class="inspector-head">
+              <span><span>Review</span><strong>clear</strong></span>
+              <button class="button" type="button">Next</button>
+            </div>
+            <div class="summary-strip">
+              <span><strong>0</strong><small>Queued</small></span>
+              <span><strong>0</strong><small>In Review</small></span>
+              <span><strong>1</strong><small>Reviewed</small></span>
+            </div>
+            <section class="section empty">
+              <div class="section-head"><strong>Queued</strong><small>clear until new HEAD evidence</small></div>
+            </section>
+            <section class="section empty">
+              <div class="section-head"><strong>In Review</strong><small>no open threads</small></div>
+            </section>
+            <section class="section">
+              <div class="section-head"><strong>Reviewed</strong><small>1 reviewed</small></div>
+              <div class="file-row">
+                <i class="dot good"></i>
+                <span><b>ReviewQueuePanel.tsx</b><small>coding-agent marked resolved</small></span>
+                <small>resolved</small>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="concept">
+          <div class="concept-title">
+            <h2>C. One Clear Note</h2>
+            <p>Collapse the empty meaning into one positive note, then show Reviewed history below it.</p>
+          </div>
+          <div class="inspector">
+            <div class="inspector-head">
+              <span><span>Review</span><strong>clear</strong></span>
+              <button class="button" type="button">Next</button>
+            </div>
+            <div class="summary-strip">
+              <span><strong>0</strong><small>Queued</small></span>
+              <span><strong>0</strong><small>In Review</small></span>
+              <span><strong>1</strong><small>Reviewed</small></span>
+            </div>
+            <div class="unified-clear">
+              <span class="clear-line"><i class="dot good"></i>Active queue clear</span>
+              <p>No queued files or open review threads need attention. Resolved work stays recoverable in Reviewed.</p>
+            </div>
+            <section class="section">
+              <div class="section-head"><strong>Reviewed</strong><small>1 reviewed</small></div>
+              <div class="file-row">
+                <i class="dot good"></i>
+                <span><b>ReviewQueuePanel.tsx</b><small>coding-agent marked resolved</small></span>
+                <small>resolved</small>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="concept collapsed-zero">
+          <div class="concept-title">
+            <h2>D. Collapsed Zero Groups</h2>
+            <p>Zero-count groups become quiet summary rows. Only the group with content opens into rows.</p>
+          </div>
+          <div class="inspector">
+            <div class="inspector-head">
+              <span><span>Review</span><strong>clear</strong></span>
+              <button class="button" type="button">Next</button>
+            </div>
+            <div class="summary-strip">
+              <span><strong>0</strong><small>Queued</small></span>
+              <span><strong>0</strong><small>In Review</small></span>
+              <span><strong>1</strong><small>Reviewed</small></span>
+            </div>
+            <section class="section empty">
+              <div class="section-head"><strong>Queued</strong><small>0 waiting</small></div>
+            </section>
+            <section class="section empty">
+              <div class="section-head"><strong>In Review</strong><small>0 open threads</small></div>
+            </section>
+            <section class="section">
+              <div class="section-head"><strong>Reviewed</strong><small>1 reviewed</small></div>
+              <div class="status-note">
+                <span>Reviewed files stay quiet until new HEAD evidence appears.</span>
+                <button class="button" type="button">Show</button>
+              </div>
+            </section>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

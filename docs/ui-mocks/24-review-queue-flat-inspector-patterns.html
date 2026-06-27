@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review queue flat inspector patterns - Vivi</title>
+    <style>
+      :root {
+        --bg: #0b1016;
+        --panel: #111923;
+        --panel-2: #151f2b;
+        --panel-3: #192434;
+        --line: #273448;
+        --line-soft: #202c3d;
+        --text: #edf3f8;
+        --muted: #a6b2c2;
+        --soft: #748398;
+        --queued: #72a7ff;
+        --queued-soft: rgba(114, 167, 255, 0.13);
+        --reviewing: #b898ff;
+        --reviewing-soft: rgba(184, 152, 255, 0.13);
+        --reviewed: #73d78d;
+        --reviewed-soft: rgba(115, 215, 141, 0.12);
+        --orange: #f2bd6b;
+        --red: #ff7676;
+        --teal: #66d2c4;
+        --blue-gray: #8da4bc;
+        color-scheme: dark;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button {
+        color: inherit;
+        font: inherit;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .page {
+        display: grid;
+        gap: 20px;
+        max-width: 1500px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      .intro {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 420px;
+        gap: 24px;
+        align-items: end;
+      }
+
+      .intro-copy {
+        display: grid;
+        gap: 12px;
+      }
+
+      .eyebrow {
+        color: var(--teal);
+        font-size: 11px;
+        font-weight: 760;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 860px;
+        font-size: 32px;
+        line-height: 1.12;
+        letter-spacing: 0;
+      }
+
+      .intro p,
+      .concept-note p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .principles {
+        display: grid;
+        gap: 8px;
+      }
+
+      .principle {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 12px;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 10px;
+      }
+
+      .principle strong {
+        color: var(--text);
+        font-size: 12px;
+      }
+
+      .principle span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .jump-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 10px 0;
+      }
+
+      .jump-nav a {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .jump-nav a:hover {
+        color: var(--text);
+      }
+
+      .concept {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0f151d;
+      }
+
+      .concept-note {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+        border-right: 1px solid var(--line);
+        padding: 18px;
+      }
+
+      .concept-note h2 {
+        font-size: 21px;
+        line-height: 1.18;
+        letter-spacing: 0;
+      }
+
+      .concept-note h3 {
+        color: var(--soft);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .concept-note ul {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding-left: 17px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .preview {
+        display: grid;
+        place-items: start center;
+        min-width: 0;
+        padding: 18px;
+        background:
+          linear-gradient(90deg, rgba(39, 52, 72, 0.28) 1px, transparent 1px) 0 0 / 40px 40px,
+          #0c1219;
+      }
+
+      .inspector {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        width: min(100%, 392px);
+        min-height: 540px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+      }
+
+      .inspector-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px 14px;
+      }
+
+      .inspector-head span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .inspector-head strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 15px;
+      }
+
+      .ghost-button,
+      .plain-button {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 720;
+        padding: 6px 9px;
+      }
+
+      .plain-button {
+        border-color: transparent;
+        padding-inline: 0;
+      }
+
+      .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-bottom: 1px solid var(--line);
+      }
+
+      .summary-strip span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        border-right: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .summary-strip span:last-child {
+        border-right: 0;
+      }
+
+      .summary-strip strong {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .summary-strip small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .body {
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 740;
+      }
+
+      .section-heading strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .section-heading small {
+        color: var(--soft);
+        font-size: 11px;
+        font-weight: 640;
+      }
+
+      .file-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--soft);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .dot.unread,
+      .dot.queued {
+        background: var(--queued);
+        box-shadow: 0 0 0 3px rgba(114, 167, 255, 0.18);
+      }
+
+      .dot.reviewing {
+        background: var(--reviewing);
+      }
+
+      .dot.reviewed {
+        background: var(--reviewed);
+      }
+
+      .file-main {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .file-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .file-title b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .kind {
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        line-height: 1;
+        padding: 3px 5px;
+      }
+
+      .meta {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .stat {
+        display: inline-flex;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .plus {
+        color: #67e087;
+      }
+
+      .minus {
+        color: var(--red);
+      }
+
+      .state-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        line-height: 1;
+        padding: 4px 7px;
+        white-space: nowrap;
+      }
+
+      .state-pill.queued {
+        border-color: rgba(114, 167, 255, 0.56);
+        background: var(--queued-soft);
+        color: #bcd5ff;
+      }
+
+      .state-pill.reviewing {
+        border-color: rgba(184, 152, 255, 0.56);
+        background: var(--reviewing-soft);
+        color: #d8c9ff;
+      }
+
+      .state-pill.reviewed {
+        border-color: rgba(115, 215, 141, 0.5);
+        background: var(--reviewed-soft);
+        color: #b9efc6;
+      }
+
+      .pattern-a .body {
+        display: grid;
+        align-content: start;
+      }
+
+      .hairline-section {
+        display: grid;
+      }
+
+      .hairline-section + .hairline-section {
+        border-top: 1px solid var(--line);
+      }
+
+      .hairline-section .section-heading {
+        padding: 10px 14px 8px;
+      }
+
+      .hairline-section .file-row {
+        border-top: 1px solid var(--line-soft);
+        padding: 10px 14px;
+      }
+
+      .hairline-section .file-row.active {
+        background: linear-gradient(90deg, var(--queued-soft), transparent 48%);
+        box-shadow: inset 2px 0 0 var(--queued);
+      }
+
+      .pattern-b .body {
+        position: relative;
+        display: grid;
+        align-content: start;
+        gap: 0;
+        padding: 12px 0 12px 16px;
+      }
+
+      .rail-line {
+        position: absolute;
+        top: 16px;
+        bottom: 16px;
+        left: 19px;
+        width: 1px;
+        background: linear-gradient(var(--queued), var(--reviewing) 54%, var(--reviewed));
+      }
+
+      .rail-group {
+        display: grid;
+        gap: 0;
+        position: relative;
+        z-index: 1;
+      }
+
+      .rail-group .section-heading {
+        padding: 8px 14px 8px 18px;
+      }
+
+      .rail-group .file-row {
+        border-top: 1px solid var(--line-soft);
+        margin-left: 18px;
+        padding: 10px 14px 10px 0;
+      }
+
+      .rail-group .file-row.active {
+        background: rgba(114, 167, 255, 0.07);
+      }
+
+      .pattern-c .body {
+        display: grid;
+        align-content: start;
+      }
+
+      .band-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line-soft);
+        background: color-mix(in srgb, var(--panel-2) 76%, black);
+        padding: 8px 12px;
+      }
+
+      .band-heading:first-child {
+        border-top: 0;
+      }
+
+      .band-heading strong {
+        font-size: 12px;
+      }
+
+      .band-heading small {
+        color: var(--soft);
+        font-size: 11px;
+      }
+
+      .band-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .band-row.active {
+        background: rgba(114, 167, 255, 0.08);
+      }
+
+      .band-row .file-row {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .pattern-d .body {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        align-content: start;
+      }
+
+      .count-gutter {
+        display: grid;
+        align-content: start;
+        border-right: 1px solid var(--line);
+        background: #0e151e;
+      }
+
+      .count-slot {
+        display: grid;
+        place-items: center;
+        min-height: 116px;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      .count-slot strong {
+        display: block;
+        color: var(--text);
+        font-size: 19px;
+        line-height: 1;
+        text-align: center;
+      }
+
+      .count-slot small {
+        display: block;
+        margin-top: 5px;
+        font-size: 10px;
+        font-weight: 760;
+        text-align: center;
+      }
+
+      .gutter-list {
+        display: grid;
+        align-content: start;
+      }
+
+      .gutter-section {
+        display: grid;
+        min-height: 116px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .gutter-section .section-heading {
+        padding: 9px 12px 0;
+      }
+
+      .gutter-section .file-row {
+        padding: 9px 12px;
+      }
+
+      .pattern-e .body {
+        display: grid;
+        align-content: start;
+      }
+
+      .inline-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        padding: 9px 12px;
+      }
+
+      .inline-toolbar span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .inline-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 10px 12px;
+      }
+
+      .inline-row.active {
+        background: linear-gradient(90deg, rgba(114, 167, 255, 0.11), transparent 62%);
+      }
+
+      .inline-row.reviewed-muted {
+        opacity: 0.66;
+      }
+
+      .inline-state {
+        width: 78px;
+      }
+
+      .reviewed-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        padding: 10px 12px;
+      }
+
+      @media (max-width: 980px) {
+        .intro,
+        .concept {
+          grid-template-columns: 1fr;
+        }
+
+        .concept-note {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+      }
+
+      @media (max-width: 560px) {
+        .page {
+          padding: 16px;
+        }
+
+        h1 {
+          font-size: 26px;
+        }
+
+        .preview {
+          padding: 12px;
+        }
+
+        .inspector {
+          width: 100%;
+        }
+
+        .principle {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro" aria-label="Design brief">
+        <div class="intro-copy">
+          <p class="eyebrow">Review queue inspector refinement</p>
+          <h1>Five flatter versions of Pattern A, without blocks inside blocks.</h1>
+          <p>
+            These keep the same state model and work order as Pattern A, but
+            remove the feeling that every group and every file is a separate
+            card. The right sidebar should read like one continuous worklist.
+          </p>
+          <nav class="jump-nav" aria-label="Pattern navigation">
+            <a href="#pattern-a">A Hairline Groups</a>
+            <a href="#pattern-b">B State Rail</a>
+            <a href="#pattern-c">C Header Bands</a>
+            <a href="#pattern-d">D Count Gutter</a>
+            <a href="#pattern-e">E Inline States</a>
+          </nav>
+        </div>
+        <div class="principles">
+          <div class="principle">
+            <strong>Keep A</strong>
+            <span>Queued, In Review, and Reviewed remain the primary mental model.</span>
+          </div>
+          <div class="principle">
+            <strong>Flatten rows</strong>
+            <span>File rows use separators, active tint, and text weight instead of card borders.</span>
+          </div>
+          <div class="principle">
+            <strong>Quiet history</strong>
+            <span>Reviewed is recoverable but visually below the active work.</span>
+          </div>
+          <div class="principle">
+            <strong>Action home</strong>
+            <span>Mark as reviewed stays in the file view header, while the inspector stays a worklist.</span>
+          </div>
+        </div>
+      </section>
+
+      <article class="concept" id="pattern-a">
+        <aside class="concept-note">
+          <h3>Pattern A</h3>
+          <h2>Hairline Groups</h2>
+          <p>
+            The closest evolution from the current A. Section headers remain,
+            but the section body is just a continuous list separated by
+            hairlines.
+          </p>
+          <ul>
+            <li>Most conservative replacement.</li>
+            <li>Still clearly grouped and collapsible.</li>
+            <li>Removes the card-inside-card feeling.</li>
+          </ul>
+        </aside>
+        <section class="preview" aria-label="Hairline Groups preview">
+          <aside class="inspector pattern-a" aria-label="Review inspector">
+            <header class="inspector-head">
+              <span><span>Review</span><strong>3 need action</strong></span>
+              <button class="ghost-button" type="button">Diff from HEAD</button>
+            </header>
+            <div class="summary-strip">
+              <span><strong>6</strong><small>Queued</small></span>
+              <span><strong>2</strong><small>In Review</small></span>
+              <span><strong>16</strong><small>Reviewed</small></span>
+            </div>
+            <div class="body">
+              <section class="hairline-section">
+                <div class="section-heading"><strong>Queued</strong><small>6 files waiting</small></div>
+                <div class="file-row active">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>FileViewer.tsx</b></span><span class="meta">ui/src/features/file-context/components HEAD diff</span></span>
+                  <span class="stat"><span class="plus">+43</span><span class="minus">-0</span></span>
+                </div>
+                <div class="file-row">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span><span class="meta">ui/src/features/file-context/components HEAD diff</span></span>
+                  <span class="stat"><span class="plus">+19</span><span class="minus">-0</span></span>
+                </div>
+                <div class="file-row">
+                  <span class="dot"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TS</span><b>review-state.ts</b></span><span class="meta">ui/src/state HEAD diff</span></span>
+                  <span class="stat"><span class="plus">+120</span><span class="minus">-0</span></span>
+                </div>
+              </section>
+              <section class="hairline-section">
+                <div class="section-heading"><strong>In Review</strong><small>2 files with open threads</small></div>
+                <div class="file-row">
+                  <span class="dot unread reviewing"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">MD</span><b>README.md</b></span><span class="meta">2 open threads, 12 total messages</span></span>
+                  <span class="state-pill reviewing">Open</span>
+                </div>
+              </section>
+              <section class="hairline-section">
+                <div class="section-heading"><strong>Reviewed</strong><small>16 hidden</small></div>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </article>
+
+      <article class="concept" id="pattern-b">
+        <aside class="concept-note">
+          <h3>Pattern B</h3>
+          <h2>State Rail</h2>
+          <p>
+            A single vertical rail carries the grouping. The list no longer
+            needs boxes because the colored spine communicates state changes.
+          </p>
+          <ul>
+            <li>Feels modern and spatial.</li>
+            <li>Good when unread dots and status color matter.</li>
+            <li>Tradeoff: a little more custom visual language.</li>
+          </ul>
+        </aside>
+        <section class="preview" aria-label="State Rail preview">
+          <aside class="inspector pattern-b" aria-label="Review inspector">
+            <header class="inspector-head">
+              <span><span>Review</span><strong>Active work</strong></span>
+              <button class="plain-button" type="button">collapse reviewed</button>
+            </header>
+            <div class="summary-strip">
+              <span><strong>6</strong><small>Queued</small></span>
+              <span><strong>2</strong><small>In Review</small></span>
+              <span><strong>16</strong><small>Reviewed</small></span>
+            </div>
+            <div class="body">
+              <span class="rail-line" aria-hidden="true"></span>
+              <section class="rail-group">
+                <div class="section-heading"><strong>Queued</strong><small>waiting for review</small></div>
+                <div class="file-row active">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>FileViewer.tsx</b></span><span class="meta">unread HEAD diff</span></span>
+                  <span class="stat"><span class="plus">+43</span></span>
+                </div>
+                <div class="file-row">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span><span class="meta">unread HEAD diff</span></span>
+                  <span class="stat"><span class="plus">+19</span></span>
+                </div>
+              </section>
+              <section class="rail-group">
+                <div class="section-heading"><strong>In Review</strong><small>open threads</small></div>
+                <div class="file-row">
+                  <span class="dot reviewing"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">MD</span><b>README.md</b></span><span class="meta">latest agent reply needs human decision</span></span>
+                  <span class="state-pill reviewing">Open</span>
+                </div>
+              </section>
+              <section class="rail-group">
+                <div class="section-heading"><strong>Reviewed</strong><small>quiet until changed</small></div>
+                <div class="file-row">
+                  <span class="dot reviewed"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>ReviewQueuePanel.tsx</b></span><span class="meta">new HEAD change moves this back to Queued</span></span>
+                  <span class="state-pill reviewed">Quiet</span>
+                </div>
+              </section>
+            </div>
+          </aside>
+        </section>
+      </article>
+
+      <article class="concept" id="pattern-c">
+        <aside class="concept-note">
+          <h3>Pattern C</h3>
+          <h2>Header Bands</h2>
+          <p>
+            The group header becomes the only block-like surface. File rows are
+            table rows beneath it, so the hierarchy has one level of emphasis.
+          </p>
+          <ul>
+            <li>Very legible at right-inspector width.</li>
+            <li>Section labels stay strong without cards.</li>
+            <li>Tradeoff: a little more enterprise-like.</li>
+          </ul>
+        </aside>
+        <section class="preview" aria-label="Header Bands preview">
+          <aside class="inspector pattern-c" aria-label="Review inspector">
+            <header class="inspector-head">
+              <span><span>Review</span><strong>Queue order</strong></span>
+              <button class="ghost-button" type="button">Next</button>
+            </header>
+            <div class="summary-strip">
+              <span><strong>6</strong><small>Queued</small></span>
+              <span><strong>2</strong><small>In Review</small></span>
+              <span><strong>16</strong><small>Reviewed</small></span>
+            </div>
+            <div class="body">
+              <div class="band-heading"><strong>Queued</strong><small>6 waiting</small></div>
+              <div class="band-row active">
+                <div class="file-row">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>FileViewer.tsx</b></span><span class="meta">ui/src/features/file-context HEAD diff</span></span>
+                </div>
+                <span class="stat"><span class="plus">+43</span><span class="minus">-0</span></span>
+              </div>
+              <div class="band-row">
+                <div class="file-row">
+                  <span class="dot unread"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span><span class="meta">ui/src/features/file-context HEAD diff</span></span>
+                </div>
+                <span class="stat"><span class="plus">+19</span><span class="minus">-0</span></span>
+              </div>
+              <div class="band-heading"><strong>In Review</strong><small>2 active</small></div>
+              <div class="band-row">
+                <div class="file-row">
+                  <span class="dot reviewing"></span>
+                  <span class="file-main"><span class="file-title"><span class="kind">MD</span><b>README.md</b></span><span class="meta">2 open threads, latest reply needs decision</span></span>
+                </div>
+                <span class="state-pill reviewing">Open</span>
+              </div>
+              <div class="band-heading"><strong>Reviewed</strong><small>16 collapsed</small></div>
+            </div>
+          </aside>
+        </section>
+      </article>
+
+      <article class="concept" id="pattern-d">
+        <aside class="concept-note">
+          <h3>Pattern D</h3>
+          <h2>Count Gutter</h2>
+          <p>
+            Counts move into a narrow left gutter. This removes repeated
+            summary cards and lets the main column behave like one continuous
+            list.
+          </p>
+          <ul>
+            <li>Strongest reduction of block count.</li>
+            <li>Counts stay visible next to their rows.</li>
+            <li>Tradeoff: less conventional than plain sections.</li>
+          </ul>
+        </aside>
+        <section class="preview" aria-label="Count Gutter preview">
+          <aside class="inspector pattern-d" aria-label="Review inspector">
+            <header class="inspector-head">
+              <span><span>Review</span><strong>Queue</strong></span>
+              <button class="ghost-button" type="button">Filter</button>
+            </header>
+            <div class="summary-strip">
+              <span><strong>24</strong><small>total</small></span>
+              <span><strong>8</strong><small>active</small></span>
+              <span><strong>3</strong><small>unread</small></span>
+            </div>
+            <div class="body">
+              <div class="count-gutter" aria-hidden="true">
+                <span class="count-slot"><span><strong>6</strong><small>Queued</small></span></span>
+                <span class="count-slot"><span><strong>2</strong><small>Review</small></span></span>
+                <span class="count-slot"><span><strong>16</strong><small>Done</small></span></span>
+              </div>
+              <div class="gutter-list">
+                <section class="gutter-section">
+                  <div class="section-heading"><strong>Queued</strong><small>waiting</small></div>
+                  <div class="file-row">
+                    <span class="dot unread"></span>
+                    <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>FileViewer.tsx</b></span><span class="meta">unread HEAD diff</span></span>
+                    <span class="stat"><span class="plus">+43</span></span>
+                  </div>
+                  <div class="file-row">
+                    <span class="dot unread"></span>
+                    <span class="file-main"><span class="file-title"><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span><span class="meta">unread HEAD diff</span></span>
+                    <span class="stat"><span class="plus">+19</span></span>
+                  </div>
+                </section>
+                <section class="gutter-section">
+                  <div class="section-heading"><strong>In Review</strong><small>threads</small></div>
+                  <div class="file-row">
+                    <span class="dot reviewing"></span>
+                    <span class="file-main"><span class="file-title"><span class="kind">MD</span><b>README.md</b></span><span class="meta">2 open threads</span></span>
+                    <span class="state-pill reviewing">Open</span>
+                  </div>
+                </section>
+                <section class="gutter-section">
+                  <div class="section-heading"><strong>Reviewed</strong><small>collapsed</small></div>
+                </section>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </article>
+
+      <article class="concept" id="pattern-e">
+        <aside class="concept-note">
+          <h3>Pattern E</h3>
+          <h2>Inline States</h2>
+          <p>
+            The flattest version. There are no group containers; state is a
+            small row column, and ordering still keeps Queued first.
+          </p>
+          <ul>
+            <li>Cleanest visual surface.</li>
+            <li>Works well with future sorting or filtering.</li>
+            <li>Tradeoff: weaker sense of section boundaries.</li>
+          </ul>
+        </aside>
+        <section class="preview" aria-label="Inline States preview">
+          <aside class="inspector pattern-e" aria-label="Review inspector">
+            <header class="inspector-head">
+              <span><span>Review</span><strong>Worklist</strong></span>
+              <button class="ghost-button" type="button">Open selected</button>
+            </header>
+            <div class="summary-strip">
+              <span><strong>6</strong><small>Queued</small></span>
+              <span><strong>2</strong><small>In Review</small></span>
+              <span><strong>16</strong><small>Reviewed</small></span>
+            </div>
+            <div class="body">
+              <div class="inline-toolbar"><span>Unread first, then reviewing, then candidates</span><button class="plain-button" type="button">sort</button></div>
+              <div class="inline-row active">
+                <span class="inline-state"><span class="state-pill queued">Queued</span></span>
+                <span class="file-main"><span class="file-title"><span class="dot unread"></span><span class="kind">TSX</span><b>FileViewer.tsx</b></span><span class="meta">ui/src/features/file-context/components</span></span>
+                <span class="stat"><span class="plus">+43</span><span class="minus">-0</span></span>
+              </div>
+              <div class="inline-row">
+                <span class="inline-state"><span class="state-pill queued">Queued</span></span>
+                <span class="file-main"><span class="file-title"><span class="dot unread"></span><span class="kind">TSX</span><b>ViewerControlButton.tsx</b></span><span class="meta">ui/src/features/file-context/components</span></span>
+                <span class="stat"><span class="plus">+19</span><span class="minus">-0</span></span>
+              </div>
+              <div class="inline-row">
+                <span class="inline-state"><span class="state-pill reviewing">In Review</span></span>
+                <span class="file-main"><span class="file-title"><span class="dot reviewing"></span><span class="kind">MD</span><b>README.md</b></span><span class="meta">2 open threads, latest agent reply</span></span>
+                <span class="state-pill reviewing">Open</span>
+              </div>
+              <div class="inline-row reviewed-muted">
+                <span class="inline-state"><span class="state-pill reviewed">Reviewed</span></span>
+                <span class="file-main"><span class="file-title"><span class="dot reviewed"></span><span class="kind">TSX</span><b>ReviewQueuePanel.tsx</b></span><span class="meta">quiet until new HEAD evidence appears</span></span>
+                <span class="state-pill reviewed">Quiet</span>
+              </div>
+              <div class="reviewed-note"><span>15 more reviewed files hidden</span><button class="plain-button" type="button">show</button></div>
+            </div>
+          </aside>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>

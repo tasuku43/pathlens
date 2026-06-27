@@ -67,6 +67,20 @@ const baseArgs = {
 const meta = {
   title: "Review/Review Queue/Inspector",
   component: Inspector,
+  decorators: [
+    (Story) => (
+      <div
+        style={{
+          width: 396,
+          minHeight: "100vh",
+          marginLeft: "auto",
+          background: "var(--panel)",
+        }}
+      >
+        <Story />
+      </div>
+    ),
+  ],
   parameters: {
     layout: "fullscreen",
     a11y: { test: "error" },
@@ -132,7 +146,48 @@ export const ReviewQueueItemWithOpenThreads: Story = {
 
 export const ReviewQueueItemWithLatestAgentActivity: Story = {
   args: {
-    unreadReviewPaths: new Set([sampleFiles.code.path]),
+    activePath: "docs/agent-handoff.md",
+    reviewItems: [
+      {
+        path: "docs/agent-handoff.md",
+        change: null,
+        threadCounts: { open: 2, resolved: 0, archived: 0 },
+        commentCount: 3,
+        latestActivity: {
+          id: "activity-story-agent-reply",
+          threadId: "thread-story-agent-reply",
+          type: "comment_added",
+          actor: unknownCodingAgent,
+          commentId: "comment-story-agent-reply",
+          createdAt: "2026-06-20T09:16:00.000Z",
+        },
+        unread: true,
+      },
+      {
+        path: "ui/src/features/comments/DraftReviewTray.tsx",
+        change: null,
+        threadCounts: { open: 1, resolved: 0, archived: 0 },
+        commentCount: 1,
+        unread: false,
+      },
+    ],
+    unreadReviewPaths: new Set(["docs/agent-handoff.md"]),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const agentRow = canvas.getByRole("button", {
+      name: "Review queue item, comment docs/agent-handoff.md, current review file",
+    });
+    await expect(agentRow).toHaveClass("has-agent-reply");
+    await expect(
+      agentRow.querySelector(".unread-dot.agent-reply"),
+    ).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".change-open.has-open-threads:not(.has-agent-reply) .unread-dot.muted"),
+    ).toBeInTheDocument();
+    await expect(agentRow).toHaveAccessibleDescription(
+      expect.stringContaining("agent reply needs attention"),
+    );
   },
 };
 
@@ -295,6 +350,19 @@ export const ResolvedThreadActivityFromUnknownActor: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText("No queued files")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("New HEAD evidence will appear here."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("No active review work")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Agent replies and open threads will rise here."),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("No files here.")).not.toBeInTheDocument();
+    expect(
+      canvasElement.querySelectorAll(".review-state-empty-row .unread-dot.muted")
+        .length,
+    ).toBe(2);
     await expect(
       canvas.getByText("coding-agent marked resolved"),
     ).toBeInTheDocument();
@@ -317,6 +385,13 @@ export const ActiveFileSourceChangedAnchor: Story = {
       },
     ],
     reviewComments: sampleComments,
+  },
+  play: async ({ canvasElement }) => {
+    await expect(
+      canvasElement.querySelector(
+        '.review-state-section.queued .change-open[data-review-path="server/graphql/schema.graphqls"] .unread-dot.muted',
+      ),
+    ).toBeInTheDocument();
   },
 };
 

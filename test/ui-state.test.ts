@@ -130,6 +130,7 @@ import {
   latestUnreadReviewItemPath,
   nextReviewQueueItemPath,
   pinActiveReviewQueueItem,
+  reviewQueueItemHasAgentReply,
   reviewQueuePosition,
   summarizeReviewQueue,
 } from "../ui/src/state/review-queue.js";
@@ -1664,6 +1665,74 @@ it("builds an agent-aware queue from changes and authoritative open threads", ()
     openThreads: 1,
     filesWithOpenThreads: 1,
   });
+});
+
+it("highlights in-review files only when the latest open-thread movement is an agent reply", () => {
+  const comments = [
+    {
+      ...makeReviewComment("agent-open", "docs/agent.md", "open"),
+      threadId: "thread-agent",
+    },
+    {
+      ...makeReviewComment("quiet-open", "docs/quiet.md", "open"),
+      threadId: "thread-quiet",
+    },
+    {
+      ...makeReviewComment("human-open", "docs/human.md", "open"),
+      threadId: "thread-human",
+    },
+  ];
+  const items = buildReviewQueueItems(
+    [],
+    comments,
+    {
+      "thread-agent": {
+        inline: ["Codex replied 1m ago"],
+        timeline: [
+          {
+            id: "activity-agent-reply",
+            threadId: "thread-agent",
+            type: "comment_added",
+            actor: { id: "codex:1", kind: "codex" },
+            createdAt: "2026-06-20T00:03:00.000Z",
+          },
+        ],
+      },
+      "thread-quiet": {
+        inline: ["Codex read 2m ago"],
+        timeline: [
+          {
+            id: "activity-agent-read",
+            threadId: "thread-quiet",
+            type: "thread_read",
+            actor: { id: "codex:1", kind: "codex" },
+            createdAt: "2026-06-20T00:02:00.000Z",
+          },
+        ],
+      },
+      "thread-human": {
+        inline: ["Tasuku replied 3m ago"],
+        timeline: [
+          {
+            id: "activity-human-reply",
+            threadId: "thread-human",
+            type: "comment_added",
+            actor: { id: "human:tasuku", kind: "human" },
+            createdAt: "2026-06-20T00:01:00.000Z",
+          },
+        ],
+      },
+    },
+    new Set(),
+  );
+
+  expect(reviewQueueItemHasAgentReply(items[0]!)).toBe(true);
+  expect(items[0]?.path).toBe("docs/agent.md");
+  expect(
+    items
+      .filter((item) => item.path !== "docs/agent.md")
+      .every((item) => !reviewQueueItemHasAgentReply(item)),
+  ).toBe(true);
 });
 
 it("turns review queue state into a clear next sidebar action", () => {

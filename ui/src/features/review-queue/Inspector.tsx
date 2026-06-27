@@ -23,6 +23,7 @@ import {
 import { iconForPath, languageForPath } from "../../state/file-icons.js";
 import {
   isReviewQueueItemOpenable,
+  reviewQueueItemHasAgentReply,
   reviewQueuePosition,
   type ReviewQueueItem,
 } from "../../state/review-queue.js";
@@ -90,6 +91,7 @@ export function Inspector({
   activePath = file?.path ?? null,
   onOpenEventPath,
   onConfirmEventPath,
+  onOpenNextChanged,
   onRestoreAcceptedReviewPath,
   onOpenComment,
 }: Props) {
@@ -173,7 +175,7 @@ export function Inspector({
         key={`${change?.source ?? "thread"}:${item.path}`}
       >
         <button
-          className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${active ? " active" : ""}`}
+          className={`change-open${item.threadCounts.open ? " has-open-threads" : ""}${reviewQueueItemHasAgentReply(item) ? " has-agent-reply" : ""}${active ? " active" : ""}`}
           disabled={!isReviewQueueItemOpenable(item)}
           aria-current={active ? "true" : undefined}
           aria-describedby={`review-queue-interaction-help review-queue-keyboard-help ${reviewQueueItemDescriptionId}`}
@@ -206,10 +208,7 @@ export function Inspector({
               reviewStop,
             })}
           </span>
-          <span
-            className={item.unread ? "unread-dot" : "unread-dot read"}
-            aria-hidden="true"
-          />
+          <span className={reviewQueueItemDotClass(item)} aria-hidden="true" />
           <span className="file-icon change-icon">{iconForPath(item.path)}</span>
           <span className="change-main">
             <span className="change-heading">
@@ -227,26 +226,9 @@ export function Inspector({
                 </span>
               ) : null}
             </small>
-            {item.threadCounts.open || item.commentCount ? (
+            {reviewQueueVisibleSummary(item) ? (
               <small className="review-thread-summary">
-                {item.threadCounts.open
-                  ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
-                  : "No open threads"}
-                {item.commentCount
-                  ? ` · ${totalMessageCountLabel(item.commentCount)}`
-                  : ""}
-              </small>
-            ) : null}
-            {reviewStop ? (
-              <small className="review-stop-summary">
-                <strong>{reviewQueueStopTitle(active)}</strong>
-                <span>{reviewStop.label}</span>
-                <span>{reviewStop.preview}</span>
-              </small>
-            ) : null}
-            {item.latestActivity ? (
-              <small className="change-activity">
-                {activityLabel(item.latestActivity)}
+                {reviewQueueVisibleSummary(item)}
               </small>
             ) : null}
           </span>
@@ -267,19 +249,26 @@ export function Inspector({
 
   return (
     <aside className="inspector" aria-label="Review inspector">
-      <div className="panel-title">
-        <span>Review</span>
-        <span className="pill review-pill">
-          <span
-            className={`panel-status-dot ${needActionCount ? "warn" : "good"}`}
-            aria-hidden="true"
-          />
-          {needActionCount
-            ? `${needActionCount} need action`
-            : reviewLoading
-              ? "loading"
-              : "clear"}
+      <div className="panel-title review-panel-title">
+        <span className="review-panel-heading">
+          <span>Review</span>
+          <strong>
+            {needActionCount
+              ? `${needActionCount} need action`
+              : reviewLoading
+                ? "loading"
+                : "clear"}
+          </strong>
         </span>
+        {queueItems.length ? (
+          <button
+            className="command-button command-button-secondary review-next-action"
+            type="button"
+            onClick={onOpenNextChanged}
+          >
+            Next
+          </button>
+        ) : null}
       </div>
       <div className="inspect-body">
         <div className="inspector-review-mode">
@@ -329,7 +318,9 @@ export function Inspector({
                       )}
                     </div>
                   ) : (
-                    <p className="muted compact-empty">No files here.</p>
+                    <ReviewStateEmptyRow
+                      state={section.state === "queued" ? "queued" : "reviewing"}
+                    />
                   )}
                 </details>
               ))}
@@ -463,6 +454,7 @@ function reviewQueueItemDescription(
   },
 ): string {
   return [
+    reviewQueueItemHasAgentReply(item) ? "agent reply needs attention" : "",
     item.unread ? "unread review activity" : "read",
     item.threadCounts.open
       ? `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"}`
@@ -476,6 +468,52 @@ function reviewQueueItemDescription(
   ]
     .filter(Boolean)
     .join(", ");
+}
+
+function reviewQueueItemDotClass(item: ReviewQueueItem): string {
+  if (reviewQueueItemHasAgentReply(item)) return "unread-dot agent-reply";
+  if (item.unread) return "unread-dot";
+  if (item.threadCounts.open > 0) return "unread-dot muted";
+  if (reviewQueueItemState(item) === "queued") return "unread-dot muted";
+  return "unread-dot read";
+}
+
+function ReviewStateEmptyRow({
+  state,
+}: {
+  state: "queued" | "reviewing";
+}) {
+  const title = state === "queued" ? "No queued files" : "No active review work";
+  const detail =
+    state === "queued"
+      ? "New HEAD evidence will appear here."
+      : "Agent replies and open threads will rise here.";
+  return (
+    <div className={`review-state-empty-row ${state}`} role="note">
+      <span className="unread-dot muted" aria-hidden="true" />
+      <span className="review-state-empty-copy">
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </span>
+    </div>
+  );
+}
+
+function reviewQueueVisibleSummary(item: ReviewQueueItem): string | null {
+  if (reviewQueueItemHasAgentReply(item) && item.latestActivity) {
+    return `${activityLabel(item.latestActivity)} · needs decision`;
+  }
+  if (item.threadCounts.open > 0) {
+    return `${item.threadCounts.open} open ${item.threadCounts.open === 1 ? "thread" : "threads"} · ${
+      item.unread ? "unread activity" : "no new movement"
+    }`;
+  }
+  if (item.commentCount > 0) {
+    return `No open threads · ${totalMessageCountLabel(item.commentCount)}`;
+  }
+  if (item.unread) return "unread HEAD diff";
+  if (item.change) return `read ${reviewQueueSourceLabel(item.change.source)}`;
+  return null;
 }
 
 function reviewQueueStopTitle(active: boolean): string {

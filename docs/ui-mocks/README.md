@@ -33,6 +33,10 @@ modal  : Cmd/Ctrl + K command palette
 - `20-draft-review-flow.html`: draft-first feedback flow that separates private draft batching from the published Comments inbox.
 - `21-comments-hub-concepts.html`: three alternatives that put private drafts, open threads, attention, and history under the Cmd/Ctrl+Shift+C Comments entry point.
 - `22-review-queue-language.html`: review queue language mock that separates Queued, In Review, and Reviewed from the softer unread dot.
+- `23-review-queue-modern-patterns.html`: five modern review queue patterns that keep the three-state language while exploring denser inspector, file tree, and file-view placement.
+- `24-review-queue-flat-inspector-patterns.html`: five flatter right-inspector refinements for Pattern A that avoid nested group and file blocks.
+- `25-review-queue-hairline-workbench.html`: full-workbench Hairline Groups direction with stronger In Review indicators only when an agent reply needs attention.
+- `26-review-queue-empty-state-patterns.html`: empty-state alternatives for zero-count Queued/In Review groups when Reviewed still has recoverable history.
 
 ## Implementation guidance
 

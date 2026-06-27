@@ -517,6 +517,37 @@ body.resizing-workbench-pane {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.review-panel-title {
+  min-height: 60px;
+  flex-basis: 60px;
+  align-items: center;
+  padding: 10px 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.review-panel-heading {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.review-panel-heading > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 560;
+}
+.review-panel-heading strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-next-action {
+  min-height: 28px;
+  padding: 5px 9px;
+}
 .collapse-icon {
   display: inline-block;
   width: 8px;
@@ -2850,6 +2881,9 @@ body.resizing-workbench-pane {
 .inspect-body {
   padding: 14px;
 }
+.inspector:has(.review-state-summary) .inspect-body {
+  padding: 0;
+}
 .kv {
   display: grid;
   grid-template-columns: 74px 1fr;
@@ -3363,17 +3397,25 @@ body.resizing-workbench-pane {
 .review-state-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  overflow: hidden;
+  gap: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
 }
 .review-state-card {
   display: grid;
   min-width: 0;
   gap: 3px;
-  border: 1px solid var(--soft-line);
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--panel-2) 54%, transparent);
+  border: 0;
+  border-right: 1px solid var(--soft-line);
+  border-radius: 0;
+  background: transparent;
   color: var(--muted);
-  padding: 8px;
+  padding: 10px 12px;
+}
+.review-state-card:last-child {
+  border-right: 0;
 }
 .review-state-card strong {
   color: var(--text);
@@ -3389,15 +3431,13 @@ body.resizing-workbench-pane {
   white-space: nowrap;
 }
 .review-state-card.queued {
-  border-color: color-mix(in srgb, var(--accent-line) 66%, var(--soft-line));
-  background: color-mix(in srgb, var(--accent-faint) 36%, var(--panel-2));
+  background: transparent;
 }
 .review-state-card.reviewing {
-  border-color: color-mix(in srgb, var(--comment-line) 58%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 42%, var(--panel-2));
+  background: transparent;
 }
 .review-state-card.reviewed {
-  border-color: color-mix(in srgb, var(--good) 34%, var(--soft-line));
+  background: transparent;
 }
 .split-tabs {
   display: grid;
@@ -5534,19 +5574,25 @@ kbd {
 
 .review-queue {
   display: grid;
-  gap: 5px;
-  max-height: min(430px, 48vh);
-  overflow: auto;
-  padding-right: 2px;
+  gap: 0;
+  max-height: none;
+  overflow: visible;
+  overflow-x: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .review-queue-item {
   min-width: 0;
 }
 .review-state-section {
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.review-state-section + .review-state-section {
+  border-top: 1px solid var(--line);
 }
 .review-state-section summary {
   display: flex;
@@ -5554,7 +5600,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 14px 8px;
   cursor: pointer;
   list-style: none;
 }
@@ -5577,18 +5623,43 @@ kbd {
 .review-state-section-list,
 .review-state-section .hidden-review-history-list {
   display: grid;
-  gap: 5px;
-  border-top: 1px solid var(--line);
-  padding: 7px;
+  gap: 0;
+  border-top: 1px solid var(--soft-line);
+  padding: 0;
 }
-.review-state-section.queued {
-  border-color: color-mix(in srgb, var(--accent-line) 42%, var(--line));
+.review-state-empty-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  min-height: 46px;
+  border-top: 1px solid var(--soft-line);
+  color: var(--muted);
+  padding: 11px 14px 13px;
 }
-.review-state-section.reviewing {
-  border-color: color-mix(in srgb, var(--comment-line) 42%, var(--line));
+.review-state-empty-row .unread-dot {
+  margin-top: 3px;
 }
-.review-state-section.reviewed {
-  border-color: color-mix(in srgb, var(--good) 28%, var(--line));
+.review-state-empty-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.review-state-empty-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-state-empty-copy span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .review-progress {
   display: grid;
@@ -5615,56 +5686,86 @@ kbd {
   background: var(--accent);
 }
 .change-open {
-  border: 1px solid var(--line);
-  background: var(--panel);
+  border: 0;
+  border-top: 1px solid var(--soft-line);
+  background: transparent;
   color: var(--text);
-  border-radius: 8px;
+  border-radius: 0;
 }
 .change-open {
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: 7px 24px minmax(0, 1fr) auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 3px 7px;
-  padding: 6px 7px;
+  gap: 3px 8px;
+  min-height: 56px;
+  padding: 10px 14px;
   text-align: left;
 }
 .change-open:hover:not(:disabled) {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--accent-soft) 58%, transparent);
 }
 .change-open.has-open-threads {
-  border-left-color: var(--comment-line);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--muted) 34%, transparent);
+}
+.change-open.has-agent-reply {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint) 42%, transparent),
+    transparent 58%
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
 }
 .change-open.active {
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent-faint) 78%, transparent),
+    transparent 62%
+  );
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.change-open.active.has-open-threads {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--comment-tint) 48%, transparent),
+    transparent 62%
+  );
+  box-shadow: inset 2px 0 0 var(--comment-line);
 }
 .change-open.active b {
-  color: var(--accent);
+  color: var(--text);
 }
 .unread-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.unread-dot.agent-reply {
+  width: 9px;
+  height: 9px;
+  background: var(--comment-text);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--comment-line) 22%, transparent),
+    0 0 16px color-mix(in srgb, var(--comment-line) 42%, transparent);
+}
+.unread-dot.muted {
+  background: color-mix(in srgb, var(--muted) 58%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--muted) 16%, transparent);
 }
 .unread-dot.read {
   background: transparent;
   box-shadow: none;
 }
 .change-icon {
-  min-width: 24px;
-  align-self: start;
-  margin-top: 1px;
+  display: none;
 }
 .change-main {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 .change-heading {
   min-width: 0;
@@ -5737,6 +5838,9 @@ kbd {
   align-items: center;
   gap: 6px;
 }
+.review-queue .change-path-line {
+  display: none;
+}
 .change-path-text {
   min-width: 0;
   overflow: hidden;
@@ -5748,7 +5852,11 @@ kbd {
   color: var(--muted);
 }
 .review-thread-summary {
-  color: var(--comment-text) !important;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted) !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .review-stop-summary {
   display: flex;
@@ -6376,7 +6484,7 @@ kbd {
 .story-focus-review-queue {
   position: absolute;
   top: 8px;
-  right: 44px;
+  right: calc(var(--inspector-width, 280px) + 16px);
   z-index: 7;
 }
 .story-workbench-compact-inspector

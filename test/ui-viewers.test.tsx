@@ -3545,7 +3545,7 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
   ).toBeLessThan(queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'));
   expect(html).toContain("2 open threads");
   expect(html).toContain("3 total messages");
-  expect(html).toContain('class="review-stop-summary"');
+  expect(html).not.toContain('class="review-stop-summary"');
   expect(html).toContain("Queue stop");
   expect(html).toContain("Next queue stop");
   expect(html).toContain("diff · L7");
