@@ -10,6 +10,7 @@ export interface ReviewCommandActionState {
   canToggleDiff: boolean;
   diffEnabled: boolean;
   openThreadTargetCount: number;
+  inReviewReplyTargetCount: number;
   reviewItemCount: number;
   unreadReviewCount: number;
 }
@@ -19,6 +20,7 @@ export function reviewCommandActions({
   attentionThreadCount,
   canToggleDiff,
   diffEnabled,
+  inReviewReplyTargetCount,
   openThreadTargetCount,
   reviewItemCount,
   unreadReviewCount,
@@ -70,6 +72,15 @@ export function reviewCommandActions({
       label: "Open next unseen item",
       detail: `${unreadReviewCount} unseen review ${unreadReviewCount === 1 ? "file" : "files"}`,
       shortcut: `${shortcutPrefix} Shift U`,
+    });
+  }
+
+  if (inReviewReplyTargetCount) {
+    actions.push({
+      id: "open-in-review-reply",
+      label: "Open next in-review reply",
+      detail: `${inReviewReplyTargetCount} in-review ${inReviewReplyTargetCount === 1 ? "reply" : "replies"}`,
+      shortcut: `${shortcutPrefix} Shift I`,
     });
   }
 

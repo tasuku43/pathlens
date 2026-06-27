@@ -112,21 +112,20 @@ export function draftCommentNavigationTargets(
 export function agentReplyNavigationTargets(
   comments: ViviComment[],
 ): ReviewNavigationTarget[] {
-  return comments
-    .filter(
-      (comment) =>
-        comment.source === "codex" || comment.source === "claude-code",
+  return buildCommentThreads(comments)
+    .filter((thread) => thread.status === "open")
+    .flatMap((thread) =>
+      thread.comments.filter(isAgentReply).map((comment) => ({
+        id: `agent-reply:${comment.id}`,
+        path: comment.path,
+        threadId: thread.id,
+        commentId: comment.id,
+        surface: comment.anchor.surface,
+        label: `In-review reply in ${basenameForPath(comment.path)}`,
+        detail: anchorDetail(comment.anchor.canonical.lineStart, comment.body),
+        sortKey: comment.updatedAt,
+      })),
     )
-    .map((comment) => ({
-      id: `agent-reply:${comment.id}`,
-      path: comment.path,
-      threadId: comment.threadId ?? comment.id,
-      commentId: comment.id,
-      surface: comment.anchor.surface,
-      label: `Agent reply in ${basenameForPath(comment.path)}`,
-      detail: anchorDetail(comment.anchor.canonical.lineStart, comment.body),
-      sortKey: comment.updatedAt,
-    }))
     .sort((a, b) => b.sortKey.localeCompare(a.sortKey) || compareTargets(a, b));
 }
 
@@ -388,6 +387,10 @@ function compareThreads(a: CommentThread, b: CommentThread): number {
 
 function compareTargets(a: ReviewNavigationTarget, b: ReviewNavigationTarget) {
   return a.sortKey.localeCompare(b.sortKey) || a.id.localeCompare(b.id);
+}
+
+function isAgentReply(comment: ViviComment): boolean {
+  return comment.source === "codex" || comment.source === "claude-code";
 }
 
 function targetSortKey(path: string, line?: number): string {

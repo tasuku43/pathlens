@@ -278,6 +278,7 @@ export const ShortcutHelpOverlay: Story = {
   render: () => <ShortcutHelp open onClose={() => undefined} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.getByText("Open next in-review reply")).toBeVisible();
     await expect(canvas.getByText("Return to current thread")).toBeVisible();
     await expect(
       canvas.getByText("Resolve / reopen current thread"),

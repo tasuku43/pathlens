@@ -190,6 +190,7 @@ import {
 } from "../../state/review-command-actions.js";
 import { keyboardShortcutAction } from "../../state/shortcuts.js";
 import {
+  agentReplyNavigationTargets,
   commentNavigationTarget,
   commentActivityThreadTargets,
   commentInboxOpenState,
@@ -817,6 +818,10 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => openThreadNavigationTargets(comments),
     [comments],
   );
+  const inReviewReplyTargets = useMemo(
+    () => agentReplyNavigationTargets(comments),
+    [comments],
+  );
   const currentFileOpenThreadTargets = useMemo(
     () => openThreadNavigationTargets(comments, { path: selectedPath }),
     [comments, selectedPath],
@@ -925,6 +930,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         attentionThreadCount: attentionCommentThreadCount,
         canToggleDiff: Boolean(file && supportsDiffMode(file)),
         diffEnabled,
+        inReviewReplyTargetCount: inReviewReplyTargets.length,
         openThreadTargetCount: openThreadTargets.length,
         reviewItemCount: reviewItems.length,
         unreadReviewCount: unreadReviewPathSet.size,
@@ -934,6 +940,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       attentionCommentThreadCount,
       diffEnabled,
       file,
+      inReviewReplyTargets.length,
       openThreadTargets.length,
       reviewItems.length,
       selectedPath,
@@ -1318,6 +1325,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       updateActiveCommentLifecycle(id);
     if (id === "open-comments") focusCommentsPanel();
     if (id === "open-latest-unread") openLatestUnreadReviewFile();
+    if (id === "open-in-review-reply")
+      openMovedTarget(inReviewReplyTargets, "next");
     if (id === "open-next-review") openReviewQueueFile("next");
     if (id === "focus-review-queue") focusReviewQueue();
     if (id === "open-next-thread") openMovedTarget(openThreadTargets, "next");
@@ -2109,6 +2118,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       if (action === "publish-draft-review")
         void publishDraftReviewComments().catch((err) => setError(String(err)));
       if (action === "open-latest-unread") openLatestUnreadReviewFile();
+      if (action === "open-in-review-reply")
+        openMovedTarget(inReviewReplyTargets, "next");
       if (action === "open-next-review") openReviewQueueFile("next");
       if (action === "open-previous-review") openReviewQueueFile("previous");
       if (action === "open-next-thread")
@@ -2141,6 +2152,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     activeCommentId,
     draftComments,
     draftPublishing,
+    inReviewReplyTargets,
     openThreadTargets,
     currentFileOpenThreadTargets,
     reviewItems,

@@ -10,6 +10,7 @@ export type KeyboardShortcutAction =
   | "toggle-current-thread-status"
   | "archive-current-thread"
   | "publish-draft-review"
+  | "open-in-review-reply"
   | "open-latest-unread"
   | "open-next-review"
   | "open-previous-review"
@@ -51,6 +52,7 @@ export function keyboardShortcutAction(
   if (event.shiftKey && event.key === "Backspace")
     return "archive-current-thread";
   if (event.shiftKey && key === "p") return "publish-draft-review";
+  if (event.shiftKey && key === "i") return "open-in-review-reply";
   if (event.shiftKey && key === "u") return "open-latest-unread";
   if (event.shiftKey && key === "j") return "open-next-review";
   if (event.shiftKey && key === "k") return "open-previous-review";

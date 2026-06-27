@@ -18,6 +18,7 @@ const shortcutGroups: readonly {
     title: "Review",
     items: [
       ["Open next unseen item", "Cmd/Ctrl Shift U"],
+      ["Open next in-review reply", "Cmd/Ctrl Shift I"],
       ["Next review item", "Cmd/Ctrl Shift J"],
       ["Previous review item", "Cmd/Ctrl Shift K"],
       ["Review queue mode", "Cmd/Ctrl Alt R"],

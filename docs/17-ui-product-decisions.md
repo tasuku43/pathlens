@@ -129,7 +129,7 @@ Shortcuts:
 - Cmd/Ctrl + Shift + F opens full-text search across text-previewable files.
 - Cmd/Ctrl + W closes the active vivi tab when one is open.
 - Cmd/Ctrl + / opens a bundled keyboard shortcut reference.
-- Cmd/Ctrl + Shift + J/K moves to the next/previous Review Queue item, and Cmd/Ctrl + Shift + U opens the next unseen item.
+- Cmd/Ctrl + Shift + J/K moves to the next/previous Review Queue item, Cmd/Ctrl + Shift + U opens the next unseen work item, and Cmd/Ctrl + Shift + I opens the next in-review reply.
 - Cmd/Ctrl + O is avoided because it conflicts with browser and operating-system file-open expectations.
 
 The palette should close on Escape, open selected files with Enter, and preserve the current workspace state.
