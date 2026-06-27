@@ -7,19 +7,6 @@ import (
 	"io"
 )
 
-type OperationStats struct {
-	DurationMs         int64
-	ScannedDirectories int
-	ScannedFiles       int
-	ReadFiles          int
-	EmittedEvents      int
-	ResultCount        int
-	Cached             bool
-	Error              bool
-}
-
-type ShutdownFunc func(context.Context) error
-
 func Init(ctx context.Context, stderr io.Writer) (ShutdownFunc, error) {
 	_ = ctx
 	_ = stderr

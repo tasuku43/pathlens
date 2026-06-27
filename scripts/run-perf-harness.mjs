@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -9,6 +10,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { chromium } from "playwright";
 
 import { readOtelSpans, summarizeOperationSpans } from "./perf-otel-summary.mjs";
 
@@ -36,6 +38,14 @@ try {
     const idleMs = numberEnv("VIVI_PERF_IDLE_MS", 3500);
     await delay(idleMs);
     return { idleMs };
+  }));
+
+  scenarios.push(await runScenario("front_workspace", async ({ baseURL }) => {
+    return runBrowserWorkspaceScenario(baseURL, workspace);
+  }));
+
+  scenarios.push(await runScenario("cli_review_queue", async ({ baseURL }) => {
+    return runCliReviewQueueScenario(baseURL);
   }));
 
   scenarios.push(await runScenario("git_review", async ({ baseURL }) => {
@@ -109,13 +119,40 @@ try {
       rmSync(probe, { force: true });
     }
   }));
+
+  scenarios.push(await runScenario("change_burst", async ({ baseURL }) => {
+    const changeCount = numberEnv("VIVI_PERF_BURST_CHANGES", 30);
+    const burstDirName = `.vivi-perf-burst-${process.pid}-${Date.now()}`;
+    const burstDir = path.join(workspaceRoot, burstDirName);
+    try {
+      mkdirSync(burstDir, { recursive: true });
+      const observed = await waitForWorkspaceEvents(
+        baseURL,
+        new Set(Array.from({ length: changeCount }, (_, index) => `${burstDirName}/probe-${String(index).padStart(3, "0")}.md`)),
+        async () => {
+          for (let index = 0; index < changeCount; index++) {
+            const file = path.join(burstDir, `probe-${String(index).padStart(3, "0")}.md`);
+            writeFileSync(file, `# Burst ${index}\ninitial\n`, "utf8");
+            if (index % 5 === 0) {
+              appendFileSync(file, `update ${Date.now()}\n`, "utf8");
+            }
+            await delay(numberEnv("VIVI_PERF_BURST_DELAY_MS", 20));
+          }
+        },
+      );
+      await delay(numberEnv("VIVI_PERF_POST_BURST_MS", 1200));
+      return observed;
+    } finally {
+      rmSync(burstDir, { recursive: true, force: true });
+    }
+  }));
 } catch (error) {
   baselineError.push(error instanceof Error ? error.message : String(error));
 }
 
 const finishedAt = new Date();
 const summary = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   runName,
   startedAt: startedAt.toISOString(),
   finishedAt: finishedAt.toISOString(),
@@ -144,6 +181,7 @@ async function runScenario(name, run) {
   const started = new Date();
   resetOtelFile();
   const child = startServer();
+  const serverSampler = startProcessSampler(child.pid, "server");
   let stdout = "";
   let stderr = "";
   const urlPromise = waitForServerURL(child, (chunk) => {
@@ -161,6 +199,7 @@ async function runScenario(name, run) {
   } catch (caught) {
     error = caught instanceof Error ? caught.message : String(caught);
   } finally {
+    serverSampler.stop();
     stopServer(child);
     await waitForExit(child).catch(() => {});
     await delay(1200);
@@ -179,6 +218,7 @@ async function runScenario(name, run) {
     process: {
       exitCode: child.exitCode,
       telemetryWarning: stderr.includes("OpenTelemetry enabled, but collector"),
+      server: serverSampler.summary(),
     },
     stdout,
     stderr: stderr.trim(),
@@ -266,6 +306,177 @@ async function waitForWorkspaceEvent(baseURL, expectedPath, action) {
   }
 }
 
+async function waitForWorkspaceEvents(baseURL, expectedPaths, action) {
+  const controller = new AbortController();
+  const response = await fetch(`${baseURL}/events`, { signal: controller.signal });
+  if (!response.ok || !response.body) {
+    throw new Error(`events stream failed with ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const observed = new Map();
+  let buffer = "";
+  const started = Date.now();
+  let connected = false;
+  let firstLatencyMs = null;
+  const timeoutMs = numberEnv("VIVI_PERF_BURST_TIMEOUT_MS", 20_000);
+
+  try {
+    while (Date.now() - started < timeoutMs) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      if (!connected && buffer.includes(": connected")) {
+        connected = true;
+        await action();
+      }
+      const chunks = buffer.split(/\n\n/);
+      buffer = chunks.pop() ?? "";
+      for (const chunk of chunks) {
+        const data = chunk.split(/\r?\n/).find((line) => line.startsWith("data: "));
+        if (!data) continue;
+        const event = JSON.parse(data.slice("data: ".length));
+        if (!expectedPaths.has(event.path) || observed.has(event.path)) continue;
+        const latencyMs = Date.now() - started;
+        firstLatencyMs ??= latencyMs;
+        observed.set(event.path, {
+          path: event.path,
+          eventType: event.type,
+          eventVersion: event.version,
+          latencyMs,
+        });
+        if (observed.size >= expectedPaths.size) {
+          return {
+            expectedCount: expectedPaths.size,
+            observedCount: observed.size,
+            firstLatencyMs,
+            lastLatencyMs: latencyMs,
+            sampleEvents: Array.from(observed.values()).slice(0, 5),
+          };
+        }
+      }
+    }
+    return {
+      expectedCount: expectedPaths.size,
+      observedCount: observed.size,
+      firstLatencyMs,
+      lastLatencyMs: observed.size ? Math.max(...Array.from(observed.values(), (event) => event.latencyMs)) : null,
+      missingCount: expectedPaths.size - observed.size,
+      sampleEvents: Array.from(observed.values()).slice(0, 5),
+    };
+  } finally {
+    controller.abort();
+    await reader.cancel().catch(() => {});
+  }
+}
+
+async function runBrowserWorkspaceScenario(baseURL, workspace) {
+  const openedPath = firstExistingRelativePath(workspace.absoluteRoot, [
+    "README.md",
+    "Makefile",
+    "Kconfig",
+    "init/main.c",
+    "kernel/sched/core.c",
+  ]);
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const client = await context.newCDPSession(page);
+  await client.send("Performance.enable");
+  try {
+    const url = openedPath ? `${baseURL}/?path=${encodeURIComponent(openedPath)}` : baseURL;
+    const started = Date.now();
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector('aside[aria-label="File explorer"]', { timeout: 20_000 });
+    await page.waitForTimeout(500);
+    const afterLoad = await collectBrowserMetrics(page, client);
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
+    await page.keyboard.press(`${modifier}+K`);
+    await page.waitForTimeout(150);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    const afterInteraction = await collectBrowserMetrics(page, client);
+    return {
+      openedPath,
+      durationMs: Date.now() - started,
+      bodyTextLength: await page.locator("body").innerText().then((text) => text.length),
+      metrics: {
+        afterLoad,
+        afterInteraction,
+      },
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
+async function collectBrowserMetrics(page, client) {
+  const cdp = await client.send("Performance.getMetrics");
+  const metrics = Object.fromEntries(cdp.metrics.map((metric) => [metric.name, metric.value]));
+  const webMemory = await page.evaluate(() => {
+    const memory = performance.memory;
+    if (!memory) return null;
+    return {
+      jsHeapSizeLimit: memory.jsHeapSizeLimit,
+      totalJSHeapSize: memory.totalJSHeapSize,
+      usedJSHeapSize: memory.usedJSHeapSize,
+    };
+  });
+  return {
+    jsHeapUsedBytes: Math.round(metrics.JSHeapUsedSize ?? 0),
+    jsHeapTotalBytes: Math.round(metrics.JSHeapTotalSize ?? 0),
+    scriptDurationMs: Math.round((metrics.ScriptDuration ?? 0) * 1000),
+    layoutDurationMs: Math.round((metrics.LayoutDuration ?? 0) * 1000),
+    taskDurationMs: Math.round((metrics.TaskDuration ?? 0) * 1000),
+    nodes: Math.round(metrics.Nodes ?? 0),
+    documents: Math.round(metrics.Documents ?? 0),
+    webMemory,
+  };
+}
+
+async function runCliReviewQueueScenario(baseURL) {
+  const iterations = numberEnv("VIVI_PERF_CLI_ITERATIONS", 5);
+  const results = [];
+  for (let index = 0; index < iterations; index++) {
+    results.push(await runSampledCommand(binary, ["review", "queue", "--url", baseURL, "--json"], "cli"));
+  }
+  return {
+    iterations,
+    durationMs: results.reduce((sum, result) => sum + result.durationMs, 0),
+    exitCodes: countBy(results, "exitCode"),
+    process: aggregateProcessSummaries(results.map((result) => result.process)),
+    sampleStdoutBytes: results[0]?.stdoutBytes ?? 0,
+    stderr: results.map((result) => result.stderr).filter(Boolean).join("\n"),
+  };
+}
+
+function runSampledCommand(command, args, label) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn(command, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const sampler = startProcessSampler(child.pid, label, 20);
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.once("exit", (exitCode, signal) => {
+      sampler.stop();
+      resolve({
+        durationMs: Date.now() - started,
+        exitCode,
+        signal,
+        stdoutBytes: Buffer.byteLength(stdout),
+        stderr: stderr.trim(),
+        process: sampler.summary(),
+      });
+    });
+  });
+}
+
 async function graphql(baseURL, query, variables) {
   const response = await fetch(`${baseURL}/graphql`, {
     method: "POST",
@@ -280,7 +491,7 @@ async function graphql(baseURL, query, variables) {
 }
 
 function ensureBinary() {
-  if (existsSync(binary)) return;
+  if (existsSync(binary) && process.env.VIVI_PERF_SKIP_BUILD === "1") return;
   const result = spawnSync("npm", ["run", "build:go:otel"], {
     cwd,
     stdio: "inherit",
@@ -373,10 +584,103 @@ function aggregateSearchStats(items) {
 function countBy(items, key) {
   const counts = {};
   for (const item of items) {
-    const value = item[key] || "unknown";
+    const value = item[key] ?? "unknown";
     counts[value] = (counts[value] ?? 0) + 1;
   }
   return counts;
+}
+
+function firstExistingRelativePath(root, candidates) {
+  for (const candidate of candidates) {
+    if (existsSync(path.join(root, candidate))) return candidate;
+  }
+  return null;
+}
+
+function startProcessSampler(pid, label, intervalMs = numberEnv("VIVI_PERF_PROCESS_SAMPLE_MS", 250)) {
+  const samples = [];
+  const sample = () => {
+    const value = sampleProcess(pid);
+    if (value) {
+      samples.push({ ...value, atMs: Date.now() });
+    }
+  };
+  sample();
+  const timer = setInterval(sample, intervalMs);
+  timer.unref?.();
+  return {
+    stop() {
+      clearInterval(timer);
+      sample();
+    },
+    summary() {
+      return summarizeProcessSamples(samples, label);
+    },
+  };
+}
+
+function sampleProcess(pid) {
+  if (!pid) return null;
+  const result = spawnSync("ps", ["-p", String(pid), "-o", "rss=", "-o", "pcpu=", "-o", "time="], {
+    encoding: "utf8",
+  });
+  if (result.status !== 0) return null;
+  const text = result.stdout.trim();
+  if (!text) return null;
+  const parts = text.split(/\s+/);
+  if (parts.length < 3) return null;
+  return {
+    rssBytes: Number.parseInt(parts[0], 10) * 1024,
+    cpuPercent: Number.parseFloat(parts[1]),
+    cpuTimeMs: parseProcessCpuTime(parts[2]),
+  };
+}
+
+function parseProcessCpuTime(value) {
+  const parts = value.split(":").map((part) => Number.parseFloat(part));
+  if (parts.some((part) => !Number.isFinite(part))) return null;
+  if (parts.length === 3) {
+    return Math.round(((parts[0] * 60 + parts[1]) * 60 + parts[2]) * 1000);
+  }
+  if (parts.length === 2) {
+    return Math.round((parts[0] * 60 + parts[1]) * 1000);
+  }
+  return Math.round(parts[0] * 1000);
+}
+
+function summarizeProcessSamples(samples, label) {
+  const rss = samples.map((sample) => sample.rssBytes).filter(Number.isFinite);
+  const cpu = samples.map((sample) => sample.cpuPercent).filter(Number.isFinite);
+  const cpuTime = samples.map((sample) => sample.cpuTimeMs).filter(Number.isFinite);
+  return {
+    label,
+    sampleCount: samples.length,
+    rssBytes: numericSummary(rss),
+    cpuPercent: numericSummary(cpu),
+    cpuTimeMs: cpuTime.length ? { first: cpuTime[0], last: cpuTime.at(-1), delta: cpuTime.at(-1) - cpuTime[0] } : null,
+  };
+}
+
+function aggregateProcessSummaries(summaries) {
+  return {
+    sampleCount: summaries.reduce((sum, summary) => sum + summary.sampleCount, 0),
+    rssBytes: numericSummary(summaries.map((summary) => summary.rssBytes?.max).filter(Number.isFinite)),
+    cpuPercent: numericSummary(summaries.map((summary) => summary.cpuPercent?.max).filter(Number.isFinite)),
+    cpuTimeMs: numericSummary(summaries.map((summary) => summary.cpuTimeMs?.delta).filter(Number.isFinite)),
+  };
+}
+
+function numericSummary(values) {
+  if (values.length === 0) {
+    return { count: 0, min: null, max: null, avg: null };
+  }
+  const sum = values.reduce((total, value) => total + value, 0);
+  return {
+    count: values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    avg: round(sum / values.length, 3),
+  };
 }
 
 function countWorkspace(root) {
@@ -421,4 +725,9 @@ function writeJSON(file, value) {
 function numberEnv(name, fallback) {
   const value = Number.parseInt(process.env[name] ?? "", 10);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function round(value, places) {
+  const scale = 10 ** places;
+  return Math.round(value * scale) / scale;
 }

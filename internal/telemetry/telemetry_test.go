@@ -18,6 +18,18 @@ func TestDefaultTelemetryIsDisabled(t *testing.T) {
 	}
 }
 
+func TestDefaultOperationSampleIsNoop(t *testing.T) {
+	sample := telemetry.StartOperation()
+	stats := sample.Finish(telemetry.OperationStats{ScannedFiles: 3})
+
+	if stats.ScannedFiles != 3 {
+		t.Fatalf("ScannedFiles = %d, want caller-provided stats preserved", stats.ScannedFiles)
+	}
+	if stats.DurationMs != 0 || stats.MemoryHeapAllocBytes != 0 || stats.CPUTotalMs != 0 || stats.Goroutines != 0 {
+		t.Fatalf("default operation sample should not measure resources: %#v", stats)
+	}
+}
+
 func TestDefaultCliImportGraphExcludesOpenTelemetrySDK(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {

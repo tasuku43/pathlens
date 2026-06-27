@@ -22,19 +22,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type OperationStats struct {
-	DurationMs         int64
-	ScannedDirectories int
-	ScannedFiles       int
-	ReadFiles          int
-	EmittedEvents      int
-	ResultCount        int
-	Cached             bool
-	Error              bool
-}
-
-type ShutdownFunc func(context.Context) error
-
 var (
 	tracer      trace.Tracer = trace.NewNoopTracerProvider().Tracer("github.com/tasuku43/vivi")
 	otelEnabled atomic.Bool
@@ -86,6 +73,19 @@ func RecordOperation(ctx context.Context, name string, stats OperationStats) {
 		attribute.Int("result_count", stats.ResultCount),
 		attribute.Bool("cached", stats.Cached),
 		attribute.Bool("error", stats.Error),
+		attribute.Int64("cpu_user_ms", stats.CPUUserMs),
+		attribute.Int64("cpu_system_ms", stats.CPUSystemMs),
+		attribute.Int64("cpu_total_ms", stats.CPUTotalMs),
+		attribute.Float64("cpu_percent", stats.CPUPercent),
+		attribute.Int64("memory_heap_alloc_bytes", stats.MemoryHeapAllocBytes),
+		attribute.Int64("memory_heap_alloc_delta_bytes", stats.MemoryHeapAllocDeltaBytes),
+		attribute.Int64("memory_rss_max_bytes", stats.MemoryRSSMaxBytes),
+		attribute.Int64("memory_rss_max_delta_bytes", stats.MemoryRSSMaxDeltaBytes),
+		attribute.Int64("memory_total_alloc_delta_bytes", stats.MemoryTotalAllocDeltaBytes),
+		attribute.Int64("memory_mallocs_delta", stats.MemoryMallocsDelta),
+		attribute.Int64("memory_frees_delta", stats.MemoryFreesDelta),
+		attribute.Int("memory_num_gc", stats.MemoryNumGC),
+		attribute.Int("goroutines", stats.Goroutines),
 	)
 	if stats.Error {
 		span.SetStatus(codes.Error, "operation failed")

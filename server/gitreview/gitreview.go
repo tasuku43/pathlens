@@ -84,9 +84,10 @@ func New(root string, timeout time.Duration) (*Reviewer, error) {
 }
 
 func (reviewer *Reviewer) ReadChanges(ctx context.Context) (summary Summary) {
+	operation := telemetry.StartOperation()
 	started := time.Now()
 	defer func() {
-		telemetry.RecordOperation(ctx, "git.review_status_refresh", telemetry.OperationStats{
+		operation.Record(ctx, "git.review_status_refresh", telemetry.OperationStats{
 			DurationMs:  time.Since(started).Milliseconds(),
 			ResultCount: len(summary.Changes),
 			Error:       !summary.Available,

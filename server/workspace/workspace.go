@@ -205,6 +205,7 @@ func (fsys *FS) ReadDirectory(relativePath string, depth int) (TreeSnapshot, err
 }
 
 func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (TreeSnapshot, error) {
+	operation := telemetry.StartOperation()
 	started := time.Now()
 	resolved, err := fsys.resolveDirectory(relativePath)
 	if err != nil {
@@ -217,9 +218,22 @@ func (fsys *FS) readDirectory(relativePath string, depth int, bounded bool) (Tre
 	}
 	nodes, err := fsys.scan(resolved.relative, nil, scanDepth, stats)
 	if err != nil {
+		operation.Record(context.Background(), "workspace.read_tree", telemetry.OperationStats{
+			DurationMs:         time.Since(started).Milliseconds(),
+			ScannedDirectories: stats.ScannedDirectories,
+			ScannedFiles:       stats.ScannedFiles,
+			ResultCount:        stats.ReturnedNodes,
+			Error:              true,
+		})
 		return TreeSnapshot{}, err
 	}
 	stats.DurationMs = time.Since(started).Milliseconds()
+	operation.Record(context.Background(), "workspace.read_tree", telemetry.OperationStats{
+		DurationMs:         stats.DurationMs,
+		ScannedDirectories: stats.ScannedDirectories,
+		ScannedFiles:       stats.ScannedFiles,
+		ResultCount:        stats.ReturnedNodes,
+	})
 	snapshot := TreeSnapshot{
 		Root:    fsys.root,
 		Version: fsys.version,
@@ -345,6 +359,7 @@ func (fsys *FS) SearchFiles(query string, limit int) (FileSearchResponse, error)
 	if limit <= 0 {
 		limit = 40
 	}
+	operation := telemetry.StartOperation()
 	started := time.Now()
 	files, stats, err := fsys.cachedFileSearchFiles()
 	terms := strings.Fields(strings.ToLower(strings.TrimSpace(query)))
@@ -370,7 +385,7 @@ func (fsys *FS) SearchFiles(query string, limit int) (FileSearchResponse, error)
 		}
 	}
 	stats.DurationMs = time.Since(started).Milliseconds()
-	telemetry.RecordOperation(context.Background(), "workspace.file_search", telemetry.OperationStats{
+	operation.Record(context.Background(), "workspace.file_search", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
 		ScannedDirectories: stats.ScannedDirectories,
 		ScannedFiles:       stats.ScannedFiles,
@@ -392,6 +407,7 @@ func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) 
 	if limit <= 0 {
 		limit = 40
 	}
+	operation := telemetry.StartOperation()
 	started := time.Now()
 	stats := SearchStats{}
 	results := []TextSearchResult{}
@@ -437,7 +453,7 @@ func (fsys *FS) SearchText(query string, limit int) (TextSearchResponse, error) 
 		return len(results) < limit
 	})
 	stats.DurationMs = time.Since(started).Milliseconds()
-	telemetry.RecordOperation(context.Background(), "workspace.content_search", telemetry.OperationStats{
+	operation.Record(context.Background(), "workspace.content_search", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
 		ScannedDirectories: stats.ScannedDirectories,
 		ScannedFiles:       stats.ScannedFiles,
@@ -454,13 +470,14 @@ func (fsys *FS) WatchEntries() (map[string]WatchEntry, error) {
 }
 
 func (fsys *FS) WatchEntriesWithStats() (map[string]WatchEntry, WatchStats, error) {
+	operation := telemetry.StartOperation()
 	started := time.Now()
 	entries := map[string]WatchEntry{}
 	stats := WatchStats{}
 	err := fsys.walkWatchEntries("", entries, &stats)
 	stats.DurationMs = time.Since(started).Milliseconds()
 	stats.ReturnedEntries = len(entries)
-	telemetry.RecordOperation(context.Background(), "workspace.watch_entries", telemetry.OperationStats{
+	operation.Record(context.Background(), "workspace.watch_entries", telemetry.OperationStats{
 		DurationMs:         stats.DurationMs,
 		ScannedDirectories: stats.ScannedDirectories,
 		ScannedFiles:       stats.ScannedFiles,

@@ -360,10 +360,11 @@ func (server *Server) watch(ctx context.Context) {
 			timer.Stop()
 			return
 		case <-timer.C:
+			operation := telemetry.StartOperation()
 			started := time.Now()
 			current, stats, err := server.options.Workspace.WatchEntriesWithStats()
 			if err != nil {
-				telemetry.RecordOperation(ctx, "server.watch_loop", telemetry.OperationStats{
+				operation.Record(ctx, "server.watch_loop", telemetry.OperationStats{
 					DurationMs:         time.Since(started).Milliseconds(),
 					ScannedDirectories: stats.ScannedDirectories,
 					ScannedFiles:       stats.ScannedFiles,
@@ -392,7 +393,7 @@ func (server *Server) watch(ctx context.Context) {
 					emittedEvents++
 				}
 			}
-			telemetry.RecordOperation(ctx, "server.watch_loop", telemetry.OperationStats{
+			operation.Record(ctx, "server.watch_loop", telemetry.OperationStats{
 				DurationMs:         time.Since(started).Milliseconds(),
 				ScannedDirectories: stats.ScannedDirectories,
 				ScannedFiles:       stats.ScannedFiles,
