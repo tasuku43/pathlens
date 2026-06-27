@@ -609,6 +609,12 @@ body.resizing-workbench-pane {
   min-width: 0;
   gap: 1px;
 }
+.tree-label-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .tree-label,
 .tree-review-reason {
   min-width: 0;
@@ -1070,6 +1076,46 @@ body.resizing-workbench-pane {
 }
 .file-location-review-summary.history {
   color: var(--muted);
+}
+.review-state-label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--soft-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 840;
+  line-height: 1;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+.review-state-label::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.review-state-label.queued {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.review-state-label.reviewing {
+  border-color: var(--comment-line);
+  color: var(--comment-text);
+}
+.review-state-label.reviewed {
+  border-color: color-mix(in srgb, var(--good) 46%, transparent);
+  color: color-mix(in srgb, var(--good) 84%, white);
+}
+.mark-reviewed-button {
+  border-color: color-mix(in srgb, var(--good) 54%, var(--soft-line)) !important;
+  background: color-mix(in srgb, var(--good) 15%, var(--panel-2)) !important;
+  color: color-mix(in srgb, var(--good) 88%, white) !important;
 }
 .file-location-separator,
 .viewer-toolbar-location {
@@ -2848,7 +2894,8 @@ body.resizing-workbench-pane {
 .comment-status.published {
   color: var(--muted);
 }
-.comment-status.accepted {
+.comment-status.accepted,
+.comment-status.reviewed {
   border-color: color-mix(in srgb, var(--good) 52%, var(--soft-line));
   background: color-mix(in srgb, var(--good) 10%, transparent);
   color: var(--good);
@@ -3312,6 +3359,45 @@ body.resizing-workbench-pane {
 }
 .review-lifecycle-cell.done small {
   color: var(--muted);
+}
+.review-state-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.review-state-card {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border: 1px solid var(--soft-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--panel-2) 54%, transparent);
+  color: var(--muted);
+  padding: 8px;
+}
+.review-state-card strong {
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+}
+.review-state-card span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 720;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-state-card.queued {
+  border-color: color-mix(in srgb, var(--accent-line) 66%, var(--soft-line));
+  background: color-mix(in srgb, var(--accent-faint) 36%, var(--panel-2));
+}
+.review-state-card.reviewing {
+  border-color: color-mix(in srgb, var(--comment-line) 58%, var(--soft-line));
+  background: color-mix(in srgb, var(--comment-tint) 42%, var(--panel-2));
+}
+.review-state-card.reviewed {
+  border-color: color-mix(in srgb, var(--good) 34%, var(--soft-line));
 }
 .split-tabs {
   display: grid;
@@ -5455,6 +5541,54 @@ kbd {
 }
 .review-queue-item {
   min-width: 0;
+}
+.review-state-section {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+}
+.review-state-section summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.review-state-section summary::-webkit-details-marker {
+  display: none;
+}
+.review-state-section summary span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 820;
+}
+.review-state-section summary small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-state-section-list,
+.review-state-section .hidden-review-history-list {
+  display: grid;
+  gap: 5px;
+  border-top: 1px solid var(--line);
+  padding: 7px;
+}
+.review-state-section.queued {
+  border-color: color-mix(in srgb, var(--accent-line) 42%, var(--line));
+}
+.review-state-section.reviewing {
+  border-color: color-mix(in srgb, var(--comment-line) 42%, var(--line));
+}
+.review-state-section.reviewed {
+  border-color: color-mix(in srgb, var(--good) 28%, var(--line));
 }
 .review-progress {
   display: grid;

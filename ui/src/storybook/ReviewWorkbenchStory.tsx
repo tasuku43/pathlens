@@ -38,6 +38,10 @@ import { defaultViewerMode, type ViewerMode } from "../state/viewer-mode.js";
 import type { CommentActivitySummary } from "../state/comment-activity.js";
 import type { DiffStat, ReviewChangeItem } from "../state/git-review.js";
 import type { ReviewQueueItem } from "../state/review-queue.js";
+import {
+  reviewQueueItemState,
+  type ReviewFileState,
+} from "../state/review-state.js";
 import type { OpenTab } from "../state/tabs.js";
 import {
   commentsForPath,
@@ -73,6 +77,7 @@ export interface ReviewWorkbenchStoryProps {
   draftComments?: DraftReviewComment[];
   reviewChanges?: ReviewChangeItem[];
   reviewItems?: ReviewQueueItem[];
+  reviewStateByPath?: Record<string, ReviewFileState>;
   diffStats?: Record<string, DiffStat | null>;
   unreadReviewPaths?: Set<string>;
   threadActivities?: Record<string, CommentActivitySummary>;
@@ -108,6 +113,7 @@ export function ReviewWorkbenchStory({
   draftComments = sampleDraftComments,
   reviewChanges = sampleReviewChanges,
   reviewItems = sampleReviewQueueItems,
+  reviewStateByPath,
   diffStats = sampleReviewDiffStats,
   unreadReviewPaths = sampleUnreadReviewPaths,
   threadActivities = sampleThreadActivities,
@@ -274,6 +280,11 @@ export function ReviewWorkbenchStory({
     reviewLoading,
     reviewPathCount: reviewItems.length,
   };
+  const derivedReviewStateByPath =
+    reviewStateByPath ??
+    Object.fromEntries(
+      reviewItems.map((item) => [item.path, reviewQueueItemState(item)]),
+    );
 
   function openStoryCommentsPanel(query?: string, preferAttention = false) {
     const entry = commentInboxOpenState({
@@ -368,6 +379,8 @@ export function ReviewWorkbenchStory({
               selectedPath={selectedPath}
               revealPath={selectedPath}
               changedPaths={new Set(reviewChanges.map((change) => change.path))}
+              reviewPaths={new Set(reviewItems.map((item) => item.path))}
+              reviewStateByPath={derivedReviewStateByPath}
               removedPaths={
                 new Set(
                   reviewChanges
@@ -426,6 +439,11 @@ export function ReviewWorkbenchStory({
                   diffEnabled={diffEnabled}
                   outline={outline}
                   comments={viewerComments}
+                  reviewState={
+                    selectedPath
+                      ? (derivedReviewStateByPath[selectedPath] ?? null)
+                      : null
+                  }
                   activeCommentId={storyActiveCommentId}
                   threadActivities={threadActivities}
                   onCodeSelectionChange={noop}

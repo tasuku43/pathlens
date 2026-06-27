@@ -101,6 +101,12 @@ import {
   summarizeReviewQueue,
 } from "../../state/review-queue.js";
 import {
+  reviewChangeFingerprint,
+  reviewQueueItemState,
+  type AcceptedReviewEntry,
+  type ReviewFileState,
+} from "../../state/review-state.js";
+import {
   shouldLoadInitialGitReview,
   shouldPollGitReview,
   shouldStartGitReviewPolling,
@@ -223,7 +229,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
   const [recentEvents, setRecentEvents] = useState<ReviewEvent[]>([]);
   const [unreadReviewPaths, setUnreadReviewPaths] = useState<string[]>([]);
-  const [acceptedReviewPaths, setAcceptedReviewPaths] = useState<string[]>([]);
+  const [acceptedReviewEntries, setAcceptedReviewEntries] = useState<
+    AcceptedReviewEntry[]
+  >([]);
   const [liveMetrics, setLiveMetrics] = useState<LiveRefreshMetrics>({
     fsEventsReceived: 0,
     gitRefreshes: 0,
@@ -702,10 +710,33 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     () => new Set(unreadReviewPaths),
     [unreadReviewPaths],
   );
-  const acceptedReviewPathSet = useMemo(
-    () => new Set(acceptedReviewPaths),
-    [acceptedReviewPaths],
-  );
+  const acceptedReviewPathSet = useMemo(() => {
+    const currentFingerprintByPath = new Map(
+      reviewChanges.map((change) => [
+        change.path,
+        reviewChangeFingerprint(
+          change,
+          reviewDiffStats[change.path],
+          files[change.path] ?? null,
+        ),
+      ]),
+    );
+    return new Set(
+      acceptedReviewEntries
+        .filter(
+          (entry) =>
+            !unreadReviewPathSet.has(entry.path) &&
+            currentFingerprintByPath.get(entry.path) === entry.fingerprint,
+        )
+        .map((entry) => entry.path),
+    );
+  }, [
+    acceptedReviewEntries,
+    files,
+    reviewChanges,
+    reviewDiffStats,
+    unreadReviewPathSet,
+  ]);
   const acceptedReviewChanges = useMemo(
     () =>
       reviewChanges.filter((change) => acceptedReviewPathSet.has(change.path)),
@@ -768,6 +799,20 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       (change) => !activeQueuePaths.has(change.path),
     );
   }, [acceptedReviewChanges, reviewItems]);
+  const reviewStateByPath = useMemo(() => {
+    const states: Record<string, ReviewFileState> = {};
+    for (const change of hiddenAcceptedReviewChanges) {
+      states[change.path] = "reviewed";
+      states[change.path.toLowerCase()] = "reviewed";
+    }
+    for (const item of reviewItems) {
+      states[item.path] = reviewQueueItemState(item);
+      states[item.path.toLowerCase()] = reviewQueueItemState(item);
+    }
+    return states;
+  }, [hiddenAcceptedReviewChanges, reviewItems]);
+  const reviewStateForPath = (path: string): ReviewFileState | null =>
+    reviewStateByPath[path.toLowerCase()] ?? reviewStateByPath[path] ?? null;
   const openThreadTargets = useMemo(
     () => openThreadNavigationTargets(comments),
     [comments],
@@ -1302,15 +1347,26 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function acceptReviewPath(path: string) {
-    setAcceptedReviewPaths((paths) =>
-      paths.includes(path) ? paths : [path, ...paths],
-    );
+    const change = reviewChanges.find((candidate) => candidate.path === path);
+    if (!change) return;
+    const entry = {
+      path,
+      fingerprint: reviewChangeFingerprint(
+        change,
+        reviewDiffStats[path],
+        files[path] ?? null,
+      ),
+    };
+    setAcceptedReviewEntries((entries) => [
+      entry,
+      ...entries.filter((candidate) => candidate.path !== path),
+    ]);
     setUnreadReviewPaths((paths) => paths.filter((candidate) => candidate !== path));
   }
 
   function restoreAcceptedReviewPath(path: string) {
-    setAcceptedReviewPaths((paths) =>
-      paths.filter((candidate) => candidate !== path),
+    setAcceptedReviewEntries((entries) =>
+      entries.filter((candidate) => candidate.path !== path),
     );
   }
 
@@ -1507,6 +1563,9 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   }
 
   function markReviewPathUnread(path: string) {
+    setAcceptedReviewEntries((entries) =>
+      entries.filter((entry) => entry.path !== path),
+    );
     setUnreadReviewPaths((paths) => [
       path,
       ...paths.filter((item) => item !== path),
@@ -1909,8 +1968,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   useEffect(() => {
     const currentChangePaths = new Set(reviewChanges.map((change) => change.path));
-    setAcceptedReviewPaths((paths) =>
-      paths.filter((path) => currentChangePaths.has(path)),
+    setAcceptedReviewEntries((entries) =>
+      entries.filter((entry) => currentChangePaths.has(entry.path)),
     );
   }, [reviewChanges]);
 
@@ -2216,6 +2275,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                   revealRevision={treeReveal?.revision ?? 0}
                   changedPaths={changedPathSet}
                   reviewPaths={reviewPathSet}
+                  reviewStateByPath={reviewStateByPath}
                   unreadReviewPaths={unreadReviewPathSet}
                   activePaths={openTabPathSet}
                   currentStopPath={activeComment?.path ?? null}
@@ -2690,6 +2750,14 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                           paneFile.path,
                         )
                       : []
+                  }
+                  reviewState={
+                    paneFile?.path ? reviewStateForPath(paneFile.path) : null
+                  }
+                  onMarkReviewed={
+                    paneFile?.path && reviewStateForPath(paneFile.path) === "queued"
+                      ? () => acceptReviewPath(paneFile.path)
+                      : undefined
                   }
                   activeCommentId={activeCommentId}
                   expandActiveCommentThread={!commentsPanelOpen}

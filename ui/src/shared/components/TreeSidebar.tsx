@@ -10,6 +10,11 @@ import {
 } from "../../state/tree-expansion.js";
 import { treeKeyboardAction } from "../../state/tree-navigation.js";
 import { unloadedAncestorDirectoryPaths } from "../../state/files.js";
+import {
+  reviewFileStateLabel,
+  reviewFileStateTone,
+  type ReviewFileState,
+} from "../../state/review-state.js";
 
 interface Props {
   nodes: FsNode[];
@@ -18,6 +23,7 @@ interface Props {
   revealRevision?: number;
   changedPaths?: Set<string>;
   reviewPaths?: Set<string>;
+  reviewStateByPath?: Record<string, ReviewFileState>;
   unreadReviewPaths?: Set<string>;
   activePaths?: Set<string>;
   currentStopPath?: string | null;
@@ -37,6 +43,7 @@ export function TreeSidebar({
   revealRevision = 0,
   changedPaths = new Set(),
   reviewPaths = new Set(),
+  reviewStateByPath = {},
   unreadReviewPaths = new Set(),
   activePaths = new Set(),
   currentStopPath = null,
@@ -233,6 +240,7 @@ export function TreeSidebar({
             currentStopAncestorPaths={currentStopAncestorPaths}
             changedPaths={changedPaths}
             reviewPaths={reviewPaths}
+            reviewStateByPath={reviewStateByPath}
             unreadReviewPaths={unreadReviewPaths}
             activePaths={activePaths}
             commentCountsByPath={commentCountsByPath}
@@ -261,6 +269,7 @@ function TreeRow({
   currentStopAncestorPaths,
   changedPaths,
   reviewPaths,
+  reviewStateByPath,
   unreadReviewPaths,
   activePaths,
   commentCountsByPath,
@@ -282,6 +291,7 @@ function TreeRow({
   currentStopAncestorPaths: Set<string>;
   changedPaths: Set<string>;
   reviewPaths: Set<string>;
+  reviewStateByPath: Record<string, ReviewFileState>;
   unreadReviewPaths: Set<string>;
   activePaths: Set<string>;
   commentCountsByPath: Record<string, number>;
@@ -370,6 +380,10 @@ function TreeRow({
   const unread = unreadReviewPaths.has(node.path);
   const changed = changedPaths.has(node.path);
   const review = reviewPaths.has(node.path);
+  const reviewState =
+    reviewStateByPath[node.path.toLowerCase()] ??
+    reviewStateByPath[node.path] ??
+    null;
   const open = activePaths.has(node.path);
   const removed = removedPaths.has(node.path);
   const reviewReason = fileTreeReviewReason({
@@ -380,6 +394,7 @@ function TreeRow({
     openThreads: openThreadCount,
     removed,
     review,
+    reviewState,
     unread,
   });
   return (
@@ -395,6 +410,7 @@ function TreeRow({
         open,
         removed,
         currentStop,
+        reviewState,
         openThreads: openThreadCount,
         comments: commentCount,
       })}
@@ -425,7 +441,17 @@ function TreeRow({
         {iconForPath(node.path, node.viewerKind)}
       </span>
       <span className="tree-main">
-        <span className="tree-label">{node.name}</span>
+        <span className="tree-label-line">
+          <span className="tree-label">{node.name}</span>
+          {reviewState ? (
+            <span
+              className={`review-state-label ${reviewFileStateTone(reviewState)}`}
+              title={`Review state: ${reviewFileStateLabel(reviewState)}`}
+            >
+              {reviewFileStateLabel(reviewState)}
+            </span>
+          ) : null}
+        </span>
         {reviewReason ? (
           <span className="tree-review-reason" aria-hidden="true">
             {reviewReason}
@@ -436,7 +462,8 @@ function TreeRow({
         changed={changed}
         currentStop={currentStop}
         open={open}
-        reviewFiles={review ? 1 : 0}
+        reviewFiles={0}
+        showChangedBadge={!reviewState}
         unreadFiles={unread ? 1 : 0}
       />
     </button>
@@ -471,7 +498,7 @@ function directoryTreeRowAriaLabel({
       : "",
     countPhrase(summary.openFiles, "open file"),
     countPhrase(summary.reviewFiles, "review file"),
-    countPhrase(summary.unreadFiles, "unseen review file"),
+    countPhrase(summary.unreadFiles, "unread review file"),
     countPhrase(summary.openThreads, "open thread"),
     countPhrase(summary.comments, "comment"),
     loading ? "loading" : "",
@@ -489,6 +516,7 @@ function fileTreeRowAriaLabel({
   open,
   removed,
   currentStop,
+  reviewState,
   openThreads,
   comments,
 }: {
@@ -500,6 +528,7 @@ function fileTreeRowAriaLabel({
   open: boolean;
   removed: boolean;
   currentStop: boolean;
+  reviewState: ReviewFileState | null;
   openThreads: number;
   comments: number;
 }): string {
@@ -508,8 +537,8 @@ function fileTreeRowAriaLabel({
     "file",
     selected ? "selected" : "",
     changed ? "changed" : "",
-    review ? "review file" : "",
-    unread ? "unseen review work" : "",
+    reviewState ? reviewFileStateLabel(reviewState) : review ? "review file" : "",
+    unread ? "unread review activity" : "",
     open ? "open in tab" : "",
     removed ? "removed" : "",
     currentStop ? "current review stop" : "",
@@ -562,6 +591,7 @@ function fileTreeReviewReason({
   openThreads,
   removed,
   review,
+  reviewState,
   unread,
 }: {
   changed: boolean;
@@ -571,13 +601,14 @@ function fileTreeReviewReason({
   openThreads: number;
   removed: boolean;
   review: boolean;
+  reviewState: ReviewFileState | null;
   unread: boolean;
 }): string {
   return [
     unread ? "attention" : "",
     currentStop ? "current stop" : "",
     openThreads ? countReason(openThreads, "open thread") : "",
-    review ? "review" : "",
+    review && !reviewState ? "review" : "",
     comments && !openThreads ? countReason(comments, "comment") : "",
     changed ? "changed" : "",
     open ? "open tab" : "",
@@ -645,7 +676,7 @@ function workspaceTreeAriaLabel(
     countPhrase(summary.rootEntries, "root entry"),
     countPhrase(summary.files, "loaded file"),
     countPhrase(summary.reviewFiles, "review file"),
-    countPhrase(summary.unreadFiles, "unseen review file"),
+    countPhrase(summary.unreadFiles, "unread review file"),
     countPhrase(summary.openFiles, "open file"),
     countPhrase(summary.openThreads, "open thread"),
     countPhrase(summary.comments, "comment"),
@@ -661,6 +692,7 @@ function TreeBadges({
   open = false,
   openFiles = 0,
   reviewFiles = 0,
+  showChangedBadge = true,
   unreadFiles = 0,
 }: {
   changed?: boolean;
@@ -669,6 +701,7 @@ function TreeBadges({
   open?: boolean;
   openFiles?: number;
   reviewFiles?: number;
+  showChangedBadge?: boolean;
   unreadFiles?: number;
 }) {
   if (
@@ -714,7 +747,7 @@ function TreeBadges({
           rev{reviewFiles > 1 ? ` ${reviewFiles}` : ""}
         </span>
       ) : null}
-      {changed ? (
+      {changed && showChangedBadge ? (
         <span className="tree-badge changed" title="Changed">
           mod
         </span>

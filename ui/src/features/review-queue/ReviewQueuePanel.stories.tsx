@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fireEvent, userEvent, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import type { ReviewChangeItem } from "../../state/git-review.js";
 import { summarizeThreadActivity } from "../../state/comment-activity.js";
 import {
@@ -80,25 +80,38 @@ type Story = StoryObj<typeof meta>;
 export const ReviewQueueItemWithOpenThreads: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const nextAction = canvas.getByRole("region", {
-      name: "Recommended review action",
-    });
-    await expect(nextAction).toHaveTextContent("Next action");
-    await expect(nextAction).toHaveTextContent(
-      "Verify the current open thread",
-    );
     await expect(
-      within(nextAction).getByRole("button", { name: "Open comments" }),
+      canvas.getByRole("region", { name: "Review states" }),
+    ).toHaveTextContent("Queued");
+    await expect(
+      canvas.getByRole("region", { name: "Review states" }),
+    ).toHaveTextContent("In Review");
+    await expect(
+      canvas.getByRole("region", { name: "Review states" }),
+    ).toHaveTextContent("Reviewed");
+    await expect(canvas.queryByText("Next action")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Lifecycle")).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("radio", { name: "A Review active work" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText("In Review", { selector: "summary span" }),
     ).toBeVisible();
-    await expect(nextAction).toHaveTextContent("Active review work");
+    await expect(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(
+      canvasElement.querySelector(".review-state-section.reviewed"),
+    ).not.toHaveAttribute("open");
 
     const row = canvas.getByRole("button", {
       name: `Review queue item, modified ${sampleFiles.code.path}, current review file`,
     });
+    await expect(row).not.toHaveTextContent("MODIFIED");
     await userEvent.click(row);
     await expect(row).toHaveAttribute(
       "aria-describedby",
-      expect.stringContaining("review-queue-item-1-description"),
+      expect.stringContaining("review-queue-item-"),
     );
     const descriptionId = row
       .getAttribute("aria-describedby")
@@ -107,7 +120,7 @@ export const ReviewQueueItemWithOpenThreads: Story = {
     await expect(descriptionId).toBeTruthy();
     await expect(
       canvasElement.querySelector(`#${descriptionId}`),
-    ).toHaveTextContent("unseen review work");
+    ).toHaveTextContent("unread review activity");
     await expect(
       canvasElement.querySelector(`#${descriptionId}`),
     ).toHaveTextContent("open thread");
@@ -123,59 +136,29 @@ export const ReviewQueueItemWithLatestAgentActivity: Story = {
   },
 };
 
-export const InspectorModeSwitching: Story = {
+export const ReviewStateSections: Story = {
   tags: ["interaction"],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const storyWindow = canvasElement.ownerDocument.defaultView ?? window;
 
-    await expect(canvas.getByText("Queue")).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".panel-title > span:first-child"),
+    ).toHaveTextContent("Review");
     await expect(canvas.getByText("3 need action")).toBeInTheDocument();
     await expect(
-      canvas.getByRole("radio", { name: "A Review active work" }),
-    ).toHaveAttribute("aria-keyshortcuts", "Meta+Alt+R Control+Alt+R");
-    const lifecycle = canvas.getByRole("group", {
-      name: "Review target lifecycle",
-    });
-    await expect(lifecycle).toHaveTextContent("Detected");
-    await expect(lifecycle).toHaveTextContent("Seen");
-    await expect(lifecycle).toHaveTextContent("In review");
-    await expect(lifecycle).toHaveTextContent("Done history");
+      canvas.queryByRole("radio", { name: "B Threads conversation" }),
+    ).not.toBeInTheDocument();
     await expect(canvas.queryByText("Current file")).not.toBeInTheDocument();
-    await expect(canvas.getByText("In this file")).not.toBeVisible();
-
-    await userEvent.click(
-      canvas.getByRole("radio", { name: "B Threads conversation" }),
-    );
-    await expect(canvas.getByText("Threads")).toBeVisible();
-    await expect(canvas.getByText("3 open")).toBeVisible();
-    await expect(canvas.getByText("Current thread: diff L10")).toBeVisible();
-    await expect(canvas.getByRole("tab", { name: "Open" })).toBeVisible();
-    await expect(canvas.getByRole("tab", { name: "Drafts" })).toBeVisible();
-    await expect(canvas.getByRole("tab", { name: "History" })).toBeVisible();
-    await expect(canvas.getByText("This file")).toBeVisible();
-    await expect(canvas.getByText("Queue context")).toBeVisible();
-    await expect(canvas.getByText("Queue")).not.toBeVisible();
-    await expect(canvas.getByText("In this file")).not.toBeVisible();
-
-    fireEvent.keyDown(storyWindow, {
-      altKey: true,
-      key: "m",
-      metaKey: true,
-    });
-    await expect(canvas.getByText("Reader")).toBeVisible();
-    await expect(canvas.getByText("Code · 4 symbols")).toBeVisible();
-    await expect(canvas.getByText("In this file")).toBeVisible();
-    await expect(canvas.getByText("queue files")).toBeVisible();
-    await expect(canvas.getByText("This file")).not.toBeVisible();
-    await expect(canvas.getByText("Queue")).not.toBeVisible();
-
-    fireEvent.keyDown(storyWindow, {
-      altKey: true,
-      key: "r",
-      metaKey: true,
-    });
-    await expect(canvas.getByText("Queue")).toBeVisible();
+    await expect(canvas.queryByText("In this file")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText("Queued", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("In Review", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    ).toBeVisible();
   },
 };
 
@@ -199,16 +182,17 @@ export const HiddenHistoryDisclosure: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText("Hidden from queue")).toBeVisible();
     await expect(
-      canvas.getByRole("group", { name: "Review target lifecycle" }),
-    ).toHaveTextContent("Done history");
-    await expect(canvas.getByText("1 done")).toBeVisible();
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(canvas.getByText("1 reviewed")).toBeVisible();
     await expect(
       canvasElement.querySelector(".hidden-review-history-item"),
     ).not.toBeVisible();
 
-    await userEvent.click(canvas.getByText("Hidden from queue"));
+    await userEvent.click(
+      canvas.getByText("Reviewed", { selector: "summary span" }),
+    );
     await expect(
       canvasElement.querySelector(".hidden-review-history-item"),
     ).toBeVisible();
@@ -244,7 +228,7 @@ export const ActiveReviewFilePinnedFromQueuePosition: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("pinned from 2/2")).toBeInTheDocument();
+    await expect(canvas.queryByText("pinned from 2/2")).not.toBeInTheDocument();
     const activeRow = canvas.getByRole("button", {
       name: `modified ${sampleReviewQueueItems[1]!.path}, current review file`,
     });
@@ -270,8 +254,9 @@ export const ResolvedThreadActivityIsHistory: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("No open threads")).toBeInTheDocument();
-    await expect(canvas.getByText("Codex marked resolved")).toBeInTheDocument();
+    await expect(canvas.getByText("Reviewed", { selector: "summary span" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByText("Reviewed", { selector: "summary span" }));
+    await expect(canvas.getByText("resolved")).toBeInTheDocument();
     await expect(canvas.queryByText("Queue stop")).not.toBeInTheDocument();
     await expect(canvas.queryByText("Next queue stop")).not.toBeInTheDocument();
   },
@@ -343,17 +328,11 @@ export const ActiveThreadActions: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("radio", { name: "B Threads conversation" }),
-    );
-    expect(
-      canvas.getAllByRole("button", { name: "Resolve" }).length,
-    ).toBeGreaterThan(0);
     await expect(
-      canvas.getByRole("button", { name: "Resolve current thread" }),
-    ).toBeInTheDocument();
+      canvas.queryByRole("radio", { name: "B Threads conversation" }),
+    ).not.toBeInTheDocument();
     await expect(
-      canvas.getByRole("button", { name: "Archive current thread" }),
+      canvas.getByText("In Review", { selector: "summary span" }),
     ).toBeInTheDocument();
   },
 };
@@ -388,7 +367,7 @@ export const StaleThreadOnlyPathsHidden: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(canvas.getByText("Queued", { selector: "summary span" })).toBeInTheDocument();
     await expect(
       canvas.queryByText("missing-review.md"),
     ).not.toBeInTheDocument();
@@ -398,7 +377,7 @@ export const StaleThreadOnlyPathsHidden: Story = {
   },
 };
 
-export const AllSeen: Story = {
+export const AllRead: Story = {
   args: {
     unreadReviewPaths: new Set(),
     reviewItems: sampleReviewQueueItems.map((item) => ({
@@ -408,7 +387,7 @@ export const AllSeen: Story = {
   },
 };
 
-export const AcceptChangeHidesCandidate: Story = {
+export const MarkReviewedHidesCandidate: Story = {
   tags: ["interaction"],
   args: {
     file: sampleFiles.markdown,
@@ -417,26 +396,22 @@ export const AcceptChangeHidesCandidate: Story = {
     reviewComments: [],
     unreadReviewPaths: new Set(),
   },
-  render: (args) => <AcceptChangeInspector {...args} />,
+  render: (args) => <ReviewedChangeInspector {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByText("Review current file")).toBeVisible();
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Accept change" }),
-    );
-
-    await expect(canvas.getByText("Hidden from queue")).toBeVisible();
-    await expect(canvas.getByText("1 done")).toBeVisible();
+    await expect(canvas.getByText("1 reviewed")).toBeVisible();
     await expect(
-      canvas.queryByText("Review current file"),
+      canvas.queryByRole("button", {
+        name: `Review queue item, modified ${sampleFiles.markdown.path}`,
+      }),
     ).not.toBeInTheDocument();
 
-    await userEvent.click(canvas.getByText("Hidden from queue"));
-    await expect(canvas.getByText("accepted as-is")).toBeVisible();
+    await userEvent.click(canvas.getByText("Reviewed", { selector: "summary span" }));
+    await expect(canvas.getByText("marked reviewed")).toBeVisible();
     await expect(
       canvas.getByRole("button", {
-        name: `Restore accepted change ${sampleFiles.markdown.path} to the review queue`,
+        name: `Move reviewed change ${sampleFiles.markdown.path} back to the review queue`,
       }),
     ).toBeVisible();
   },
@@ -507,7 +482,7 @@ export const GitReviewTrackedOnlyWarning: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(canvas.getByText("Queued", { selector: "summary span" })).toBeInTheDocument();
     await expect(
       canvas.getByText(
         "Git review warning: Git untracked scan timed out; showing tracked changes only.",
@@ -563,8 +538,9 @@ export const LoadingGitReviewWithOpenThreads: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("loading changed files")).toBeInTheDocument();
-    await expect(canvas.queryByText("all seen")).not.toBeInTheDocument();
+    await expect(
+      canvas.getByText("In Review", { selector: "summary span" }),
+    ).toBeInTheDocument();
     await expect(
       canvas.getByText(
         "Loading Git review; open comment threads may appear before changed files.",
@@ -573,13 +549,15 @@ export const LoadingGitReviewWithOpenThreads: Story = {
   },
 };
 
-function AcceptChangeInspector(args: Story["args"]) {
+function ReviewedChangeInspector(args: Story["args"]) {
   const candidateChange: ReviewChangeItem = {
     path: sampleFiles.markdown.path,
     status: "modified",
     source: "git",
   };
-  const [acceptedPaths, setAcceptedPaths] = useState<Set<string>>(new Set());
+  const [acceptedPaths, setAcceptedPaths] = useState<Set<string>>(
+    () => new Set([candidateChange.path]),
+  );
   const acceptedReviewChanges = acceptedPaths.has(candidateChange.path)
     ? [candidateChange]
     : [];
@@ -598,9 +576,6 @@ function AcceptChangeInspector(args: Story["args"]) {
       acceptedReviewChanges={acceptedReviewChanges}
       reviewChanges={[candidateChange]}
       reviewItems={reviewItems}
-      onAcceptReviewPath={(path) =>
-        setAcceptedPaths((paths) => new Set(paths).add(path))
-      }
       onRestoreAcceptedReviewPath={(path) =>
         setAcceptedPaths((paths) => {
           const next = new Set(paths);

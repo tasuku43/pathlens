@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review queue language mock - Vivi</title>
+    <style>
+      :root {
+        --bg: #0f131c;
+        --panel: #151a25;
+        --panel-2: #1b2130;
+        --panel-3: #22293a;
+        --text: #eef2fb;
+        --muted: #a7b0c1;
+        --subtle: #768197;
+        --line: #2b3549;
+        --soft-line: #3b465d;
+        --accent: #7da2ff;
+        --review: #a78bfa;
+        --good: #75dd8b;
+        --danger: #ff7373;
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(125, 162, 255, 0.13), transparent 32%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      button {
+        font: inherit;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 34px;
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        font-size: 17px;
+      }
+
+      h3 {
+        font-size: 14px;
+      }
+
+      p {
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.58;
+      }
+
+      .page {
+        display: grid;
+        gap: 24px;
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      .intro {
+        display: grid;
+        gap: 14px;
+        max-width: 880px;
+      }
+
+      .eyebrow {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .state-model {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .model-card,
+      .mock-shell,
+      .surface-card {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(21, 26, 37, 0.84);
+      }
+
+      .model-card {
+        display: grid;
+        gap: 6px;
+        padding: 13px;
+      }
+
+      .model-card strong {
+        font-size: 14px;
+      }
+
+      .model-card span {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .comparison {
+        display: grid;
+        grid-template-columns: 504px minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+      }
+
+      .mock-shell {
+        overflow: hidden;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+      }
+
+      .mock-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        background: #111722;
+        padding: 10px 12px;
+      }
+
+      .mock-title {
+        display: grid;
+        gap: 2px;
+      }
+
+      .mock-title strong {
+        font-size: 13px;
+      }
+
+      .mock-title span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .inspector {
+        display: grid;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .summary span {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        padding: 8px;
+      }
+
+      .summary strong,
+      .summary small {
+        display: block;
+      }
+
+      .summary strong {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .summary small {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .queue-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .queue-head h2 {
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .queue-head small {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 720;
+      }
+
+      details {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(17, 23, 34, 0.72);
+      }
+
+      details + details {
+        margin-top: 8px;
+      }
+
+      summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        cursor: pointer;
+        list-style: none;
+        padding: 8px 10px;
+      }
+
+      summary::-webkit-details-marker {
+        display: none;
+      }
+
+      summary::after {
+        content: "collapse";
+        margin-left: auto;
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      details:not([open]) summary::after {
+        content: "expand";
+      }
+
+      .state-name {
+        font-size: 13px;
+        font-weight: 820;
+      }
+
+      .state-count {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .state-note {
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      .rows {
+        display: grid;
+        gap: 7px;
+        border-top: 1px solid var(--line);
+        padding: 8px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 9px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 9px;
+      }
+
+      .unread-dot,
+      .read-dot,
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+      }
+
+      .unread-dot {
+        background: var(--accent);
+        box-shadow: 0 0 0 3px rgba(125, 162, 255, 0.18);
+      }
+
+      .read-dot {
+        background: transparent;
+        box-shadow: inset 0 0 0 1px var(--soft-line);
+      }
+
+      .status-dot.queued {
+        background: var(--accent);
+      }
+
+      .status-dot.reviewing {
+        background: var(--review);
+      }
+
+      .status-dot.reviewed {
+        background: var(--good);
+      }
+
+      .main {
+        min-width: 0;
+      }
+
+      .line {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .line b {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+
+      .tag {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        background: var(--panel-3);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        padding: 2px 6px;
+        text-transform: uppercase;
+      }
+
+      .path {
+        display: block;
+        overflow: hidden;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .meta {
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      .stat {
+        display: flex;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 820;
+      }
+
+      .plus {
+        color: var(--good);
+      }
+
+      .minus {
+        color: var(--danger);
+      }
+
+      .surfaces {
+        display: grid;
+        gap: 14px;
+      }
+
+      .surface-card {
+        overflow: hidden;
+      }
+
+      .surface-copy {
+        display: grid;
+        gap: 6px;
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      .surface-copy p {
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .tree {
+        display: grid;
+        gap: 4px;
+        background: #0d1119;
+        padding: 10px;
+      }
+
+      .tree-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        border-radius: 7px;
+        color: var(--muted);
+        font-size: 12px;
+        min-height: 30px;
+        padding: 5px 7px;
+      }
+
+      .tree-row.active {
+        background: rgba(125, 162, 255, 0.12);
+        color: var(--text);
+      }
+
+      .tree-name {
+        display: inline-flex;
+        min-width: 0;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .tree-name b,
+      .filename {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .state-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 820;
+        padding: 2px 6px;
+        text-transform: uppercase;
+      }
+
+      .state-label.queued {
+        border-color: rgba(125, 162, 255, 0.38);
+        color: var(--accent);
+      }
+
+      .state-label.reviewing {
+        border-color: rgba(167, 139, 250, 0.42);
+        color: var(--review);
+      }
+
+      .state-label.reviewed {
+        border-color: rgba(117, 221, 139, 0.38);
+        color: var(--good);
+      }
+
+      .viewer-stack {
+        display: grid;
+        gap: 10px;
+        background: #0d1119;
+        padding: 10px;
+      }
+
+      .viewer {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #101622;
+      }
+
+      .viewer-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 8px 10px;
+      }
+
+      .crumbs {
+        display: inline-flex;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+        overflow: hidden;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .path-prefix {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .viewer-actions {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border: 1px solid rgba(117, 221, 139, 0.58);
+        border-radius: 7px;
+        background: rgba(117, 221, 139, 0.13);
+        color: var(--good);
+        font-size: 12px;
+        font-weight: 720;
+        padding: 5px 8px;
+      }
+
+      .viewer-body {
+        display: grid;
+        gap: 7px;
+        padding: 9px 10px;
+      }
+
+      .code-line {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 10px;
+        color: var(--muted);
+        font-family:
+          "SFMono-Regular",
+          Consolas,
+          "Liberation Mono",
+          monospace;
+        font-size: 11px;
+      }
+
+      .code-line span:last-child {
+        overflow: hidden;
+        color: var(--text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .callout {
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        padding: 11px 12px;
+      }
+
+      @media (max-width: 980px) {
+        .comparison,
+        .state-model {
+          grid-template-columns: 1fr;
+        }
+
+        .mock-shell {
+          max-width: 520px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="intro" aria-label="Design understanding">
+        <div>
+          <p class="eyebrow">Review queue language concept</p>
+          <h1>One review state model, reused across queue, tree, and file view.</h1>
+        </div>
+        <p>
+          The inspector should not explain work through a separate next-action card.
+          The useful part is the three-state summary and the queue itself. Rows inside
+          a state section do not need to repeat that state. Mixed surfaces, such as
+          the file tree and the open file header, can reuse the same quiet state label.
+        </p>
+        <div class="state-model">
+          <div class="model-card">
+            <strong>Queued</strong>
+            <span>Review candidates waiting for a human decision. Unread remains only a blue dot.</span>
+          </div>
+          <div class="model-card">
+            <strong>In Review</strong>
+            <span>Files with open threads or active review conversation.</span>
+          </div>
+          <div class="model-card">
+            <strong>Reviewed</strong>
+            <span>Completed review work. If a new HEAD change appears, the file moves back to Queued automatically.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="comparison" aria-label="Review queue and shared status label concepts">
+        <section class="mock-shell" aria-label="Right inspector mock">
+          <div class="mock-top">
+            <div class="mock-title">
+              <strong>Review</strong>
+              <span>Queued, In Review, Reviewed</span>
+            </div>
+          </div>
+
+          <div class="inspector">
+            <div class="summary" aria-label="Review state summary">
+              <span><strong>6</strong><small>Queued</small></span>
+              <span><strong>2</strong><small>In Review</small></span>
+              <span><strong>16</strong><small>Reviewed</small></span>
+            </div>
+
+            <div class="queue-head">
+              <h2>Queue</h2>
+              <small>Unread is only the blue dot</small>
+            </div>
+
+            <details open>
+              <summary>
+                <span class="state-name">Queued</span>
+                <span class="state-count">6 files</span>
+                <span class="state-note">waiting for a decision</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <span class="unread-dot" aria-label="Unread"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">TSX</span>
+                      <b>FileViewer.tsx</b>
+                    </span>
+                    <span class="path">ui/src/features/file-context/components HEAD diff</span>
+                  </span>
+                  <span class="stat"><span class="plus">+43</span><span class="minus">-0</span></span>
+                </div>
+                <div class="row">
+                  <span class="unread-dot" aria-label="Unread"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">TSX</span>
+                      <b>ViewerControlButton.tsx</b>
+                    </span>
+                    <span class="path">ui/src/features/file-context/components HEAD diff</span>
+                  </span>
+                  <span class="stat"><span class="plus">+19</span><span class="minus">-0</span></span>
+                </div>
+                <div class="row">
+                  <span class="read-dot" aria-label="Read"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">TS</span>
+                      <b>review-next-action.ts</b>
+                    </span>
+                    <span class="path">ui/src/state HEAD diff</span>
+                  </span>
+                  <span class="stat"><span class="plus">+120</span><span class="minus">-0</span></span>
+                </div>
+              </div>
+            </details>
+
+            <details open>
+              <summary>
+                <span class="state-name">In Review</span>
+                <span class="state-count">2 files</span>
+                <span class="state-note">open threads or active conversation</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <span class="unread-dot" aria-label="Unread"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">MD</span>
+                      <b>README.md</b>
+                    </span>
+                    <span class="path">2 open threads · 12 messages · latest agent reply</span>
+                  </span>
+                  <span class="meta">open</span>
+                </div>
+                <div class="row">
+                  <span class="read-dot" aria-label="Read"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">HTML</span>
+                      <b>review-preview.html</b>
+                    </span>
+                    <span class="path">1 open thread · waiting on human decision</span>
+                  </span>
+                  <span class="meta">open</span>
+                </div>
+              </div>
+            </details>
+
+            <details>
+              <summary>
+                <span class="state-name">Reviewed</span>
+                <span class="state-count">16 files</span>
+                <span class="state-note">collapsed by default</span>
+              </summary>
+              <div class="rows">
+                <div class="row">
+                  <span class="read-dot" aria-label="Read"></span>
+                  <span class="main">
+                    <span class="line">
+                      <span class="tag">TSX</span>
+                      <b>ReviewQueuePanel.stories.tsx</b>
+                    </span>
+                    <span class="path">marked reviewed 8m ago · new HEAD change returns it to Queued</span>
+                  </span>
+                  <span class="stat"><span class="plus">+144</span><span class="minus">-11</span></span>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="callout">
+            The queue section owns grouping. Individual queue rows only show file type,
+            file name, path, unread dot, and change/comment evidence.
+          </div>
+        </section>
+
+        <section class="surfaces" aria-label="Shared state label surfaces">
+          <article class="surface-card">
+            <div class="surface-copy">
+              <h2>Same label in mixed surfaces</h2>
+              <p>
+                The state label is useful where files are mixed together. It can be
+                quiet: a small label with a colored dot, reused in the tree and file header.
+              </p>
+            </div>
+            <div class="tree" aria-label="File tree status label mock">
+              <div class="tree-row active">
+                <span class="status-dot queued"></span>
+                <span class="tree-name">
+                  <b>FileViewer.tsx</b>
+                  <span class="state-label queued">Queued</span>
+                </span>
+              </div>
+              <div class="tree-row">
+                <span class="status-dot reviewing"></span>
+                <span class="tree-name">
+                  <b>README.md</b>
+                  <span class="state-label reviewing">In Review</span>
+                </span>
+              </div>
+              <div class="tree-row">
+                <span class="status-dot reviewed"></span>
+                <span class="tree-name">
+                  <b>ReviewQueuePanel.stories.tsx</b>
+                  <span class="state-label reviewed">Reviewed</span>
+                </span>
+              </div>
+            </div>
+          </article>
+
+          <article class="surface-card">
+            <div class="surface-copy">
+              <h2>Same slot in the file view</h2>
+              <p>
+                The open file keeps one review-state slot in the header. The value changes
+                between Queued, In Review, and Reviewed. The completion action appears only
+                when the current state can become Reviewed.
+              </p>
+            </div>
+            <div class="viewer-stack">
+              <div class="viewer">
+                <div class="viewer-header">
+                  <span class="crumbs">
+                    <span class="path-prefix">ui / src / features / file-context /</span>
+                    <strong class="filename">FileViewer.tsx</strong>
+                    <span class="state-label queued"><span class="status-dot queued"></span>Queued</span>
+                  </span>
+                  <span class="viewer-actions">
+                    <button class="btn" type="button">Mark as reviewed</button>
+                  </span>
+                </div>
+                <div class="viewer-body">
+                  <div class="code-line"><span>134</span><span>const reviewSummary = activeFileReviewSummary(file, comments);</span></div>
+                  <div class="code-line"><span>135</span><span>const frameProps = { file, activeReviewStop, reviewSummary };</span></div>
+                </div>
+              </div>
+
+              <div class="viewer">
+                <div class="viewer-header">
+                  <span class="crumbs">
+                    <span class="path-prefix">docs /</span>
+                    <strong class="filename">README.md</strong>
+                    <span class="state-label reviewing"><span class="status-dot reviewing"></span>In Review</span>
+                  </span>
+                  <span class="viewer-actions"></span>
+                </div>
+                <div class="viewer-body">
+                  <div class="code-line"><span>18</span><span>2 open threads · latest agent reply needs a human decision</span></div>
+                  <div class="code-line"><span>19</span><span>Review is still active, so Mark as reviewed is not the main action.</span></div>
+                </div>
+              </div>
+
+              <div class="viewer">
+                <div class="viewer-header">
+                  <span class="crumbs">
+                    <span class="path-prefix">ui / src / features / review-queue /</span>
+                    <strong class="filename">ReviewQueuePanel.stories.tsx</strong>
+                    <span class="state-label reviewed"><span class="status-dot reviewed"></span>Reviewed</span>
+                  </span>
+                  <span class="viewer-actions"></span>
+                </div>
+                <div class="viewer-body">
+                  <div class="code-line"><span>42</span><span>Reviewed files stay quiet until new change evidence appears.</span></div>
+                  <div class="code-line"><span>43</span><span>New HEAD diff automatically moves this file back to Queued.</span></div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

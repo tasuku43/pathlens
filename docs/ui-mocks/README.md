@@ -32,6 +32,7 @@ modal  : Cmd/Ctrl + K command palette
 - `19-right-inspector-concepts.html`: right inspector review-state concepts with A/B/C mode comparison and hidden-history treatment.
 - `20-draft-review-flow.html`: draft-first feedback flow that separates private draft batching from the published Comments inbox.
 - `21-comments-hub-concepts.html`: three alternatives that put private drafts, open threads, attention, and history under the Cmd/Ctrl+Shift+C Comments entry point.
+- `22-review-queue-language.html`: review queue language mock that separates Queued, In Review, and Reviewed from the softer unread dot.
 
 ## Implementation guidance
 

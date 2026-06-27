@@ -11,7 +11,8 @@ import {
   DiffToggleButton,
   ViewerHeaderProvider,
   type ViewerHeaderReviewStop,
-  type ViewerHeaderReviewSummary,
+  viewerHeaderReviewState,
+  type ViewerHeaderReviewState,
 } from "./ViewerControlButton.js";
 import { LargeTextPreview } from "../viewers/LargeTextPreview.js";
 import {
@@ -30,6 +31,7 @@ import {
 import type { OutlineHeading } from "../../../state/outline.js";
 import type { ResolvedTheme } from "../../../state/theme.js";
 import type { ViewerMode } from "../../../state/viewer-mode.js";
+import type { ReviewFileState } from "../../../state/review-state.js";
 
 const MarkdownViewer = lazy(() =>
   import("../viewers/MarkdownViewer.js").then((module) => ({
@@ -93,6 +95,8 @@ export function FileViewer({
   onCloseComment,
   onCommentStatusChange,
   threadActivities = {},
+  reviewState = null,
+  onMarkReviewed,
   onRevealInTree,
   onFocusActiveComment,
   onOpenPath,
@@ -118,12 +122,14 @@ export function FileViewer({
   onOutlineSelect?: (id: string) => void;
   onCreateComment?: CommentCreateHandler;
   comments?: ViviComment[];
+  reviewState?: ReviewFileState | null;
   activeCommentId?: string | null;
   expandActiveCommentThread?: boolean;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
   onCloseComment?: () => void;
   onCommentStatusChange?: CommentStatusChangeHandler;
   threadActivities?: Record<string, CommentActivitySummary>;
+  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
   onFocusActiveComment?: () => void;
   onOpenPath?: (path: string) => void;
@@ -137,12 +143,13 @@ export function FileViewer({
     comments,
     activeCommentId ?? null,
   );
-  const reviewSummary = activeFileReviewSummary(file, comments);
+  const headerReviewState = viewerHeaderReviewState(reviewState);
   const frameProps = {
     file,
     activeReviewStop,
-    reviewSummary,
+    reviewState: headerReviewState,
     onFocusActiveComment,
+    onMarkReviewed,
     onRevealInTree,
   };
   const localOutline = (
@@ -434,15 +441,17 @@ function FileViewerFrame({
   children,
   file,
   activeReviewStop,
-  reviewSummary,
+  reviewState,
   onFocusActiveComment,
+  onMarkReviewed,
   onRevealInTree,
 }: {
   children: ReactNode;
   file: FilePayload;
   activeReviewStop?: ActiveFileReviewStop | null;
-  reviewSummary?: ViewerHeaderReviewSummary | null;
+  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
+  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
   return (
@@ -451,8 +460,9 @@ function FileViewerFrame({
         value={{
           file,
           activeReviewStop,
-          reviewSummary,
+          reviewState,
           onFocusActiveComment,
+          onMarkReviewed,
           onRevealInTree,
         }}
       >
@@ -463,36 +473,6 @@ function FileViewerFrame({
 }
 
 type ActiveFileReviewStop = ViewerHeaderReviewStop;
-
-export function activeFileReviewSummary(
-  file: FilePayload,
-  comments: ViviComment[],
-): ViewerHeaderReviewSummary | null {
-  const fileComments = comments.filter((comment) => comment.path === file.path);
-  if (!fileComments.length) return null;
-
-  const open = fileComments.filter(
-    (comment) => comment.status === "open" && !isDraftComment(comment),
-  ).length;
-  const drafts = fileComments.filter(isDraftComment).length;
-  const history = fileComments.filter(
-    (comment) =>
-      !isDraftComment(comment) &&
-      (comment.status === "resolved" || comment.status === "archived"),
-  ).length;
-  const parts = [
-    open ? `${open} open` : "",
-    drafts ? `${drafts} draft${drafts === 1 ? "" : "s"}` : "",
-    history ? `${history} history` : "",
-  ].filter(Boolean);
-  const label = parts.length ? `Review ${parts.join(" · ")}` : "Review clear";
-  const title = parts.length
-    ? `Current file review: ${parts.join(", ")}`
-    : "Current file review: clear";
-  const tone = open || drafts ? "active" : history ? "history" : "clear";
-
-  return { label, title, tone };
-}
 
 export function activeFileReviewStop(
   file: FilePayload,
@@ -511,13 +491,6 @@ export function activeFileReviewStop(
       .join(" · "),
     preview: truncateCommentPreview(comment.body, 72),
   };
-}
-
-function isDraftComment(comment: ViviComment): boolean {
-  return (
-    comment.id.startsWith("draft:") ||
-    (comment as ViviComment & { draft?: boolean }).draft === true
-  );
 }
 
 export function FileOutlineControl({

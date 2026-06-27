@@ -82,17 +82,22 @@ export const CodeWithLocalOutline: Story = {
     theme: "dark",
     selectedCodeRange: { start: 4, end: 4 },
     comments: commentsForPath(sampleFiles.code.path),
+    reviewState: "queued",
+    onMarkReviewed: () => undefined,
   },
   play: async ({ canvasElement }) => {
     await waitFor(() => {
-      const reviewSummary = canvasElement.querySelector(
-        ".file-location-review-summary",
+      const reviewState = canvasElement.querySelector(
+        ".file-location-segment .review-state-label",
       );
-      expect(reviewSummary).toBeInTheDocument();
-      expect(reviewSummary).toHaveTextContent("Review 4 open");
-      expect(reviewSummary).toHaveAttribute(
+      expect(reviewState).toBeInTheDocument();
+      expect(reviewState).toHaveTextContent("Queued");
+      expect(reviewState).toHaveAttribute(
         "aria-label",
-        "Current file review: 4 open",
+        "Review state: Queued",
+      );
+      expect(canvasElement.querySelector(".mark-reviewed-button")).toHaveTextContent(
+        "Mark as reviewed",
       );
     });
   },

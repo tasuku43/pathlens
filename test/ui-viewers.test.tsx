@@ -15,7 +15,6 @@ import {
 import { DraftReviewTray } from "../ui/src/features/comments/components/DraftReviewTray.js";
 import { CommandPalette } from "../ui/src/features/command-palette/CommandPalette.js";
 import {
-  activeFileReviewSummary,
   activeFileReviewStop,
   FileOutlineControl,
   FileViewer,
@@ -24,6 +23,7 @@ import {
   ViewerHeaderProvider,
   ViewerToolbar,
   ViewerToolbarLocation,
+  viewerHeaderReviewState,
 } from "../ui/src/features/file-context/components/ViewerControlButton.js";
 import {
   Inspector,
@@ -1509,30 +1509,13 @@ it("keeps current-file review status compact in the viewer toolbar", () => {
     ...codeFile,
     path: "src/app.ts",
   };
-  const draftComment: ViviComment & { draft: true } = {
-    ...codeLineComment,
-    id: "draft:comment-1",
-    draft: true,
-    body: "Private draft note",
-    status: "open",
-  };
-  const resolvedComment: ViviComment = {
-    ...codeLineComment,
-    id: "resolved-comment",
-    threadId: "thread-resolved",
-    status: "resolved",
-  };
-  const reviewSummary = activeFileReviewSummary(file, [
-    { ...codeLineComment, threadId: "thread-open" },
-    draftComment,
-    resolvedComment,
-    { ...codeLineComment, id: "other-file", path: "docs/other.md" },
-  ]);
+  const reviewState = viewerHeaderReviewState("queued");
   const html = renderToStaticMarkup(
     <ViewerHeaderProvider
       value={{
         file,
-        reviewSummary,
+        reviewState,
+        onMarkReviewed: () => undefined,
         onRevealInTree: () => undefined,
       }}
     >
@@ -1542,19 +1525,22 @@ it("keeps current-file review status compact in the viewer toolbar", () => {
     </ViewerHeaderProvider>,
   );
 
-  expect(reviewSummary).toEqual({
-    label: "Review 1 open · 1 draft · 1 history",
-    title: "Current file review: 1 open, 1 draft, 1 history",
-    tone: "active",
+  expect(reviewState).toEqual({
+    state: "queued",
+    label: "Queued",
+    title: "Review state: Queued",
+    tone: "queued",
   });
   expect(html).toContain(
-    'class="file-location-review-summary active"',
+    'class="review-state-label queued"',
   );
   expect(html).toContain(
-    'aria-label="Current file review: 1 open, 1 draft, 1 history"',
+    'aria-label="Review state: Queued"',
   );
-  expect(html).toContain("Review 1 open · 1 draft · 1 history");
+  expect(html).toContain("Queued");
+  expect(html).toContain("Mark as reviewed");
   expect(html).not.toContain("Current file</span>");
+  expect(html).not.toContain("Review 1 open");
 });
 
 it("keeps the HTML viewer sandboxed and exposes source mode controls", () => {
@@ -1839,19 +1825,17 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
     />,
   );
 
-  expect(html).toContain("Review Queue");
-  expect(html.indexOf("Review Queue")).toBeLessThan(html.indexOf("Comments"));
-  expect(html).toContain("Next");
-  expect(html).toContain("Previous");
-  expect(html).toContain("Unseen");
-  expect(html).toContain("Meta+Shift+U Control+Shift+U");
-  expect(html).toContain("<strong>2/3</strong> files seen");
-  expect(html).toContain("1 unseen");
-  expect(html).toContain('aria-valuetext="2 of 3 review files seen, 1 unseen"');
-  expect(html).toContain("viewing 1/3");
-  expect(html).toContain('class="review-queue" role="list"');
+  expect(html).toContain("Review");
+  expect(html).toContain("Queued");
+  expect(html).toContain("In Review");
+  expect(html).toContain("Reviewed");
+  expect(html).toContain('class="review-state-summary"');
+  expect(html).toContain('class="review-state-section queued"');
+  expect(html).toContain('class="review-state-section reviewing"');
+  expect(html).toContain('class="review-state-section reviewed"');
+  expect(html).toContain('class="review-queue" role="group"');
   expect(html).toContain(
-    'aria-label="Review queue, 2 of 3 review files seen, 1 unseen"',
+    'aria-label="Review queue, 3 queued, 0 in review, 0 reviewed"',
   );
   expect(html).toContain(
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help"',
@@ -1860,9 +1844,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain(
     "Use Down Arrow, Up Arrow, Home, and End to move between review",
   );
-  expect(html).toContain(
-    'class="review-queue-item" role="listitem" aria-posinset="1" aria-setsize="3"',
-  );
+  expect(html).toContain('class="review-queue-item"');
   expect(html).toContain('class="change-open active"');
   expect(html).toContain('aria-current="true"');
   expect(html).toContain('aria-keyshortcuts="ArrowDown ArrowUp Home End"');
@@ -1871,7 +1853,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
     'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
   );
   expect(html).toContain('id="review-queue-item-1-description"');
-  expect(html).toContain("unseen review work, from HEAD diff");
+  expect(html).toContain("unread review activity, from HEAD diff");
   expect(html).toContain("Click or press Enter to preview a review file.");
   expect(html).toContain("Double-click to keep it open as a tab.");
   expect(html).toContain('data-review-index="0"');
@@ -1880,7 +1862,7 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain(
     'aria-label="Review queue item, modified src/app.ts, current review file"',
   );
-  expect(html).toContain("src/app.ts:2");
+  expect(html).not.toContain("src/app.ts:2");
   expect(html).toContain("+100");
   expect(html).toContain("-32");
   expect(html).toContain("metadata");
@@ -1896,18 +1878,17 @@ it("keeps the inspector focused on review queue, comments, and file details", ()
   expect(html).toContain('title="src/app.ts"');
   expect(html).toContain("modified");
   expect(html).toContain("renamed");
-  expect(html).toContain("File details");
-  expect(html.indexOf("Review Queue")).toBeLessThan(
-    html.indexOf("File details"),
-  );
-  expect(html).toContain("Open all changed files as tabs");
-  expect(html).toContain("In this file");
-  expect(html).toContain("export");
-  expect(html).toContain("start");
+  expect(html).not.toContain("File details");
+  expect(html).not.toContain("Open all changed files as tabs");
+  expect(html).not.toContain("In this file");
+  expect(html).not.toContain("Comments");
+  expect(html).not.toContain("export");
+  expect(html).not.toContain("start");
   expect(html).not.toContain("Recent events");
   expect(html).not.toContain("Diff</button>");
   expect(html).not.toContain("Review targets");
   expect(html).not.toContain("Changed files");
+  expect(html).not.toContain("Next Action");
   expect(html).not.toContain("Diff preview");
 });
 
@@ -1924,7 +1905,7 @@ it("maps review queue arrow keys to stable review rows", () => {
   expect(reviewQueueKeyboardTarget("ArrowDown", -1, 0)).toBeNull();
 });
 
-it("keeps active-file comment threads focused on conversation state", () => {
+it("keeps legacy active-file thread mode out of the review inspector", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
@@ -1975,47 +1956,25 @@ it("keeps active-file comment threads focused on conversation state", () => {
     />,
   );
 
-  expect(html).toContain("<strong>1 open thread</strong>");
-  expect(html).toContain("3 total messages in this file");
-  expect(html).toContain('class="active-comment-thread open active"');
-  expect(html).toContain('class="active-comment-thread resolved"');
-  expect(html).toContain('aria-current="true"');
-  expect(html).toContain("Current thread");
-  expect(html).toContain("2 messages");
-  expect(html).toContain('class="active-comment-thread-preview"');
-  expect(html).toContain("Second message in same thread");
-  expect(html).toContain("Check this return");
-  expect(html).toContain(
-    "current thread, Source L2, source, L2, latest: Second message in same thread",
-  );
-  expect(html).toContain("source");
-  expect(html).toContain("L2");
-  expect(html).toContain('data-testid="review-comment-thread"');
-  expect(html).toContain('data-comment-thread-id="thread-1"');
-  expect(html).toContain('aria-label="Thread actions for src/app.ts, L2"');
-  expect(html).toContain('class="active-comment-thread-actions"');
-  expect(html).toContain(">Resolve current thread</button>");
-  expect(html).toContain(">Reopen</button>");
-  expect(html).toContain(">Archive current thread</button>");
-  expect(html).toContain(
-    'aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"',
-  );
-  expect(html).toContain(
-    'aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"',
-  );
-  expect(html).toContain(
-    'title="Resolve current thread (Cmd/Ctrl Shift Enter)"',
-  );
-  expect(html).toContain(
-    'title="Archive current thread (Cmd/Ctrl Shift Backspace)"',
-  );
+  expect(html).toContain("Review");
+  expect(html).toContain("Reviewed");
+  expect(html).not.toContain("<strong>1 open thread</strong>");
+  expect(html).not.toContain("3 total messages in this file");
+  expect(html).not.toContain('class="active-comment-thread open active"');
+  expect(html).not.toContain('class="active-comment-thread resolved"');
+  expect(html).not.toContain("Current thread");
+  expect(html).not.toContain('data-testid="review-comment-thread"');
+  expect(html).not.toContain('class="active-comment-thread-actions"');
+  expect(html).not.toContain(">Resolve current thread</button>");
+  expect(html).not.toContain(">Reopen</button>");
+  expect(html).not.toContain(">Archive current thread</button>");
   expect(html).not.toContain("2 open comments");
   expect(html).not.toContain("Current file</span>");
   expect(html).not.toContain("Open 3 total messages in Comments panel");
   expect(html).not.toContain('data-testid="review-open-comments-panel"');
 });
 
-it("updates active-file comment thread status from the inspector", () => {
+it("does not expose legacy active-file thread actions in the review inspector", () => {
   const updates: Array<[string, string]> = [];
   const inspector = Inspector({
     file: codeFile,
@@ -2037,25 +1996,19 @@ it("updates active-file comment thread status from the inspector", () => {
       updates.push([threadId, status]),
   });
 
-  const resolveButton = findElement(inspector, (element) => {
-    const props = element.props as { children?: ReactNode; type?: string };
-    return props.type === "button" && flattenText(props.children) === "Resolve";
-  });
-  const archiveButton = findElement(inspector, (element) => {
-    const props = element.props as { children?: ReactNode; type?: string };
-    return props.type === "button" && flattenText(props.children) === "Archive";
-  });
-
-  (resolveButton.props as { onClick: () => void }).onClick();
-  (archiveButton.props as { onClick: () => void }).onClick();
-
-  expect(updates).toEqual([
-    ["thread-1", "resolved"],
-    ["thread-1", "archived"],
-  ]);
+  expect(() =>
+    findElement(inspector, (element) => {
+      const props = element.props as { children?: ReactNode; type?: string };
+      return (
+        props.type === "button" &&
+        ["Resolve", "Archive"].includes(flattenText(props.children))
+      );
+    }),
+  ).toThrow();
+  expect(updates).toEqual([]);
 });
 
-it("shows precise active-file comment locations in the inspector", () => {
+it("keeps legacy active-file comment locations out of the review inspector", () => {
   const renderedComment: ViviComment = {
     ...codeLineComment,
     id: "markdown-rendered-thread",
@@ -2126,17 +2079,17 @@ it("shows precise active-file comment locations in the inspector", () => {
     />,
   );
 
-  expect(html).toContain(
+  expect(html).not.toContain(
     "Rendered Markdown · block vivi-block-2 · source L3-L4",
   );
-  expect(html).toContain("Diff new L8-L9");
-  expect(html).toContain(
+  expect(html).not.toContain("Diff new L8-L9");
+  expect(html).not.toContain(
     'aria-label="Open thread in README.md, Rendered Markdown · block vivi-block-2 · source L3-L4, markdown rendered, L3-L4, latest: Rendered paragraph needs a clearer transition."',
   );
-  expect(html).toContain(
+  expect(html).not.toContain(
     'aria-label="Open thread in README.md, Diff new L8-L9, diff, L8-L9, latest: Diff branch needs a clearer transition."',
   );
-  expect(html).toContain('class="active-comment-thread-location"');
+  expect(html).not.toContain('class="active-comment-thread-location"');
 });
 
 it("does not render active-file comments panel actions in the inspector", () => {
@@ -3581,13 +3534,15 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
 
   expect(html).toContain("Tasuku marked resolved");
   expect(html).toContain("agent-handoff.md");
-  expect(html).toContain("pinned from 2/2");
-  expect(html).not.toContain("viewing 2/2");
+  expect(html).toContain('aria-label="Review queue, 1 queued, 1 in review, 0 reviewed"');
+  expect(html).toContain("Queued");
+  expect(html).toContain("In Review");
+  expect(html).toContain("Reviewed");
   expect(html).toContain("has-open-threads active");
   const queueHtml = html.slice(html.indexOf('class="review-queue"'));
   expect(
-    queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'),
-  ).toBeLessThan(queueHtml.indexOf('data-review-path="src/app.ts"'));
+    queueHtml.indexOf('data-review-path="src/app.ts"'),
+  ).toBeLessThan(queueHtml.indexOf('data-review-path="docs/agent-handoff.md"'));
   expect(html).toContain("2 open threads");
   expect(html).toContain("3 total messages");
   expect(html).toContain('class="review-stop-summary"');
@@ -3601,19 +3556,18 @@ it("renders comment activity in Review Queue and inspector comment summaries", (
     'aria-label="Review queue item, comment docs/agent-handoff.md, current review file"',
   );
   expect(html).toContain(
-    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-1-description"',
+    'aria-describedby="review-queue-interaction-help review-queue-keyboard-help review-queue-item-2-description"',
   );
   expect(html).toContain(
-    "unseen review work, 2 open threads, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
+    "unread review activity, 2 open threads, 3 total messages, Queue stop diff · L7: Agent reply needs a human decision before this file is clear.",
   );
-  expect(html).toContain(
-    "<strong>1/2</strong> files seen · 1 unseen · 2 open threads",
-  );
-  expect(html).toContain("Review Queue");
-  expect(html).toContain("1 open thread");
+  expect(html).toContain('class="review-state-card queued"');
+  expect(html).toContain('class="review-state-card reviewing"');
+  expect(html).toContain("2 open threads");
+  expect(html).not.toContain('class="active-comment-thread"');
 });
 
-it("marks active file comment threads when the file changed since the anchor", () => {
+it("does not surface legacy source-changed thread warnings in the review inspector", () => {
   const staleComment: ViviComment = {
     ...codeLineComment,
     anchor: {
@@ -3645,13 +3599,13 @@ it("marks active file comment threads when the file changed since the anchor", (
     />,
   );
 
-  expect(html).toContain("Source changed");
-  expect(html).toContain(
+  expect(html).not.toContain("Source changed");
+  expect(html).not.toContain(
     'aria-label="Current file content differs from this comment anchor"',
   );
 });
 
-it("marks active comment threads when the source path is missing", () => {
+it("does not surface legacy source-missing thread warnings in the review inspector", () => {
   const missingComment: ViviComment = {
     ...codeLineComment,
     path: "README.md",
@@ -3685,8 +3639,8 @@ it("marks active comment threads when the source path is missing", () => {
     />,
   );
 
-  expect(html).toContain("Source missing");
-  expect(html).toContain(
+  expect(html).not.toContain("Source missing");
+  expect(html).not.toContain(
     'aria-label="This comment points to a path that is not present in the current workspace tree"',
   );
 });
@@ -3739,7 +3693,9 @@ it("keeps resolved-only Review Queue files out of next-stop guidance", () => {
   expect(html).not.toContain('class="review-stop-summary"');
   expect(html).not.toContain("Queue stop");
   expect(html).not.toContain("Next queue stop");
-  expect(html).toContain("seen, 1 total message, from HEAD diff");
+  expect(html).toContain('aria-label="Review queue, 1 queued, 0 in review, 1 reviewed"');
+  expect(html).toContain("read, 1 total message, from HEAD diff");
+  expect(html).toContain("<span>Reviewed</span><small>1 reviewed</small>");
 });
 
 it("opens Review Queue rows as preview on click and stable tabs on double click", () => {
@@ -3861,7 +3817,7 @@ it("summarizes code symbols and selected range in the local outline trigger", ()
   expect(html).toContain("<small>1</small>");
 });
 
-it("renders document outline in the right inspector", () => {
+it("keeps document outline out of the review inspector", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={markdownFile}
@@ -3887,22 +3843,19 @@ it("renders document outline in the right inspector", () => {
     />,
   );
 
-  expect(html).toContain("In this file");
-  expect(html).toContain("2 headings · Setup");
-  expect(html).toContain('aria-label="Document outline"');
-  expect(html).toContain('aria-current="location"');
-  expect(html).toContain('class="h2 active"');
-  expect(html).toContain("outline-level");
-  expect(html).toContain(">H1</span>");
-  expect(html).toContain(">H2</span>");
-  expect(html).toContain(">L1</span>");
-  expect(html).toContain(">L3</span>");
-  expect(html).toContain("Current section");
-  expect(html).toContain("Title");
-  expect(html).toContain("Setup");
+  expect(html).toContain("Review");
+  expect(html).not.toContain("In this file");
+  expect(html).not.toContain("2 headings · Setup");
+  expect(html).not.toContain('aria-label="Document outline"');
+  expect(html).not.toContain('aria-current="location"');
+  expect(html).not.toContain('class="h2 active"');
+  expect(html).not.toContain("outline-level");
+  expect(html).not.toContain(">H1</span>");
+  expect(html).not.toContain(">H2</span>");
+  expect(html).not.toContain("Current section");
 });
 
-it("renders lightweight code symbols in the right inspector", () => {
+it("keeps lightweight code symbols out of the review inspector", () => {
   const html = renderToStaticMarkup(
     <Inspector
       file={codeFile}
@@ -3922,12 +3875,13 @@ it("renders lightweight code symbols in the right inspector", () => {
     />,
   );
 
-  expect(html).toContain("In this file");
-  expect(html).toContain("1 symbol");
-  expect(html).toContain('aria-label="Code symbols"');
-  expect(html).toContain("export");
-  expect(html).toContain("start");
-  expect(html).toContain("L1");
+  expect(html).toContain("Review");
+  expect(html).not.toContain("In this file");
+  expect(html).not.toContain("1 symbol");
+  expect(html).not.toContain('aria-label="Code symbols"');
+  expect(html).not.toContain("export");
+  expect(html).not.toContain("start");
+  expect(html).not.toContain("L1");
 });
 
 it("shows why the Review Queue is unavailable instead of looking empty", () => {
@@ -4042,14 +3996,12 @@ it("does not mark comment-only Review Queue results complete while Git review is
     />,
   );
 
-  expect(html).toContain("<strong>1/1</strong> files seen");
-  expect(html).toContain("loading changed files");
   expect(html).toContain(
-    'aria-valuetext="1 of 1 loaded review files seen, loading changed files"',
+    'aria-label="Review queue, 0 queued, 1 in review, 0 reviewed"',
   );
-  expect(html).toContain(
-    'aria-label="Review queue, 1 of 1 loaded review files seen, loading changed files"',
-  );
+  expect(html).toContain("In Review");
+  expect(html).toContain("Loading Git review");
+  expect(html).toContain("open comment threads may appear before changed files");
   expect(html).not.toContain("all seen");
   expect(html).not.toContain("all review files seen");
 });
@@ -4699,7 +4651,7 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   );
   expect(html).toContain('role="tree"');
   expect(html).toContain(
-    'aria-label="Live workspace map, 1 root entry, 3 loaded files, 2 review files, 2 unseen review files, 2 open files, 2 open threads, 3 comments"',
+    'aria-label="Live workspace map, 1 root entry, 3 loaded files, 2 review files, 2 unread review files, 2 open files, 2 open threads, 3 comments"',
   );
   expect(html).toContain('id="workspace-tree-interaction-help"');
   expect(html).toContain('aria-describedby="workspace-tree-interaction-help"');
@@ -4721,13 +4673,13 @@ it("surfaces review work, comments, unread state, and open tabs in the tree", ()
   );
   expect(html).toContain("attention · current stop · review");
   expect(html).toContain(
-    'aria-label="docs, folder, expanded, contains selected file, contains current review stop review.md, 2 open files, 2 review files, 2 unseen review files, 2 open threads, 3 comments"',
+    'aria-label="docs, folder, expanded, contains selected file, contains current review stop review.md, 2 open files, 2 review files, 2 unread review files, 2 open threads, 3 comments"',
   );
   expect(html).toContain(
-    'aria-label="brief.md, file, selected, changed, review file, unseen review work, open in tab, 2 open threads, 3 comments"',
+    'aria-label="brief.md, file, selected, changed, review file, unread review activity, open in tab, 2 open threads, 3 comments"',
   );
   expect(html).toContain(
-    'aria-label="review.md, file, review file, unseen review work, current review stop"',
+    'aria-label="review.md, file, review file, unread review activity, current review stop"',
   );
   expect(html).toContain(
     'title="Click to preview; double-click to keep open as a tab"',
@@ -4823,7 +4775,7 @@ it("names the next review stop in tree folders when there is no current stop", (
     "next brief.md · attention · 1 open thread · 2 review files",
   );
   expect(html).toContain(
-    'aria-label="docs, folder, expanded, next review stop brief.md, 2 review files, 1 unseen review file, 1 open thread"',
+    'aria-label="docs, folder, expanded, next review stop brief.md, 2 review files, 1 unread review file, 1 open thread"',
   );
 });
 

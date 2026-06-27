@@ -118,7 +118,9 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
     await expect(
       canvas.getByRole("tab", { name: /WorkbenchContainer.tsx/ }),
     ).toBeInTheDocument();
-    await expect(canvas.getByText("Review Queue")).toBeInTheDocument();
+    await expect(
+      canvasElement.querySelector(".inspector .panel-title > span:first-child"),
+    ).toHaveTextContent("Review");
     const attentionButton = canvas.getByRole("button", {
       name: /Open Comments hub/,
     });
@@ -179,48 +181,24 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
     const inspector = canvas.getByRole("complementary", {
       name: "Review inspector",
     });
-    await expect(within(inspector).getByText("Review Queue")).toBeVisible();
+    await expect(
+      within(inspector).getByText("Queued", { selector: "summary span" }),
+    ).toBeVisible();
 
     const focusedReviewItem = canvasElement.ownerDocument
       .activeElement as HTMLElement | null;
 
     expect(focusedReviewItem?.classList.contains("change-open")).toBe(true);
 
-    const modeRail = within(inspector).getByRole("group", {
-      name: "Inspector mode",
-    });
-    await expect(within(modeRail).getByText("A Review")).toBeVisible();
-    await expect(within(modeRail).getByText("B Threads")).toBeVisible();
-    await expect(within(modeRail).getByText("C Map")).toBeVisible();
-
-    await userEvent.click(
-      within(inspector).getByRole("radio", {
-        name: "B Threads conversation",
-      }),
-    );
-    await expect(within(inspector).getByText("Threads")).toBeVisible();
-    await expect(within(inspector).getByText("This file")).toBeVisible();
-    await expect(within(inspector).getByText("Queue context")).toBeVisible();
-
-    await userEvent.click(
-      within(inspector).getByRole("radio", {
-        name: "C Map reading",
-      }),
-    );
-    await expect(within(inspector).getByText("Reader")).toBeVisible();
-    const visibleReaderMap = within(inspector)
-      .getAllByText("In this file")
-      .find((element) => element.getBoundingClientRect().height > 0);
-    expect(visibleReaderMap).toBeDefined();
-    await expect(visibleReaderMap!).toBeVisible();
-    await expect(within(inspector).getByText("File details")).toBeVisible();
-
-    await userEvent.click(
-      within(inspector).getByRole("radio", {
-        name: "A Review active work",
-      }),
-    );
-    await expect(within(inspector).getByText("Queue")).toBeVisible();
+    await expect(
+      within(inspector).queryByRole("group", { name: "Inspector mode" }),
+    ).not.toBeInTheDocument();
+    await expect(
+      within(inspector).getByText("In Review", { selector: "summary span" }),
+    ).toBeVisible();
+    await expect(
+      within(inspector).getByText("Reviewed", { selector: "summary span" }),
+    ).toBeVisible();
 
     await userEvent.click(
       canvas.getByRole("button", { name: "Collapse inspector" }),
@@ -254,7 +232,7 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
       name: "Review inspector",
     });
     await expect(
-      within(reopenedInspector).getByText("Review Queue"),
+      within(reopenedInspector).getByText("Queued", { selector: "summary span" }),
     ).toBeVisible();
 
     const firstReviewItem = canvasElement.querySelector<HTMLElement>(
@@ -296,19 +274,12 @@ export const FileWithDraftComments: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("radio", { name: "B Threads conversation" }),
-    );
     const inspector = within(
       canvas.getByRole("complementary", { name: "Review inspector" }),
     );
     await expect(
-      inspector.getByLabelText("Active file draft comments"),
-    ).toBeVisible();
-    await expect(inspector.getAllByText("Private draft")[0]).toBeVisible();
-    await expect(
-      inspector.getAllByRole("button", { name: /Open private draft in/ })[0],
-    ).toBeVisible();
+      inspector.queryByRole("radio", { name: "B Threads conversation" }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -737,6 +708,8 @@ export const ViewerHeaderSummarizesScopedCommentHistory: Story = {
     comments: [resolvedWorkbenchHistoryComment],
     draftComments: [],
     activeCommentId: null,
+    reviewItems: [],
+    reviewStateByPath: { [sampleFiles.code.path]: "reviewed" },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -744,14 +717,14 @@ export const ViewerHeaderSummarizesScopedCommentHistory: Story = {
       name: "Review inspector",
     });
 
-    const reviewSummary = canvasElement.querySelector(
-      ".file-location-review-summary",
+    const reviewState = canvasElement.querySelector(
+      ".file-location-segment .review-state-label",
     );
-    await expect(reviewSummary).toBeInTheDocument();
-    await expect(reviewSummary).toHaveTextContent("Review 1 history");
-    await expect(reviewSummary).toHaveAttribute(
+    await expect(reviewState).toBeInTheDocument();
+    await expect(reviewState).toHaveTextContent("Reviewed");
+    await expect(reviewState).toHaveAttribute(
       "aria-label",
-      "Current file review: 1 history",
+      "Review state: Reviewed",
     );
     await expect(
       within(inspector).queryByRole("button", {

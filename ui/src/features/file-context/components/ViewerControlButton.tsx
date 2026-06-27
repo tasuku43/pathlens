@@ -2,23 +2,30 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import type { FilePayload } from "../../../domain/fs-node.js";
 import { fileLocationSegments } from "../../../state/file-location.js";
+import {
+  reviewFileStateLabel,
+  reviewFileStateTone,
+  type ReviewFileState,
+} from "../../../state/review-state.js";
 
 export interface ViewerHeaderReviewStop {
   label: string;
   preview: string;
 }
 
-export interface ViewerHeaderReviewSummary {
+export interface ViewerHeaderReviewState {
+  state: ReviewFileState;
   label: string;
   title: string;
-  tone: "clear" | "active" | "history";
+  tone: string;
 }
 
 interface ViewerHeaderContextValue {
   activeReviewStop?: ViewerHeaderReviewStop | null;
   file: FilePayload;
-  reviewSummary?: ViewerHeaderReviewSummary | null;
+  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
+  onMarkReviewed?: () => void;
   onRevealInTree?: (path?: string) => void;
 }
 
@@ -64,7 +71,7 @@ export function ViewerToolbar({
         <ViewerToolbarLocation
           file={header.file}
           activeReviewStop={header.activeReviewStop}
-          reviewSummary={header.reviewSummary}
+          reviewState={header.reviewState}
           onFocusActiveComment={header.onFocusActiveComment}
           onRevealInTree={header.onRevealInTree}
         />
@@ -73,6 +80,15 @@ export function ViewerToolbar({
       <div
         className={`viewer-toolbar-actions${actionsClassName ? ` ${actionsClassName}` : ""}`}
       >
+        {header?.reviewState?.state === "queued" && header.onMarkReviewed ? (
+          <button
+            className="mark-reviewed-button"
+            type="button"
+            onClick={header.onMarkReviewed}
+          >
+            Mark as reviewed
+          </button>
+        ) : null}
         {children}
       </div>
     </div>
@@ -82,13 +98,13 @@ export function ViewerToolbar({
 export function ViewerToolbarLocation({
   file,
   activeReviewStop = null,
-  reviewSummary = null,
+  reviewState = null,
   onFocusActiveComment,
   onRevealInTree,
 }: {
   file: FilePayload;
   activeReviewStop?: ViewerHeaderReviewStop | null;
-  reviewSummary?: ViewerHeaderReviewSummary | null;
+  reviewState?: ViewerHeaderReviewState | null;
   onFocusActiveComment?: () => void;
   onRevealInTree?: (path?: string) => void;
 }) {
@@ -124,6 +140,15 @@ export function ViewerToolbarLocation({
               >
                 {segment.label}
               </button>
+              {segment.kind === "file" && reviewState ? (
+                <span
+                  aria-label={reviewState.title}
+                  className={`review-state-label ${reviewState.tone}`}
+                  title={reviewState.title}
+                >
+                  {reviewState.label}
+                </span>
+              ) : null}
             </span>
           );
         })}
@@ -143,17 +168,20 @@ export function ViewerToolbarLocation({
           <span>{activeReviewStop.preview}</span>
         </button>
       ) : null}
-      {reviewSummary ? (
-        <span
-          aria-label={reviewSummary.title}
-          className={`file-location-review-summary ${reviewSummary.tone}`}
-          title={reviewSummary.title}
-        >
-          {reviewSummary.label}
-        </span>
-      ) : null}
     </div>
   );
+}
+
+export function viewerHeaderReviewState(
+  state: ReviewFileState | null | undefined,
+): ViewerHeaderReviewState | null {
+  if (!state) return null;
+  return {
+    state,
+    label: reviewFileStateLabel(state),
+    title: `Review state: ${reviewFileStateLabel(state)}`,
+    tone: reviewFileStateTone(state),
+  };
 }
 
 function fileLocationBarLabel(path: string): string {

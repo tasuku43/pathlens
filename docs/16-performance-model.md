@@ -351,6 +351,55 @@ Interpretation:
   100k-entry watch map per event and pushed burst RSS above the target; the
   measured slice keeps platform events near 0.5 MB average allocation.
 
+### Review queue state UI check on 2026-06-27
+
+After the review queue language and inspector simplification slice, the same
+linux-scale harness was run with the coding-agent storm scenario enabled:
+
+```bash
+docker compose -f docker-compose.otel.yml up -d
+VIVI_PERF_RUN_NAME=linux-review-queue-state-2026-06-27 \
+  VIVI_PERF_WORKSPACE=/Users/tasuku/work/github.com/torvalds/linux \
+  VIVI_PERF_IDLE_MS=3500 \
+  VIVI_PERF_BURST_CHANGES=30 \
+  VIVI_PERF_BURST_DELAY_MS=20 \
+  VIVI_PERF_AGENT_STORM_OPS=300 \
+  VIVI_PERF_AGENT_STORM_FILES=60 \
+  VIVI_PERF_AGENT_STORM_DELAY_MS=0 \
+  VIVI_PERF_CLI_ITERATIONS=5 \
+  npm run perf:otel
+```
+
+Artifact:
+
+- `artifacts/perf/linux-review-queue-state-2026-06-27.summary.json`
+
+The measured workspace shape stayed at 6,142 directories and 93,609 files, and
+the run reported no scenario errors.
+
+Key values versus `linux-agent-storm-final-2026-06-27`:
+
+| Metric | Previous final | Review-state slice | Target posture |
+| --- | ---: | ---: | --- |
+| `idle_watch` steady CPU time | 0 ms over 3.3s | 10 ms over 3.27s | 0.306% average, under 5% target. |
+| `idle_watch` steady RSS max | 97.7 MB | 95.4 MB | Under 150 MB target. |
+| `front_workspace` after-load JS heap | 31.6 MB | 30.7 MB | Under 80 MB target. |
+| `front_workspace` after-load script / task | 575 ms / 683 ms | 485 ms / 588 ms | No regression observed. |
+| `front_workspace` after-interaction JS heap | 17.7 MB | 21.0 MB | Under 120 MB target. |
+| `front_workspace` after-interaction script / task | 947 ms / 1,068 ms | 1,078 ms / 1,190 ms | Slightly higher; still bounded for this slice. |
+| `change_burst` observed paths | 30 / 30 | 30 / 30 | No dropped events. |
+| `change_burst` first / last event | 1 ms / 618 ms | 1 ms / 639 ms | Under 1.5s final-event target. |
+| `coding_agent_storm` observed paths | 60 / 60 | 60 / 60 | No missing expected paths. |
+| `coding_agent_storm` first / last event | 17 ms / 104 ms | 20 ms / 109 ms | Under 1.5s final-event target. |
+| `coding_agent_storm` storm CPU time | 10 ms over 1.758s | 20 ms over 1.763s | 1.134% average, under 5% target. |
+| `coding_agent_storm` storm RSS max | 113.1 MB | 109.9 MB | Under 150 MB target. |
+
+Interpretation: the review-state UI slice did not regress the watcher CPU
+targets. Removing the hidden Threads and Map inspector DOM reduced the active
+inspector render surface; the front-end after-load path was slightly lighter,
+while the command-palette interaction window was modestly higher and should
+continue to be watched in future UI-heavy slices.
+
 ### Production-readiness performance targets
 
 These targets define the line Vivi should reach before it is considered
