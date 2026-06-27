@@ -27,7 +27,7 @@ A build is acceptable when a user can:
 19. See source/code diffs as inline highlighted line rows, and rendered Markdown/HTML diffs as rendered visual panes.
 20. Keep image, text/log, and structured file previews readable without implying editing.
 21. See Git changes and files with open human/agent threads in one prioritized Review Queue, with compact thread/message counts, latest attributed activity, and seen/unseen progress.
-22. Move through the Review Queue with Cmd/Ctrl + Shift + J/K and jump to unseen work with Cmd/Ctrl + Shift + U.
+22. Move through the Review Queue with Cmd/Ctrl + Shift + J/K, jump to unseen work with Cmd/Ctrl + Shift + U, and jump to in-review replies with Cmd/Ctrl + Shift + I.
 23. Keep resolved threads in the Comments history filter, hide archived threads from the browser UI, and never promote terminal threads into the active Review Queue.
 
 ## Evaluation function
