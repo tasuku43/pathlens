@@ -58,7 +58,7 @@ export const SourceHtmlComment: Story = {
     await userEvent.click(lineAction!);
     await expect(canvas.getByLabelText("New line comment")).toBeVisible();
     await expect(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     ).toBeDisabled();
     await expect(canvas.queryByText("Draft a review comment")).toBeNull();
     const previewMode = canvasElement.querySelector<HTMLButtonElement>(
@@ -153,8 +153,8 @@ export const PreviewRenderedHtmlThread: Story = {
   },
 };
 
-export const PreviewStartsSeparateDraftFromExistingThread: Story = {
-  name: "HTML preview can start a separate draft beside a thread",
+export const PreviewKeepsThreadReplyFocused: Story = {
+  name: "HTML preview keeps thread replies focused",
   tags: ["interaction"],
   args: {
     mode: "preview",
@@ -178,18 +178,17 @@ export const PreviewStartsSeparateDraftFromExistingThread: Story = {
       within(thread).getByText(/HTML rendered comments should be visible/),
     ).toBeVisible();
 
-    await userEvent.click(
-      within(thread).getByRole("button", { name: "Start separate thread" }),
-    );
-
-    await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
     await expect(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
+      within(thread).queryByRole("button", { name: "Start separate thread" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
+    await expect(
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     ).toBeDisabled();
     await expect(
-      canvas.queryByText(/HTML rendered comments should be visible/),
-    ).toBeNull();
-    await expect(canvas.queryByLabelText("Reply to thread")).toBeNull();
+      within(thread).getByText(/HTML rendered comments should be visible/),
+    ).toBeVisible();
   },
 };
 
@@ -260,7 +259,7 @@ export const SinglePreviewDraftFormFixedSlot: Story = {
       "Reader paragraph needs a stable rendered anchor.",
     );
     const submit = canvas.getByRole("button", {
-      name: "Save private draft comment",
+      name: "Save pending draft comment",
     });
     await expect(submit).toBeEnabled();
     await userEvent.click(submit);

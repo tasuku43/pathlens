@@ -98,7 +98,8 @@ export const RenderedBlockClickDraft: Story = {
   },
 };
 
-export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
+export const RenderedCommentModifierClickStartsDraftComposer: Story = {
+  name: "Rendered Markdown modifier click opens a draft composer",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -127,8 +128,8 @@ export const RenderedCommentModifierClickStartsSeparateDraft: Story = {
   },
 };
 
-export const RenderedStartsSeparateDraftFromExistingThread: Story = {
-  name: "Rendered Markdown can start a separate draft beside a thread",
+export const RenderedKeepsThreadReplyFocused: Story = {
+  name: "Rendered Markdown keeps thread replies focused",
   tags: ["interaction"],
   args: {
     mode: "rendered",
@@ -148,35 +149,18 @@ export const RenderedStartsSeparateDraftFromExistingThread: Story = {
       within(existingThread).getByText(/feedback layer well/),
     ).toBeVisible();
 
-    await userEvent.click(
-      within(existingThread).getByRole("button", {
-        name: "Start separate thread",
-      }),
-    );
-
     await expect(
       canvas.getAllByRole("article", {
         name: "Comment thread for line 7",
       }),
-    ).toHaveLength(2);
-    const separateComposer = canvas
-      .getAllByLabelText("New line comment")
-      .find(
-        (composer) =>
-          !composer
-            .getAttribute("aria-describedby")
-            ?.includes("mode-thread-"),
-      );
-    expect(separateComposer).toBeDefined();
-    await expect(separateComposer!).toHaveFocus();
+    ).toHaveLength(1);
     await expect(
-      canvas.getAllByRole("button", {
-        name: "Save private draft comment",
-      })[0],
-    ).toBeDisabled();
-    await expect(
-      canvas.getByLabelText("Continue thread"),
-    ).toBeInTheDocument();
+      within(existingThread).queryByRole("button", {
+        name: "Start separate thread",
+      }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(canvas.getByLabelText("Continue thread")).toBeInTheDocument();
   },
 };
 

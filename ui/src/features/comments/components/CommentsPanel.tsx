@@ -144,7 +144,7 @@ export function CommentsPanel({
           <h2>Comments</h2>
           <p>
             {allStats.open} open ·{" "}
-            {countNoun(draftComments.length, "private draft")} ·{" "}
+            {countNoun(draftComments.length, "pending draft")} ·{" "}
             {allStats.resolved} history
             {allStats.needsAttention
               ? ` · ${countNoun(allStats.needsAttention, "attention thread")}`
@@ -187,7 +187,7 @@ export function CommentsPanel({
           onClick={() => onStatusFilterChange("drafts")}
         >
           <strong>{draftComments.length}</strong>
-          <span>Private drafts</span>
+          <span>Pending drafts</span>
         </button>
         <button
           className={statusFilter === "open" ? "active" : ""}
@@ -338,7 +338,7 @@ export function CommentsPanel({
                 <button
                   type="button"
                   aria-keyshortcuts="Meta+Shift+Enter Control+Shift+Enter"
-                  title={`${currentStop.thread.status === "open" ? "Resolve" : "Reopen"} current thread (Cmd/Ctrl Shift Enter)`}
+                  title={`${currentStop.thread.status === "open" ? "Resolve" : "Reopen"} (Cmd/Ctrl Shift Enter)`}
                   onClick={() =>
                     onStatusChange(
                       currentStop.thread.threadId,
@@ -348,20 +348,18 @@ export function CommentsPanel({
                     )
                   }
                 >
-                  {currentStop.thread.status === "open"
-                    ? "Resolve current thread"
-                    : "Reopen current thread"}
+                  {currentStop.thread.status === "open" ? "Resolve" : "Reopen"}
                 </button>
                 {currentStop.thread.status !== "archived" ? (
                   <button
                     type="button"
                     aria-keyshortcuts="Meta+Shift+Backspace Control+Shift+Backspace"
-                    title="Archive current thread (Cmd/Ctrl Shift Backspace)"
+                    title="Archive (Cmd/Ctrl Shift Backspace)"
                     onClick={() =>
                       onStatusChange(currentStop.thread.threadId, "archived")
                     }
                   >
-                    Archive current thread
+                    Archive
                   </button>
                 ) : null}
               </>
@@ -373,7 +371,7 @@ export function CommentsPanel({
         className="global-comments-list"
         role="list"
         aria-describedby={keyboardHelpId}
-        aria-label={`${showingDrafts ? "Private draft comments" : "Comment threads"}, ${visibleResultLabel}`}
+        aria-label={`${showingDrafts ? "Pending draft comments" : "Comment threads"}, ${visibleResultLabel}`}
       >
         {showingDrafts ? (
           matchingDrafts.length ? (
@@ -415,7 +413,7 @@ export function CommentsPanel({
                           {draftSurfaceLabel(draft)}
                         </span>
                         <CommentStatusBadge status="draft">
-                          Private draft
+                          Pending draft
                         </CommentStatusBadge>
                         <span className="global-comment-author">
                           Not agent-visible
@@ -451,14 +449,14 @@ export function CommentsPanel({
                   >
                     <button
                       type="button"
-                      aria-label={`Open private draft comment for ${draft.path}`}
+                      aria-label={`Open pending draft comment for ${draft.path}`}
                       onClick={() => onOpenDraft?.(draft)}
                     >
                       Open
                     </button>
                     <button
                       type="button"
-                      aria-label={`Delete private draft comment for ${draft.path}`}
+                      aria-label={`Delete pending draft comment for ${draft.path}`}
                       onClick={() => void onDeleteDraft?.(draft.id)}
                     >
                       Delete
@@ -498,25 +496,19 @@ export function CommentsPanel({
               activeCommentId,
             );
             const toggleStatusLabel =
-              thread.status === "open"
-                ? active
-                  ? "Resolve current thread"
-                  : "Resolve"
-                : active
-                  ? "Reopen current thread"
-                  : "Reopen";
-            const archiveLabel = active ? "Archive current thread" : "Archive";
+              thread.status === "open" ? "Resolve" : "Reopen";
+            const archiveLabel = "Archive";
             const actionContext = `${thread.path}, ${thread.lineLabel}`;
             const toggleStatusActionLabel =
               thread.status === "open"
                 ? active
-                  ? "Resolve current thread"
+                  ? "Resolve"
                   : `Resolve comment for ${actionContext}`
                 : active
-                  ? "Reopen current thread"
+                  ? "Reopen"
                   : `Reopen comment for ${actionContext}`;
             const archiveActionLabel = active
-              ? "Archive current thread"
+              ? "Archive"
               : `Archive comment for ${actionContext}`;
             return (
               <div
@@ -662,7 +654,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Resolve current thread (Cmd/Ctrl Shift Enter)"
+                            ? "Resolve (Cmd/Ctrl Shift Enter)"
                             : toggleStatusActionLabel
                         }
                         onClick={() =>
@@ -682,7 +674,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Reopen current thread (Cmd/Ctrl Shift Enter)"
+                            ? "Reopen (Cmd/Ctrl Shift Enter)"
                             : toggleStatusActionLabel
                         }
                         onClick={() => onStatusChange(thread.threadId, "open")}
@@ -701,7 +693,7 @@ export function CommentsPanel({
                         }
                         title={
                           active
-                            ? "Archive current thread (Cmd/Ctrl Shift Backspace)"
+                            ? "Archive (Cmd/Ctrl Shift Backspace)"
                             : archiveActionLabel
                         }
                         onClick={() =>
@@ -985,7 +977,7 @@ function commentFilterAriaLabel(
     return `Show ${countNoun(stats.needsAttention, "attention thread")}`;
   }
   if (status === "drafts") {
-    return `Show ${countNoun(draftCount, "private draft comment")}`;
+    return `Show ${countNoun(draftCount, "pending draft comment")}`;
   }
   return `Show ${countNoun(stats[status], `${statusLabel(status).toLowerCase()} thread`)}`;
 }
@@ -1063,7 +1055,7 @@ function commentInboxEmptyState(
 
   if (statusFilter === "drafts") {
     return {
-      title: searching ? "No matching private drafts" : "No private drafts",
+      title: searching ? "No matching pending drafts" : "No pending drafts",
       detail: searching
         ? "Try another status filter or broaden your search."
         : "Draft comments saved from rendered, source, or diff surfaces will collect here before publish.",
@@ -1099,8 +1091,8 @@ function commentInboxEmptyState(
 
 function draftCountLabel(count: number): string {
   if (count === 0) return "No unpublished comments";
-  if (count === 1) return "1 private draft ready";
-  return `${count} private drafts ready`;
+  if (count === 1) return "1 pending draft ready";
+  return `${count} pending drafts ready`;
 }
 
 function draftResultSummaryLabel(
@@ -1108,7 +1100,7 @@ function draftResultSummaryLabel(
   summary: DraftReviewSummary,
 ): string {
   return [
-    countNoun(draftCount, "private draft"),
+    countNoun(draftCount, "pending draft"),
     countNoun(summary.threadCount, "open thread after publish"),
     countNoun(summary.fileCount, "file"),
   ].join(" · ");
@@ -1190,7 +1182,7 @@ function draftLocationLabel(draft: DraftReviewComment): string {
 
 function draftOpenLabel(draft: DraftReviewComment): string {
   return [
-    `Open private draft in ${draft.path}`,
+    `Open pending draft in ${draft.path}`,
     draftSurfaceLabel(draft),
     commentLineLabelForAnchor(draft.anchor.canonical),
     "not agent-visible until publish",

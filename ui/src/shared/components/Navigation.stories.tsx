@@ -27,7 +27,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const activateTab = fn();
-const openStaleCommentRouting = fn();
 const lazyRevealLoadCalls: string[] = [];
 
 export const TopbarStory: Story = {
@@ -36,43 +35,23 @@ export const TopbarStory: Story = {
     <Topbar
       root={storyRoot}
       themePreference="system"
-      openCommentThreadCount={6}
       onThemeCycle={() => undefined}
       onQuickOpen={() => undefined}
       onSearchText={() => undefined}
-      onOpenComments={() => undefined}
-      onOpenShortcuts={() => undefined}
-    />
-  ),
-};
-
-export const TopbarWithStaleCommentRouting: Story = {
-  name: "Topbar routes stale comments to review work",
-  render: () => (
-    <Topbar
-      root={storyRoot}
-      themePreference="system"
-      openCommentThreadCount={3}
-      reviewOpenCommentThreadCount={1}
-      onThemeCycle={() => undefined}
-      onQuickOpen={() => undefined}
-      onSearchText={() => undefined}
-      onOpenComments={openStaleCommentRouting}
       onOpenShortcuts={() => undefined}
     />
   ),
   play: async ({ canvasElement }) => {
-    openStaleCommentRouting.mockClear();
     const canvas = within(canvasElement);
-    const commentsButton = canvas.getByRole("button", {
-      name: "Open Comments hub, 3 open threads, 1 open review thread",
-    });
-    await expect(commentsButton).toHaveAttribute(
-      "title",
-      "Open Comments hub: 3 open threads, 1 open review thread",
-    );
-    await userEvent.click(commentsButton);
-    await expect(openStaleCommentRouting).toHaveBeenCalled();
+    await expect(
+      canvas.queryByRole("button", { name: /Open Comments hub/ }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Open command palette" }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Search workspace text" }),
+    ).toBeInTheDocument();
   },
 };
 

@@ -1796,8 +1796,8 @@ it("turns review queue state into a clear next sidebar action", () => {
       items,
     }),
   ).toMatchObject({
-    kind: "open-comments",
-    primaryLabel: "Open comments",
+    kind: "open-path",
+    primaryLabel: "Review current file",
     targetPath: "docs/agent.md",
     title: "Resolve current thread",
   });
@@ -2198,11 +2198,6 @@ it("builds contextual review command palette actions", () => {
       label: "Archive current thread",
       detail: "docs/a.md · L4",
       shortcut: "Cmd/Ctrl Shift Backspace",
-    },
-    {
-      id: "open-comments",
-      label: "Open attention inbox",
-      detail: "2 attention threads",
     },
     {
       id: "open-latest-unread",

@@ -53,7 +53,7 @@ export const DiffCommentOnAddedLine: Story = {
       24,
     );
     const marker = canvas.getByRole("button", {
-      name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
+      name: "Open comment thread on line 10 with 1 message",
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);
@@ -84,7 +84,7 @@ export const ActiveDiffCommentStaysInline: Story = {
     ).toBeVisible();
     await expect(args.onOpenComment).not.toHaveBeenCalled();
     const marker = canvas.getByRole("button", {
-      name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
+      name: "Open comment thread on line 10 with 1 message",
     });
     await userEvent.click(marker);
     await expect(
@@ -94,8 +94,8 @@ export const ActiveDiffCommentStaysInline: Story = {
   },
 };
 
-export const DiffStartsSeparateDraftOnExistingLine: Story = {
-  name: "Diff line can start a separate draft beside an existing thread",
+export const DiffThreadReplyStaysFocusedOnExistingLine: Story = {
+  name: "Diff line keeps replies focused on the existing thread",
   tags: ["interaction"],
   args: {
     comments: [
@@ -111,34 +111,25 @@ export const DiffStartsSeparateDraftOnExistingLine: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
+        name: "Open comment thread on line 10 with 1 message",
       }),
-    );
-
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Start separate thread" }),
     );
 
     await expect(
       canvas.getAllByRole("article", {
         name: "Comment thread for line 10",
       }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     await expect(
       canvas.getByText(
         "Existing diff thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    const separateComposer = canvas
-      .getAllByLabelText("New line comment")
-      .find(
-        (composer) =>
-          !composer
-            .getAttribute("aria-describedby")
-            ?.includes("mode-thread-"),
-      );
-    expect(separateComposer).toBeDefined();
-    await expect(separateComposer!).toHaveFocus();
+    await expect(
+      canvas.queryByRole("button", { name: "Start separate thread" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
   },
 };
 
@@ -202,7 +193,7 @@ export const ResolvedDiffThreadMarker: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const marker = canvas.getByRole("button", {
-      name: "Open resolved comment thread on line 10 with 2 messages; choose new thread or reopen",
+      name: "Open resolved comment thread on line 10 with 2 messages",
     });
     await expect(marker).toBeInTheDocument();
     await userEvent.click(marker);

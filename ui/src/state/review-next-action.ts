@@ -1,7 +1,7 @@
 import type { ReviewQueueItem } from "./review-queue.js";
 import { isReviewQueueItemOpenable } from "./review-queue.js";
 
-export type ReviewNextActionKind = "open-comments" | "open-path" | "clear";
+export type ReviewNextActionKind = "open-path" | "clear";
 
 export interface ReviewNextAction {
   description: string;
@@ -63,8 +63,8 @@ export function buildReviewNextAction({
     return {
       description: `${target.path} has ${reason}; verify the latest review work before moving on.`,
       emphasis: "attention",
-      kind: current ? "open-comments" : "open-path",
-      primaryLabel: current ? "Open comments" : "Open review stop",
+      kind: "open-path",
+      primaryLabel: current ? "Review current file" : "Open review stop",
       targetPath: target.path,
       title: current
         ? "Verify the current open thread"
@@ -87,8 +87,8 @@ export function buildReviewNextAction({
     return {
       description: `${target.path} has ${reason}; keep the thread visible until it is resolved or archived.`,
       emphasis: "attention",
-      kind: current ? "open-comments" : "open-path",
-      primaryLabel: current ? "Open comments" : "Open review stop",
+      kind: "open-path",
+      primaryLabel: current ? "Review current file" : "Open review stop",
       targetPath: target.path,
       title: current ? "Resolve current thread" : "Continue open thread",
     };

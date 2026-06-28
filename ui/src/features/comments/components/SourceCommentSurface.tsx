@@ -76,7 +76,7 @@ export function SourceCommentSurface({
 }) {
   const [anchorLine, setAnchorLine] = useState<number | null>(null);
   const [draftThreads, setDraftThreads] = useState<SourceDraftThread[]>([]);
-  const [openThreadKeys, setOpenThreadKeys] = useState<string[]>([]);
+  const [openThreads, setOpenThreads] = useState<OpenSourceThread[]>([]);
   const [lineDragging, setLineDragging] = useState(false);
   const [highlightState, setHighlightState] = useState(() => ({
     visible: highlightedLines ?? null,
@@ -107,7 +107,12 @@ export function SourceCommentSurface({
         draftThread.thread.key,
     );
   }
-  for (const key of openThreadKeys) visibleThreadKeys.add(key);
+  for (const openThread of openThreads) {
+    visibleThreadKeys.add(
+      matchingOpenSourceThread(commentThreads, openThread)?.key ??
+        openThread.key,
+    );
+  }
   if (expandActiveCommentThread && activeThread) {
     visibleThreadKeys.add(activeThread.key);
   }
@@ -124,7 +129,7 @@ export function SourceCommentSurface({
 
   useEffect(() => {
     setAnchorLine(null);
-    setOpenThreadKeys([]);
+    setOpenThreads([]);
     setDraftThreads([]);
   }, [file.path]);
 
@@ -277,8 +282,18 @@ export function SourceCommentSurface({
     thread: (typeof commentThreads)[number],
     target?: Element,
   ) {
-    setOpenThreadKeys((keys) =>
-      keys.includes(thread.key) ? keys : [...keys, thread.key],
+    setOpenThreads((items) =>
+      items.some((item) => item.key === thread.key)
+        ? items
+        : [
+            ...items,
+            {
+              key: thread.key,
+              path: thread.path,
+              lineStart: thread.lineStart,
+              lineEnd: thread.lineEnd,
+            },
+          ],
     );
     onSelectionChange({ start: thread.lineStart, end: thread.lineEnd });
     const firstComment = thread.comments[0];
@@ -287,11 +302,25 @@ export function SourceCommentSurface({
     }
   }
 
-  function closeCommentThread(threadKey: string) {
+  function closeCommentThread(
+    threadKey: string,
+    thread?: CodeCommentThreadModel,
+  ) {
     setDraftThreads((items) =>
       items.filter((item) => item.thread.key !== threadKey),
     );
-    setOpenThreadKeys((keys) => keys.filter((key) => key !== threadKey));
+    setOpenThreads((items) =>
+      items.filter(
+        (item) =>
+          item.key !== threadKey &&
+          !(
+            thread &&
+            item.path === thread.path &&
+            item.lineStart === thread.lineStart &&
+            item.lineEnd === thread.lineEnd
+          ),
+      ),
+    );
     onSelectionChange(null);
     onCloseComment?.();
   }
@@ -469,7 +498,7 @@ export function SourceCommentSurface({
                   if (suppressLineClickRef.current) return;
                   if (threadOpen) {
                     for (const entry of threadsForDisplay) {
-                      closeCommentThread(entry.thread.key);
+                      closeCommentThread(entry.thread.key, entry.thread);
                     }
                   } else if (actionStackThreads.length > 1) {
                     for (const thread of actionStackThreads) {
@@ -526,18 +555,9 @@ export function SourceCommentSurface({
                   currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
-                  onStartNewThread={() =>
-                    startRangeComment(
-                      {
-                        start: entry.thread.lineStart,
-                        end: entry.thread.lineEnd,
-                      },
-                      lines
-                        .slice(entry.thread.lineStart - 1, entry.thread.lineEnd)
-                        .join("\n"),
-                    )
+                  onClose={() =>
+                    closeCommentThread(entry.thread.key, entry.thread)
                   }
-                  onClose={() => closeCommentThread(entry.thread.key)}
                 />
               </div>
             ))}
@@ -553,6 +573,28 @@ interface DOMRectLike {
   top: number;
   width: number;
   height: number;
+}
+
+interface OpenSourceThread {
+  key: string;
+  path: string;
+  lineStart: number;
+  lineEnd: number;
+}
+
+function matchingOpenSourceThread(
+  threads: CodeCommentThreadModel[],
+  openThread: OpenSourceThread,
+): CodeCommentThreadModel | undefined {
+  return (
+    threads.find((thread) => thread.key === openThread.key) ??
+    threads.find(
+      (thread) =>
+        thread.path === openThread.path &&
+        thread.lineStart === openThread.lineStart &&
+        thread.lineEnd === openThread.lineEnd,
+    )
+  );
 }
 
 function escapeHtml(value: string): string {

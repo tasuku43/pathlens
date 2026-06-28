@@ -288,9 +288,9 @@ export function lineCommentThreadActionLabel(
   const count = thread.comments.length;
   const messageLabel = count === 1 ? "message" : "messages";
   if (thread.status === "open") {
-    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}; choose new thread or reply`;
+    return `Open comment thread on line ${lineNumber} with ${count} ${messageLabel}`;
   }
-  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}; choose new thread or reopen`;
+  return `Open ${thread.status} comment thread on line ${lineNumber} with ${count} ${messageLabel}`;
 }
 
 export function latestPublishedStatus(

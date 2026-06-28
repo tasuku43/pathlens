@@ -35,7 +35,7 @@ it(
       status: "open",
       lineStart: 1,
     });
-    const resolvedComment = await createComment({
+    await createComment({
       threadId: "thread-resolved-readme",
       body: "Resolved thread remains available in context.",
       status: "resolved",
@@ -73,26 +73,15 @@ it(
     expect(await visibleThreadRows.count()).toBe(0);
 
     await readmeFileRow
-      .locator(".review-thread-count-toggle", { hasText: "2 threads" })
+      .locator(".review-thread-count-toggle", { hasText: "1 open" })
       .click();
 
     await readmeFileRow
       .locator(".review-thread-hairline-row:visible")
       .first()
       .waitFor({ state: "visible" });
-    expect(await visibleThreadRows.count()).toBe(2);
-    await expectThreadStatuses(readmeFileRow, ["Open", "Resolved"]);
-
-    await readmeFileRow
-      .getByRole("button", {
-        name: /Open Resolved thread in README\.md/i,
-      })
-      .click();
-
-    await page
-      .locator(`.code-thread-comment[data-comment-id="${resolvedComment.id}"]`)
-      .waitFor({ state: "visible" });
-    expect(await visibleThreadRows.count()).toBe(2);
+    expect(await visibleThreadRows.count()).toBe(1);
+    await expectThreadStatuses(readmeFileRow, ["Open"]);
   },
   40_000,
 );

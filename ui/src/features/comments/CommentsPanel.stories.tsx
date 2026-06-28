@@ -82,11 +82,11 @@ export const CurrentThreadActions: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const resolveButtons = canvas.getAllByRole("button", {
-      name: "Resolve current thread",
+      name: "Resolve",
     });
     await expect(resolveButtons).toHaveLength(1);
     await expect(
-      canvas.getAllByRole("button", { name: "Archive current thread" }),
+      canvas.getAllByRole("button", { name: "Archive" }),
     ).toHaveLength(1);
     await userEvent.click(resolveButtons[0]!);
     await expect(args.onStatusChange).toHaveBeenCalledWith(
@@ -124,7 +124,7 @@ export const AgentActivityVisible: Story = {
   },
 };
 
-export const PrivateDrafts: Story = {
+export const PendingDrafts: Story = {
   tags: ["interaction"],
   args: {
     draftComments: sampleDraftComments,
@@ -133,12 +133,12 @@ export const PrivateDrafts: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Comments Hub")).toBeInTheDocument();
-    await expect(canvas.getByText("Private drafts")).toBeInTheDocument();
+    await expect(canvas.getByText("Pending drafts")).toBeInTheDocument();
     await expect(
       canvas.getByRole("button", { name: /Publish \d+ draft comments/ }),
     ).toBeVisible();
     await userEvent.click(
-      canvas.getAllByRole("button", { name: /Open private draft in/ })[0]!,
+      canvas.getAllByRole("button", { name: /Open pending draft in/ })[0]!,
     );
     await expect(args.onOpenDraft).toHaveBeenCalled();
   },

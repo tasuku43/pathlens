@@ -61,11 +61,20 @@ const baseArgs = {
   onOpenPreviousChanged: noop,
   onOpenAllChanged: noop,
   onRevealInTree: noop,
-  onOpenComments: noop,
   onPublishDrafts: noop,
   onAcceptReviewPath: noop,
   onRestoreAcceptedReviewPath: noop,
 };
+
+const sampleDraftCommentsWithThreadReply = sampleDraftComments.map((draft) =>
+  draft.id === "draft-review-1"
+    ? {
+        ...draft,
+        threadId: "thread-workbench-open",
+        body: "Keep this pending follow-up attached to the existing workbench thread.",
+      }
+    : draft,
+);
 
 const meta = {
   title: "Review/Queue States",
@@ -149,7 +158,7 @@ export const ReviewQueueItemWithOpenThreads: Story = {
 
 export const ReviewQueueItemWithPendingDrafts: Story = {
   args: {
-    draftComments: sampleDraftComments,
+    draftComments: sampleDraftCommentsWithThreadReply,
     reviewItems: buildReviewQueueItems(
       sampleReviewChanges,
       sampleComments,
@@ -157,7 +166,7 @@ export const ReviewQueueItemWithPendingDrafts: Story = {
       sampleUnreadReviewPaths,
       {
         completedThreadPaths: sampleCompletedThreadPaths,
-        draftComments: sampleDraftComments,
+        draftComments: sampleDraftCommentsWithThreadReply,
       },
     ),
   },

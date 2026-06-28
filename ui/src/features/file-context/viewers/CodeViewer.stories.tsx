@@ -132,7 +132,7 @@ export const SourceIgnoresDiffThreadOnSameLine: Story = {
     expect(lineAction).toBeInTheDocument();
     await expect(lineAction).toHaveAttribute(
       "aria-label",
-      "Open comment thread on line 10 with 1 message; choose new thread or reply",
+      "Open comment thread on line 10 with 1 message",
     );
     await userEvent.click(lineAction!);
     await expect(
@@ -261,7 +261,7 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
             fileHash: sampleFiles.code.etag,
           },
         },
-        body: "Private draft should become its own review thread on publish.",
+        body: "Pending draft should become its own review thread on publish.",
       }),
     ],
   },
@@ -288,15 +288,15 @@ export const SourceDraftOnExistingLineStaysSeparate: Story = {
     ).toBeVisible();
     await expect(
       canvas.getByText(
-        "Private draft should become its own review thread on publish.",
+        "Pending draft should become its own review thread on publish.",
       ),
     ).toBeVisible();
-    expect(canvas.getAllByText("Private draft").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Pending draft").length).toBeGreaterThan(0);
   },
 };
 
-export const SourceStartsSeparateDraftOnExistingLine: Story = {
-  name: "Code line can start a separate draft beside an existing thread",
+export const SourceThreadReplyStaysFocusedOnExistingLine: Story = {
+  name: "Code line keeps replies focused on the existing thread",
   tags: ["interaction"],
   args: {
     selectedRange: null,
@@ -324,34 +324,27 @@ export const SourceStartsSeparateDraftOnExistingLine: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Open comment thread on line 10 with 1 message; choose new thread or reply",
+        name: "Open comment thread on line 10 with 1 message",
       }),
-    );
-
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Start separate thread" }),
     );
 
     await expect(
       canvas.getAllByRole("article", {
         name: "Comment thread for line 10",
       }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     await expect(
       canvas.getByText(
         "Existing thread should stay separate from the next note.",
       ),
     ).toBeVisible();
-    const separateComposer = canvas
-      .getAllByLabelText("New line comment")
-      .find(
-        (composer) =>
-          !composer.getAttribute("aria-describedby")?.includes("mode-thread-"),
-      );
-    expect(separateComposer).toBeDefined();
-    await expect(separateComposer!).toHaveFocus();
+    await expect(
+      canvas.queryByRole("button", { name: "Start separate thread" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByLabelText("New line comment")).toBeNull();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
     for (const saveButton of canvas.getAllByRole("button", {
-      name: "Save private draft comment",
+      name: "Save pending draft comment",
     })) {
       await expect(saveButton).toBeDisabled();
     }
@@ -374,7 +367,7 @@ export const DiffMode: Story = {
 };
 
 export const NarrowInlineCommentDraft: Story = {
-  name: "Narrow code view keeps the private draft usable",
+  name: "Narrow code view keeps the pending draft usable",
   tags: ["interaction"],
   args: {
     comments: [],
@@ -414,7 +407,7 @@ export const NarrowInlineCommentDraft: Story = {
       ".code-comment-thread",
     );
     const saveButton = canvas.getByRole("button", {
-      name: "Save private draft comment",
+      name: "Save pending draft comment",
     });
     if (!viewerPane || !thread) throw new Error("missing inline comment story");
 
@@ -508,14 +501,14 @@ export const SavedInlineDraftRemainsVisible: Story = {
       "Persist this draft in place.",
     );
     await userEvent.click(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     );
 
     await expect(
       canvas.getByText("Persist this draft in place."),
     ).toBeVisible();
     await expect(canvas.getByText("1 message")).toBeVisible();
-    expect(canvas.getAllByText("Private draft").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Pending draft").length).toBeGreaterThan(0);
   },
 };
 

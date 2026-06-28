@@ -99,17 +99,13 @@ describe("comment thread projection", () => {
         3,
         threads.find((thread) => thread.status === "resolved"),
       ),
-    ).toBe(
-      "Open resolved comment thread on line 3 with 1 message; choose new thread or reopen",
-    );
+    ).toBe("Open resolved comment thread on line 3 with 1 message");
     expect(
       lineCommentThreadActionLabel(
         3,
         threads.find((thread) => thread.status === "open"),
       ),
-    ).toBe(
-      "Open comment thread on line 3 with 1 message; choose new thread or reply",
-    );
+    ).toBe("Open comment thread on line 3 with 1 message");
     expect(
       lineCommentThreadActionLabel(
         3,

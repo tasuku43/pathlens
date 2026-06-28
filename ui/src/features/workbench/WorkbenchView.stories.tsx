@@ -36,29 +36,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const alternateWorkbenchLineComment: ViviComment = {
-  id: "comment-workbench-row-target",
-  threadId: "thread-workbench-row-target",
-  path: sampleFiles.code.path,
-  viewerKind: "text",
-  anchor: {
-    surface: "source",
-    canonical: {
-      path: sampleFiles.code.path,
-      lineStart: 5,
-      lineEnd: 5,
-      quote:
-        "const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);",
-      fileHash: "sha256:workbench-story-row-target",
-    },
-  },
-  body: "Row clicks should switch open threads without the outside-dismiss listener immediately closing the new thread.",
-  source: "human",
-  status: "open",
-  createdAt: "2026-06-20T09:20:00.000Z",
-  updatedAt: "2026-06-20T09:20:00.000Z",
-};
-
 const resolvedWorkbenchHistoryComment: ViviComment = {
   id: "comment-workbench-resolved-history",
   threadId: "thread-workbench-resolved-history",
@@ -122,16 +99,12 @@ export const WorkspaceWithFileTreeAndSelectedFile: Story = {
     await expect(
       canvasElement.querySelector(".inspector .panel-title > span:first-child"),
     ).toHaveTextContent("Review");
-    const attentionButton = canvas.getByRole("button", {
-      name: /Open Comments hub/,
-    });
-    await userEvent.click(attentionButton);
-    const commentFilters = within(
-      canvas.getByRole("group", { name: "Comment status filters" }),
-    );
     await expect(
-      commentFilters.getByRole("button", { name: /Show .* attention thread/ }),
-    ).toHaveAttribute("aria-pressed", "true");
+      canvas.queryByRole("button", { name: /Open Comments hub/ }),
+    ).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole("button", { name: "Open command palette" }),
+    ).toBeInTheDocument();
   },
 };
 
@@ -257,7 +230,9 @@ export const CompactInspectorCanReopenReviewQueue: Story = {
       name: "Review inspector",
     });
     await expect(
-      within(reopenedInspector).getByText("Queued", { selector: "summary span" }),
+      within(reopenedInspector).getByText("Queued", {
+        selector: "summary span",
+      }),
     ).toBeVisible();
 
     const firstReviewItem = canvasElement.querySelector<HTMLElement>(
@@ -314,8 +289,6 @@ export const DraftAndOpenThreadMixedState: Story = {
     activeCommentId: "draft:draft-review-1",
     inlineComment: sampleComments[0],
     draftComments: sampleDraftComments,
-    commentsPanelOpen: true,
-    commentsPanelStatus: "open",
   },
 };
 
@@ -325,7 +298,7 @@ export const DraftCommentsReadyToPublish: Story = {
     viewerMode: "rendered",
     draftComments: sampleDraftComments,
     inspectorTitle:
-      "Comments hub collects private drafts and keeps the Publish review comments CTA visible.",
+      "Review inspector collects pending drafts and keeps the Publish review comments CTA visible.",
   },
 };
 
@@ -333,7 +306,6 @@ export const DraftCommentsPublishing: Story = {
   args: {
     file: sampleFiles.code,
     draftComments: sampleDraftComments,
-    draftPublishing: true,
   },
 };
 
@@ -370,7 +342,6 @@ export const DraftPublishFailure: Story = {
   args: {
     file: sampleFiles.code,
     draftComments: sampleDraftComments,
-    draftPublishError: "The selected target thread is no longer open.",
     inspectorTitle:
       "Publish failed, but drafts remain editable in the tray and out of agent worklists.",
   },
@@ -386,7 +357,6 @@ export const PublishedReviewBatchWithMultipleOpenThreads: Story = {
         comment.path === sampleFiles.markdown.path,
     ),
     draftComments: [],
-    publishedBatchId: samplePublishedReviewBatch.reviewBatchId,
     inspectorTitle: `Published batch ${samplePublishedReviewBatch.reviewBatchId} spans Markdown and HTML threads.`,
   },
 };
@@ -405,8 +375,6 @@ export const AgentActivityVisible: Story = {
   args: {
     file: sampleFiles.code,
     activeCommentId: "comment-workbench-agent-1",
-    commentsPanelOpen: true,
-    commentsPanelQuery: "WorkbenchContainer",
   },
 };
 
@@ -458,8 +426,6 @@ export const ManyFilesManyComments: Story = {
       sampleThreadActivities,
       sampleUnreadReviewPaths,
     ),
-    commentsPanelOpen: true,
-    commentsPanelStatus: "open",
   },
 };
 
@@ -617,9 +583,7 @@ export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
       requestAnimationFrame(() => resolve()),
     );
 
-    const topbar = canvas
-      .getByLabelText("Vivi")
-      .closest<HTMLElement>("header");
+    const topbar = canvas.getByLabelText("Vivi").closest<HTMLElement>("header");
     const explorerTitle = canvas
       .getByText("Explorer")
       .closest<HTMLElement>(".panel-title");
@@ -651,82 +615,6 @@ export const DisconnectedState: Story = {
     state: "disconnected",
     file: sampleFiles.markdown,
     viewerMode: "rendered",
-  },
-};
-
-export const CommentsPanelOpen: Story = {
-  args: {
-    file: sampleFiles.code,
-    commentsPanelOpen: true,
-    commentsPanelStatus: "all",
-  },
-};
-
-export const CommentsPanelOpensInlineThread: Story = {
-  name: "Comments inbox opens the matching inline thread",
-  tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
-  args: {
-    file: sampleFiles.code,
-    comments: [...sampleComments, alternateWorkbenchLineComment],
-    commentsPanelOpen: true,
-    commentsPanelStatus: "open",
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const commentsPanel = canvas.getByRole("complementary", {
-      name: "Comments",
-    });
-    await userEvent.click(
-      within(commentsPanel).getByRole("button", {
-        name: "Open thread in ui/src/features/workbench/WorkbenchContainer.tsx, Source L9-L12, L9-L12, source, 2 messages, latest by Codex",
-      }),
-    );
-
-    await expect(
-      canvas.queryByRole("complementary", { name: "Comments" }),
-    ).not.toBeInTheDocument();
-    await expect(
-      canvas.getByLabelText(/Comment thread for lines 9-12/i),
-    ).toBeInTheDocument();
-    let composerBoxes = canvas.getAllByRole("textbox", {
-      name: "Continue thread",
-    });
-    await expect(composerBoxes).toHaveLength(1);
-    await expect(
-      composerBoxes.some((textbox) => textbox === document.activeElement),
-    ).toBe(false);
-    await expect(canvas.getByText("Continue thread")).toBeVisible();
-
-    const rowTarget = canvasElement.querySelector<HTMLElement>(
-      '.code-line.has-comment[data-line="5"]',
-    );
-    expect(rowTarget).not.toBeNull();
-    if (rowTarget) {
-      await userEvent.click(rowTarget);
-    }
-    await expect(
-      canvas.getByLabelText(/Comment thread for line 5/i),
-    ).toBeInTheDocument();
-    composerBoxes = canvas.getAllByRole("textbox", {
-      name: "Continue thread",
-    });
-    await expect(composerBoxes).toHaveLength(2);
-    await expect(
-      composerBoxes.some((textbox) => textbox === document.activeElement),
-    ).toBe(false);
-
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Open command palette" }),
-    );
-    await expect(
-      canvas.getByRole("dialog", { name: "Quick open" }),
-    ).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("textbox", { name: "Quick open query" }),
-    ).toHaveFocus();
   },
 };
 

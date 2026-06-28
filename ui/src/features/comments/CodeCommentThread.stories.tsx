@@ -85,33 +85,25 @@ export const Open: Story = {
       canvas.getByRole("article", { name: "Comment thread for lines 9-12" }),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Continue thread")).toBeVisible();
-    await expect(canvas.getByLabelText("Continue thread")).toHaveAccessibleDescription(
-      /Continue thread.*to add follow-up/,
+    await expect(
+      canvas.getByLabelText("Continue thread"),
+    ).toHaveAccessibleDescription(/Continue thread.*to add follow-up/);
+    await userEvent.type(
+      canvas.getByLabelText("Continue thread"),
+      "Following up",
     );
-    await userEvent.type(canvas.getByLabelText("Continue thread"), "Following up");
-    await userEvent.click(canvas.getByRole("button", { name: "Add follow-up" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add follow-up" }),
+    );
     await expect(args.onCreateComment).toHaveBeenCalled();
     await expect(
       (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
         .calls[0]?.[0],
     ).toMatchObject({ threadId: "thread-workbench-open" });
-
-    await userEvent.click(canvas.getByRole("button", { name: "New thread" }));
-    await expect(canvas.getByText("New thread on Lines 9-12")).toBeVisible();
-    await userEvent.type(
-      canvas.getByLabelText("New line comment"),
-      "Separate concern",
-    );
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
-    );
     await expect(
-      (args.onCreateComment as unknown as { mock: { calls: unknown[][] } }).mock
-        .calls[1]?.[0],
-    ).not.toMatchObject({ threadId: "thread-workbench-open" });
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Resolve thread" }),
-    );
+      canvas.queryByRole("button", { name: "New thread" }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Resolve" }));
     await expect(args.onStatusChange).toHaveBeenCalledWith(
       "thread-workbench-open",
       "resolved",
@@ -301,16 +293,17 @@ export const MultiActorConversation: Story = {
       ).toBeInTheDocument();
     }
     await expect(
-      canvasElement.querySelector('[data-comment-id="multi-actor-human-start"]'),
+      canvasElement.querySelector(
+        '[data-comment-id="multi-actor-human-start"]',
+      ),
     ).toHaveClass("current-user");
     await expect(
       canvasElement.querySelector(
         '[data-comment-id="multi-actor-claude-reply"]',
       ),
     ).not.toHaveClass("current-user");
-    await expect(canvas.getByText("Current stop")).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(canvas.getByLabelText("Continue thread")).toHaveFocus();
+    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
   },
 };
 
@@ -572,7 +565,7 @@ export const AllAgentsConversation: Story = {
         canvas.getAllByText(new RegExp(`by ${actor}$`)).length,
       ).toBeGreaterThan(0);
     }
-    await expect(canvas.getByText("Current stop")).toBeVisible();
+    await expect(canvas.queryByText("Current stop")).not.toBeInTheDocument();
   },
 };
 
@@ -586,11 +579,11 @@ export const CurrentThreadActions: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const reopen = canvas.getByRole("button", {
-      name: "Reopen current thread",
+      name: "Reopen",
     });
     await expect(reopen).toBeInTheDocument();
     await expect(
-      canvas.getByRole("button", { name: "Archive current thread" }),
+      canvas.getByRole("button", { name: "Archive" }),
     ).toBeInTheDocument();
     await userEvent.click(reopen);
     await expect(args.onStatusChange).toHaveBeenCalledWith(
@@ -629,17 +622,17 @@ export const NewLineComment: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Composing")).toBeVisible();
-    await expect(canvas.getByText("New thread on Line 14")).toBeVisible();
+    await expect(canvas.getByText("Add comment on Line 14")).toBeVisible();
     await expect(canvas.getByLabelText("New line comment")).toHaveFocus();
     await expect(
       canvas.getByLabelText("New line comment"),
     ).toHaveAccessibleDescription(
-      /New thread on Line 14.*to save private draft/,
+      /Add comment on Line 14.*to save pending draft/,
     );
     await expect(
-      canvas.getByRole("button", { name: "Save private draft comment" }),
+      canvas.getByRole("button", { name: "Save pending draft comment" }),
     ).toBeDisabled();
-    await expect(canvas.getByText("to save private draft")).toBeVisible();
+    await expect(canvas.getByText("to save pending draft")).toBeVisible();
   },
 };
 
@@ -716,10 +709,11 @@ export const SubmitFailureKeepsDraftEditable: Story = {
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     const reply = canvas.getByLabelText("Continue thread");
     await userEvent.type(reply, "This should survive a failed save.");
-    await userEvent.click(canvas.getByRole("button", { name: "Add follow-up" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Add follow-up" }),
+    );
 
     await expect(args.onCreateComment).toHaveBeenCalled();
     await expect(reply).toHaveValue("This should survive a failed save.");
@@ -736,6 +730,7 @@ export const SubmitFailureKeepsDraftEditable: Story = {
 };
 
 export const UserWritesOneDraftComment: Story = {
+  tags: ["interaction"],
   args: {
     thread: {
       key: "draft-review-1",
@@ -749,7 +744,18 @@ export const UserWritesOneDraftComment: Story = {
       path: sampleFiles.code.path,
       viewerKind: "text",
       anchor: sampleDraftComments[0]!.anchor,
+      threadId: draftReviewCommentAsViviComment(sampleDraftComments[0]!)
+        .threadId,
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Pending")).toBeVisible();
+    await expect(canvas.getByText("Pending draft")).toBeVisible();
+    await expect(canvas.getByText("Continue thread")).toBeVisible();
+    await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
+    await expect(canvas.queryByText("Private draft")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Private")).not.toBeInTheDocument();
   },
 };
 

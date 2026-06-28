@@ -53,18 +53,6 @@ export function reviewCommandActions({
     }
   }
 
-  if (attentionThreadCount || openThreadTargetCount) {
-    actions.push({
-      id: "open-comments",
-      label: attentionThreadCount
-        ? "Open attention inbox"
-        : "Open comments inbox",
-      detail: attentionThreadCount
-        ? `${attentionThreadCount} attention ${attentionThreadCount === 1 ? "thread" : "threads"}`
-        : `${openThreadTargetCount} open ${openThreadTargetCount === 1 ? "thread" : "threads"}`,
-    });
-  }
-
   if (unreadReviewCount) {
     actions.push({
       id: "open-latest-unread",

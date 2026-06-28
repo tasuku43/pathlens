@@ -1205,6 +1205,13 @@
   background: color-mix(in srgb, var(--warn) 13%, transparent);
   color: color-mix(in srgb, var(--warn) 82%, var(--text));
 }
+:global(.review-thread-count-toggle.pending[aria-expanded="true"]),
+:global(.review-thread-toggle-control):checked
+  + :global(.review-thread-count-toggle.pending) {
+  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
+  color: color-mix(in srgb, var(--warn) 82%, var(--text));
+}
 :global(.review-thread-count-toggle.pending:hover),
 :global(.review-thread-count-toggle.pending:focus-visible) {
   outline-color: color-mix(in srgb, var(--warn) 34%, transparent);
@@ -1346,6 +1353,27 @@
   color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
+}
+:global(.review-thread-hairline-quote) {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  border-left: 2px solid
+    color-mix(in srgb, var(--comment-line) 54%, var(--soft-line));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--code) 62%, transparent);
+  color: color-mix(in srgb, var(--text) 74%, var(--muted));
+  font-family:
+    "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.35;
+  padding: 5px 7px 5px 8px;
+}
+:global(.review-thread-hairline-quote span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 :global(.review-thread-hairline-meta) {
   color: var(--subtle);

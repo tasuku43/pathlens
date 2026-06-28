@@ -428,12 +428,6 @@ function SourceDiff({
                   currentActorId={currentActorId}
                   onCreateComment={onCreateComment}
                   onStatusChange={onCommentStatusChange}
-                  onStartNewThread={() =>
-                    startDiffComment(
-                      entry.thread.lineStart,
-                      entry.thread.lineEnd,
-                    )
-                  }
                   onClose={() => closeCommentThread(entry.thread.key)}
                 />
               </div>

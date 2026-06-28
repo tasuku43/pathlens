@@ -2,16 +2,11 @@ import { useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TextDiff } from "../domain/change-review.js";
 import {
-  buildCommentThreads,
   type DraftReviewComment,
   type ViviComment,
 } from "../domain/comments.js";
 import type { FilePayload, FsNode } from "../domain/fs-node.js";
 import { CommandPalette } from "../features/command-palette/CommandPalette.js";
-import {
-  CommentsPanel,
-  type CommentStatusFilter,
-} from "../features/comments/components/CommentsPanel.js";
 import { InlineCommentCard } from "../features/comments/components/InlineCommentCard.js";
 import { FileViewer } from "../features/file-context/components/FileViewer.js";
 import { Inspector } from "../features/review-queue/Inspector.js";
@@ -31,10 +26,6 @@ import {
   draftReviewCommentAsViviComment,
   visibleThreadComments,
 } from "../state/comments.js";
-import {
-  commentInboxOpenState,
-  countAttentionCommentThreads,
-} from "../state/review-navigation.js";
 import {
   explorerFilterLabel,
   explorerFilterText,
@@ -89,18 +80,12 @@ export interface ReviewWorkbenchStoryProps {
   diff?: TextDiff | null;
   diffEnabled?: boolean;
   viewerMode?: ViewerMode;
-  commentsPanelOpen?: boolean;
-  commentsPanelQuery?: string;
-  commentsPanelStatus?: "all" | "attention" | "open" | "resolved";
   commandPaletteOpen?: boolean;
   shortcutHelpOpen?: boolean;
-  draftPublishing?: boolean;
-  draftPublishError?: string | null;
   viewerError?: string;
   viewerSourceMissing?: boolean;
   pendingFilePath?: string;
   reviewQueueOpenFile?: FilePayload;
-  publishedBatchId?: string | null;
   activeCommentId?: string | null;
   inlineComment?: ViviComment | null;
   inspectorTitle?: ReactNode;
@@ -125,18 +110,12 @@ export function ReviewWorkbenchStory({
   diff = null,
   diffEnabled = false,
   viewerMode,
-  commentsPanelOpen = false,
-  commentsPanelQuery = "",
-  commentsPanelStatus = "all",
   commandPaletteOpen = false,
   shortcutHelpOpen = false,
-  draftPublishing = false,
-  draftPublishError = null,
   viewerError = "Failed to load comments: simulated adapter failure for Storybook.",
   viewerSourceMissing = false,
   pendingFilePath,
   reviewQueueOpenFile,
-  publishedBatchId = null,
   activeCommentId = null,
   inlineComment = null,
   inspectorTitle,
@@ -151,12 +130,6 @@ export function ReviewWorkbenchStory({
     useState(viewerSourceMissing);
   const [storyActiveCommentId, setStoryActiveCommentId] =
     useState(activeCommentId);
-  const [storyCommentsPanelOpen, setStoryCommentsPanelOpen] =
-    useState(commentsPanelOpen);
-  const [storyCommentsPanelQuery, setStoryCommentsPanelQuery] =
-    useState(commentsPanelQuery);
-  const [storyCommentsPanelStatus, setStoryCommentsPanelStatus] =
-    useState<CommentStatusFilter>(commentsPanelStatus);
   const [storyCommandPaletteOpen, setStoryCommandPaletteOpen] =
     useState(commandPaletteOpen);
   const [storyShortcutHelpOpen, setStoryShortcutHelpOpen] =
@@ -197,18 +170,6 @@ export function ReviewWorkbenchStory({
   }, [activeCommentId]);
 
   useEffect(() => {
-    setStoryCommentsPanelOpen(commentsPanelOpen);
-  }, [commentsPanelOpen]);
-
-  useEffect(() => {
-    setStoryCommentsPanelQuery(commentsPanelQuery);
-  }, [commentsPanelQuery]);
-
-  useEffect(() => {
-    setStoryCommentsPanelStatus(commentsPanelStatus);
-  }, [commentsPanelStatus]);
-
-  useEffect(() => {
     setStoryCommandPaletteOpen(commandPaletteOpen);
   }, [commandPaletteOpen]);
 
@@ -226,18 +187,10 @@ export function ReviewWorkbenchStory({
     setStoryState("ready");
     setStoryViewerSourceMissing(false);
     setStoryActiveCommentId(null);
-    setStoryCommentsPanelOpen(false);
   }
 
   const selectedPath = storyFile?.path ?? pendingFilePath ?? null;
   const visibleComments = visibleThreadComments(comments);
-  const storyActiveComment =
-    visibleComments.find((comment) => comment.id === storyActiveCommentId) ??
-    null;
-  const storyAttentionThreadCount = countAttentionCommentThreads(
-    visibleComments,
-    unreadReviewPaths,
-  );
   const activeTabs =
     tabs ??
     (storyFile
@@ -291,23 +244,6 @@ export function ReviewWorkbenchStory({
       reviewItems.map((item) => [item.path, reviewQueueItemState(item)]),
     );
 
-  function openStoryCommentsPanel(query?: string, preferAttention = false) {
-    const entry = commentInboxOpenState({
-      activeComment: storyActiveComment,
-      activeCommentId: storyActiveCommentId,
-      attentionThreadCount: storyAttentionThreadCount,
-      draftCount: draftComments.length,
-      preferAttention,
-      query,
-    });
-    setStoryCommandPaletteOpen(false);
-    setStoryShortcutHelpOpen(false);
-    setStoryActiveCommentId(entry.activeCommentId);
-    setStoryCommentsPanelQuery(entry.query);
-    setStoryCommentsPanelStatus(entry.status);
-    setStoryCommentsPanelOpen(true);
-  }
-
   return (
     <div
       className={[
@@ -323,16 +259,9 @@ export function ReviewWorkbenchStory({
       <Topbar
         root={storyState === "empty" ? null : storyRoot}
         themePreference="system"
-        openCommentThreadCount={
-          buildCommentThreads(visibleComments).filter(
-            (thread) => thread.status === "open",
-          ).length
-        }
-        commentAttentionCount={storyAttentionThreadCount}
         onThemeCycle={noop}
         onQuickOpen={() => setStoryCommandPaletteOpen(true)}
         onSearchText={() => setStoryCommandPaletteOpen(true)}
-        onOpenComments={() => openStoryCommentsPanel(undefined, true)}
         onOpenShortcuts={() => setStoryShortcutHelpOpen(true)}
       />
       <div
@@ -545,7 +474,6 @@ export function ReviewWorkbenchStory({
           onOpenAllChanged={noop}
           onPublishDrafts={noop}
           onRevealInTree={noop}
-          onOpenComments={() => openStoryCommentsPanel(storyFile?.path ?? "")}
           onOpenDraft={noop}
         />
       </div>
@@ -607,27 +535,6 @@ export function ReviewWorkbenchStory({
       <ShortcutHelp
         open={storyShortcutHelpOpen}
         onClose={() => setStoryShortcutHelpOpen(false)}
-      />
-      <CommentsPanel
-        open={storyCommentsPanelOpen}
-        comments={visibleComments}
-        query={storyCommentsPanelQuery}
-        statusFilter={storyCommentsPanelStatus}
-        draftComments={draftComments}
-        draftPublishing={draftPublishing}
-        draftPublishError={draftPublishError}
-        publishedBatchId={publishedBatchId}
-        threadActivities={threadActivities}
-        onQueryChange={setStoryCommentsPanelQuery}
-        onStatusFilterChange={setStoryCommentsPanelStatus}
-        onClose={() => setStoryCommentsPanelOpen(false)}
-        onOpenComment={(comment) => {
-          setStoryActiveCommentId(comment.id);
-          setStoryCommentsPanelOpen(false);
-        }}
-        onOpenDraft={noop}
-        onDeleteDraft={noop}
-        onPublishDrafts={noop}
       />
       <InlineCommentCard
         comment={inlineComment}

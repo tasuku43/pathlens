@@ -25,10 +25,6 @@ import {
   type OpenTab,
 } from "../../shared/components/OpenTabs.js";
 import { Inspector } from "../review-queue/Inspector.js";
-import {
-  CommentsPanel,
-  type CommentStatusFilter,
-} from "../comments/components/CommentsPanel.js";
 import { InlineCommentCard } from "../comments/components/InlineCommentCard.js";
 import { CommandPalette } from "../command-palette/CommandPalette.js";
 import { ShortcutHelp } from "../../shared/components/ShortcutHelp.js";
@@ -195,7 +191,6 @@ import {
   agentReplyNavigationTargets,
   commentNavigationTarget,
   commentActivityThreadTargets,
-  commentInboxOpenState,
   countAttentionCommentThreads,
   draftCommentNavigationTargets,
   firstRelevantThreadForReviewItem,
@@ -266,10 +261,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     emptyCommentActivityState,
   );
   const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
-  const [commentsPanelQuery, setCommentsPanelQuery] = useState("");
-  const [commentsPanelStatus, setCommentsPanelStatus] =
-    useState<CommentStatusFilter>("open");
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
   const [activeCommentRect, setActiveCommentRect] =
     useState<DOMRectLike | null>(null);
@@ -523,11 +514,26 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
 
   async function publishDraftReviewComments(draftIds?: string[]) {
     if (!draftComments.length || draftPublishing) return;
+    const activeDraftId = activeCommentId?.startsWith("draft:")
+      ? activeCommentId.slice("draft:".length)
+      : null;
+    const publishingDrafts = draftIds?.length
+      ? draftComments.filter((draft) => draftIds.includes(draft.id))
+      : draftComments;
+    const activePublishingDraft = activeDraftId
+      ? publishingDrafts.find((draft) => draft.id === activeDraftId)
+      : undefined;
     setDraftPublishing(true);
     setDraftPublishError(null);
     setLastPublishedReviewBatchId(null);
     try {
       const batch = await client.publishDraftReviewComments({ draftIds });
+      const nextActiveCommentId = activePublishingDraft
+        ? matchingPublishedCommentForDraft(
+            batch.threads.flatMap((thread) => thread.comments),
+            activePublishingDraft,
+          )?.id
+        : undefined;
       setComments((items) =>
         mergeComments(
           items,
@@ -540,6 +546,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           ? items.filter((draft) => !draftIds.includes(draft.id))
           : [],
       );
+      if (nextActiveCommentId) setActiveCommentId(nextActiveCommentId);
       setLastPublishedReviewBatchId(batch.reviewBatchId);
       await loadComments(null);
     } catch (err) {
@@ -907,21 +914,13 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       commentActivityThreadTargets({
         comments,
         selectedPath,
-        commentsPanelOpen,
-        commentsPanelQuery,
-        commentsPanelStatus,
+        commentsPanelOpen: false,
+        commentsPanelQuery: "",
+        commentsPanelStatus: "open",
         unreadReviewPaths: unreadReviewPathSet,
         reviewPaths: reviewItems.slice(0, 24).map((item) => item.path),
       }),
-    [
-      comments,
-      commentsPanelOpen,
-      commentsPanelQuery,
-      commentsPanelStatus,
-      reviewItems,
-      selectedPath,
-      unreadReviewPathSet,
-    ],
+    [comments, reviewItems, selectedPath, unreadReviewPathSet],
   );
   const commandActions = useMemo<CommandActionItem[]>(
     () =>
@@ -1294,22 +1293,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setPaletteOpen(true);
   }
 
-  function openCommentInbox() {
-    const entry = commentInboxOpenState({
-      activeComment,
-      activeCommentId,
-      attentionThreadCount: attentionCommentThreadCount,
-      draftCount: draftComments.length,
-      preferAttention: true,
-    });
-    setPaletteOpen(false);
-    setShortcutHelpOpen(false);
-    setActiveCommentId(entry.activeCommentId);
-    setCommentsPanelStatus(entry.status);
-    setCommentsPanelQuery(entry.query);
-    setCommentsPanelOpen(true);
-  }
-
   function openShortcutHelp() {
     setPaletteOpen(false);
     setShortcutHelpOpen(true);
@@ -1324,7 +1307,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       id === "archive-current-thread"
     )
       updateActiveCommentLifecycle(id);
-    if (id === "open-comments") focusCommentsPanel();
     if (id === "open-latest-unread") openLatestUnreadReviewFile();
     if (id === "open-in-review-reply")
       openMovedTarget(inReviewReplyTargets, "next");
@@ -1391,7 +1373,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     setActiveCommentRect(transition.activeCommentRect);
     setPaletteOpen(transition.paletteOpen);
     setShortcutHelpOpen(transition.shortcutHelpOpen);
-    setCommentsPanelOpen(transition.commentsPanelOpen);
     setError(transition.error);
     setLayout((current) => {
       return reviewQueueOpenTransition({ layout: current, paneId, path })
@@ -1419,7 +1400,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
   ) {
     setPaletteOpen(false);
     setShortcutHelpOpen(false);
-    setCommentsPanelOpen(false);
     const payload = await loadFile(target.path, paneId, mode);
     const targetComment = target.commentId
       ? (allCommentMessages.find(
@@ -1522,27 +1502,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         .querySelector<HTMLButtonElement>(
           `${activeRow}:not(:disabled), ${firstRow}`,
         )
-        ?.focus();
-    }, 0);
-  }
-
-  function focusCommentsPanel() {
-    const entry = commentInboxOpenState({
-      activeComment,
-      activeCommentId,
-      attentionThreadCount: attentionCommentThreadCount,
-      draftCount: draftComments.length,
-      preferAttention: true,
-    });
-    setPaletteOpen(false);
-    setShortcutHelpOpen(false);
-    setCommentsPanelStatus(entry.status);
-    setCommentsPanelQuery(entry.query);
-    setActiveCommentId(entry.activeCommentId);
-    setCommentsPanelOpen(true);
-    window.setTimeout(() => {
-      document
-        .querySelector<HTMLInputElement>(".global-comments-panel input")
         ?.focus();
     }, 0);
   }
@@ -2050,7 +2009,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
       if (action === "dismiss-overlays") {
         setPaletteOpen(false);
         setShortcutHelpOpen(false);
-        setCommentsPanelOpen(false);
         setActiveCommentId(null);
         setActiveCommentRect(null);
         return;
@@ -2144,7 +2102,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     diffEnabled,
     reviewChanges,
     unreadReviewPaths,
-    commentsPanelOpen,
     activeComment,
     activeCommentId,
     draftComments,
@@ -2231,10 +2188,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
         }
         onQuickOpen={() => openPalette("file")}
         onSearchText={() => openPalette("text")}
-        openCommentThreadCount={openThreadTargets.length}
-        reviewOpenCommentThreadCount={reviewQueueProgress.openThreads}
-        commentAttentionCount={attentionCommentThreadCount}
-        onOpenComments={openCommentInbox}
         onOpenShortcuts={openShortcutHelp}
       />
 
@@ -2407,19 +2360,6 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
               knownMissingCommentPaths={knownMissingCommentPathSet}
               threadActivities={commentActivitySummaries}
               activeCommentId={activeCommentId}
-              onOpenComments={() => {
-                const entry = commentInboxOpenState({
-                  activeComment,
-                  activeCommentId,
-                  attentionThreadCount: attentionCommentThreadCount,
-                  draftCount: draftComments.length,
-                  query: file?.path ?? "",
-                });
-                setCommentsPanelStatus(entry.status);
-                setCommentsPanelQuery(entry.query);
-                setActiveCommentId(entry.activeCommentId);
-                setCommentsPanelOpen(true);
-              }}
               onOpenComment={openCommentFromPanel}
               onOpenDraft={(draft) =>
                 void openDraftReviewComment(draft).catch((err) =>
@@ -2510,55 +2450,8 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
           onSkip={() => setPendingRestoreSession(null)}
         />
       ) : null}
-      <CommentsPanel
-        open={commentsPanelOpen}
-        comments={allCommentMessages}
-        query={commentsPanelQuery}
-        statusFilter={commentsPanelStatus}
-        threadActivities={commentActivitySummaries}
-        unreadReviewPaths={unreadReviewPathSet}
-        knownMissingPaths={knownMissingCommentPathSet}
-        currentFile={file}
-        activeCommentId={activeCommentId}
-        draftComments={draftComments}
-        draftPublishing={draftPublishing}
-        draftPublishError={draftPublishError}
-        publishedBatchId={lastPublishedReviewBatchId}
-        onQueryChange={setCommentsPanelQuery}
-        onStatusFilterChange={setCommentsPanelStatus}
-        onClose={() => setCommentsPanelOpen(false)}
-        onOpenComment={(comment) =>
-          void openCommentFromPanel(comment).catch((err) =>
-            setError(String(err)),
-          )
-        }
-        onStatusChange={(id, status) =>
-          void updateCommentStatus(id, status).catch((err) =>
-            setError(String(err)),
-          )
-        }
-        onOpenDraft={(draft) =>
-          void openDraftReviewComment(draft).catch((err) =>
-            setError(String(err)),
-          )
-        }
-        onDeleteDraft={(id) =>
-          void deleteDraftReviewComment(id).catch((err) =>
-            setError(String(err)),
-          )
-        }
-        onPublishDrafts={() =>
-          void publishDraftReviewComments().catch((err) =>
-            setError(String(err)),
-          )
-        }
-      />
       <InlineCommentCard
-        comment={
-          commentsPanelOpen || usesInlineCommentThread
-            ? null
-            : visibleActiveComment
-        }
+        comment={usesInlineCommentThread ? null : visibleActiveComment}
         rect={activeCommentRect}
         onClose={closeInlineComment}
         onStatusChange={(id, status) =>
@@ -2790,7 +2683,7 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
                       : undefined
                   }
                   activeCommentId={activeCommentId}
-                  expandActiveCommentThread={!commentsPanelOpen}
+                  expandActiveCommentThread
                   onOpenComment={openInlineComment}
                   onCloseComment={closeInlineComment}
                   onCommentStatusChange={updateCommentStatus}
@@ -3109,6 +3002,43 @@ function combinePublishedAndDraftComments(
   return visibleThreadComments([...published, ...draftMessages]).sort((a, b) =>
     a.createdAt.localeCompare(b.createdAt),
   );
+}
+
+function matchingPublishedCommentForDraft(
+  comments: ViviComment[],
+  draft: DraftReviewComment,
+): ViviComment | undefined {
+  const draftAnchorKey = commentAnchorIdentity(draft.anchor);
+  return comments.find(
+    (comment) =>
+      comment.path === draft.path &&
+      comment.body === draft.body &&
+      comment.source === draft.source &&
+      commentAnchorIdentity(comment.anchor) === draftAnchorKey,
+  );
+}
+
+function commentAnchorIdentity(anchor: DraftReviewComment["anchor"]): string {
+  const canonical = anchor.canonical;
+  const rendered = anchor.rendered;
+  const diff = anchor.diff;
+  return JSON.stringify([
+    anchor.surface,
+    canonical.path ?? null,
+    canonical.lineStart ?? null,
+    canonical.lineEnd ?? canonical.lineStart ?? null,
+    canonical.quote ?? null,
+    rendered?.blockId ?? null,
+    rendered?.selector ?? null,
+    diff?.base ?? null,
+    diff?.ref ?? null,
+    diff?.hunkId ?? null,
+    diff?.side ?? null,
+    diff?.oldLineStart ?? null,
+    diff?.oldLineEnd ?? null,
+    diff?.newLineStart ?? null,
+    diff?.newLineEnd ?? null,
+  ]);
 }
 
 function dropEdgeClass(edge: SplitEdge): string {

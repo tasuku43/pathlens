@@ -39,7 +39,7 @@ export const PublishCtaEnabled: Story = {
     );
     await expect(args.onPublishAll).toHaveBeenCalled();
     await userEvent.click(
-      canvas.getAllByRole("button", { name: /Open private draft in/ })[0]!,
+      canvas.getAllByRole("button", { name: /Open pending draft in/ })[0]!,
     );
     await expect(args.onOpenDraft).toHaveBeenCalled();
   },

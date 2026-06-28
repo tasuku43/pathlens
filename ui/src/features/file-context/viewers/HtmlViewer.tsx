@@ -272,13 +272,6 @@ export function HtmlViewer({
     setRenderedThreadTargets([nextTarget]);
   };
 
-  const startSeparateRenderedThread = (target: HtmlRenderedThreadTarget) => {
-    const renderedTarget = renderedTargetFromHtmlThreadTarget(target);
-    if (!renderedTarget) return;
-    openRenderedDraft(renderedTarget);
-    onCloseComment?.();
-  };
-
   const closeRenderedThreadTarget = (key: string) => {
     setRenderedThreadTargets((items) =>
       items.filter(
@@ -417,7 +410,6 @@ export function HtmlViewer({
               currentActorId={currentActorId}
               onCreateComment={onCreateComment}
               onStatusChange={onCommentStatusChange}
-              onStartNewThread={() => startSeparateRenderedThread(entry.target)}
               onClose={() => closeRenderedThreadTarget(entry.key)}
             />
           </div>
@@ -501,26 +493,6 @@ function sameBlockIds(left: string[], right: string[]): boolean {
     left.length === right.length &&
     left.every((id, index) => id === right[index])
   );
-}
-
-function renderedTargetFromHtmlThreadTarget(
-  target: HtmlRenderedThreadTarget,
-): RenderedCommentBlockTarget | null {
-  const rendered = target.draft.anchor.rendered;
-  const text =
-    rendered?.textQuote?.trim() || target.draft.anchor.canonical.quote?.trim();
-  if (!text) return null;
-  return {
-    blockId: target.blockId,
-    blockIds: target.blockIds,
-    text,
-    selector: rendered?.selector,
-    sourceLineStart:
-      rendered?.sourceLineStart ?? target.draft.anchor.canonical.lineStart,
-    sourceLineEnd:
-      rendered?.sourceLineEnd ?? target.draft.anchor.canonical.lineEnd,
-    rect: target.rect,
-  };
 }
 
 function sourceRangeForHtmlTarget(

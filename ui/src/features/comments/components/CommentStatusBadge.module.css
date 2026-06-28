@@ -21,9 +21,9 @@
 }
 
 .draft {
-  border-color: color-mix(in srgb, var(--comment-line) 62%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 46%, var(--panel));
-  color: var(--comment-text);
+  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
+  color: color-mix(in srgb, var(--warn) 82%, var(--text));
 }
 
 .published {

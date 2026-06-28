@@ -175,7 +175,7 @@ export function DraftReviewTray({
                       <textarea
                         autoFocus
                         value={body}
-                        aria-label={`Edit private draft comment for ${draft.path}`}
+                        aria-label={`Edit pending draft comment for ${draft.path}`}
                         aria-describedby={draftEditHintId(draft.id)}
                         onChange={(event) => setBody(event.currentTarget.value)}
                       />
@@ -297,7 +297,7 @@ function anchorSurfaceLabel(draft: DraftReviewComment): string {
 
 function draftOpenLabel(draft: DraftReviewComment): string {
   return [
-    `Open private draft in ${draft.path}`,
+    `Open pending draft in ${draft.path}`,
     anchorSurfaceLabel(draft),
     commentLineLabelForAnchor(draft.anchor.canonical),
     "kept private until publish",

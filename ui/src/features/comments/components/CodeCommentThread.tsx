@@ -3,7 +3,6 @@ import type { CommentStatus } from "../../../domain/comments.js";
 import type { CommentActivitySummary } from "../../../state/comment-activity.js";
 import { activityLabel } from "../../../state/comment-activity.js";
 import type {
-  CommentComposerIntent,
   CodeCommentThread as CodeCommentThreadModel,
   CommentCreateHandler,
   CommentDraft,
@@ -26,7 +25,6 @@ export function CodeCommentThread({
   className,
   onCreateComment,
   onStatusChange,
-  onStartNewThread,
   onClose,
   activity,
   activeCommentId = null,
@@ -37,53 +35,44 @@ export function CodeCommentThread({
   className?: string;
   onCreateComment?: CommentCreateHandler;
   onStatusChange?: CommentStatusChangeHandler;
-  onStartNewThread?: () => void;
   onClose: () => void;
   activity?: CommentActivitySummary;
   activeCommentId?: string | null;
   currentActorId?: string;
 }) {
-  const hasPublishedThread = thread.comments.length > 0;
-  const defaultComposerIntent: CommentComposerIntent =
-    hasPublishedThread && draft.threadId ? "reply" : "new-thread";
+  const hasThreadMessages = thread.comments.length > 0;
+  const hasPublishedComments = thread.comments.some(
+    (comment) => !isDraftThreadComment(comment),
+  );
+  const canContinueThread = hasThreadMessages && Boolean(draft.threadId);
   const [body, setBody] = useState("");
-  const [composerIntent, setComposerIntent] =
-    useState<CommentComposerIntent>(defaultComposerIntent);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const threadRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const threadStatus: CommentStatus = thread.status;
+  const threadBadgeStatus = hasPublishedComments ? threadStatus : "draft";
+  const threadBadgeLabel = hasPublishedComments
+    ? statusLabel(threadStatus)
+    : "Pending";
   const lineLabel =
     thread.lineStart === thread.lineEnd
       ? `Line ${thread.lineEnd}`
       : `Lines ${thread.lineStart}-${thread.lineEnd}`;
-  const isReplyComposer =
-    hasPublishedThread && composerIntent === "reply" && Boolean(draft.threadId);
+  const isReplyComposer = canContinueThread;
   const composerModeId = commentComposerModeId(thread.key);
   const replyHintId = commentReplyHintId(thread.key);
   const submitLabel = isReplyComposer
     ? "Add follow-up"
-    : "Save private draft comment";
+    : "Save pending draft comment";
   const submitHint = isReplyComposer
     ? "to add follow-up"
-    : "to save private draft";
+    : "to save pending draft";
   const composerModeLabel = isReplyComposer
     ? "Continue thread"
-    : `New thread on ${lineLabel}`;
-  const hasActiveComment = Boolean(
-    activeCommentId &&
-    thread.comments.some((comment) => comment.id === activeCommentId),
-  );
-  const toggleStatusLabel =
-    threadStatus === "open"
-      ? hasActiveComment
-        ? "Resolve current thread"
-        : "Resolve thread"
-      : hasActiveComment
-        ? "Reopen current thread"
-        : "Reopen thread";
-  const archiveLabel = hasActiveComment ? "Archive current thread" : "Archive";
+    : `Add comment on ${lineLabel}`;
+  const toggleStatusLabel = threadStatus === "open" ? "Resolve" : "Reopen";
+  const archiveLabel = "Archive";
   const requestClose = useCallback(() => {
     if (body.trim() && !window.confirm("Discard this unsent comment?")) {
       return;
@@ -103,21 +92,14 @@ export function CodeCommentThread({
   }, [requestClose]);
 
   useEffect(() => {
-    if (thread.comments.length) return;
+    if (hasThreadMessages) return;
     textareaRef.current?.focus();
-  }, [thread.comments.length, thread.key]);
+  }, [hasThreadMessages, thread.key]);
 
   useEffect(() => {
-    setComposerIntent(defaultComposerIntent);
     setBody("");
     setError(null);
-  }, [defaultComposerIntent, thread.key]);
-
-  useEffect(() => {
-    if (!hasPublishedThread || !draft.threadId) {
-      setComposerIntent("new-thread");
-    }
-  }, [draft.threadId, hasPublishedThread]);
+  }, [canContinueThread, thread.key]);
 
   async function submit() {
     const trimmed = body.trim();
@@ -126,7 +108,10 @@ export function CodeCommentThread({
     setError(null);
     try {
       await onCreateComment(
-        draftForCommentComposerIntent(draft, composerIntent),
+        draftForCommentComposerIntent(
+          draft,
+          isReplyComposer ? "reply" : "new-thread",
+        ),
         trimmed,
       );
       setBody("");
@@ -162,13 +147,13 @@ export function CodeCommentThread({
           <span className="code-comment-thread-icon" aria-hidden="true" />
           <strong>{lineLabel}</strong>
           <span>
-            {thread.comments.length
+            {hasThreadMessages
               ? `${thread.comments.length} ${thread.comments.length === 1 ? "message" : "messages"}`
               : "Composing"}
           </span>
-          {thread.comments.length ? (
-            <CommentStatusBadge status={threadStatus}>
-              {statusLabel(threadStatus)}
+          {hasThreadMessages ? (
+            <CommentStatusBadge status={threadBadgeStatus}>
+              {threadBadgeLabel}
             </CommentStatusBadge>
           ) : null}
         </div>
@@ -214,7 +199,8 @@ export function CodeCommentThread({
             const agent = commentAgentIdentity(comment);
             const draftComment = isDraftThreadComment(comment);
             const currentUserComment =
-              Boolean(currentActorId) && comment.createdBy?.id === currentActorId;
+              Boolean(currentActorId) &&
+              comment.createdBy?.id === currentActorId;
             return (
               <div
                 className={`code-thread-comment ${comment.status}${draftComment ? " draft" : ""}${active ? " active" : ""}${currentUserComment ? " current-user" : ""}`}
@@ -233,7 +219,7 @@ export function CodeCommentThread({
                   />
                   <strong>
                     {draftComment
-                      ? "Private draft"
+                      ? "Pending draft"
                       : index === 0
                         ? `Started by ${agent.label}`
                         : `Reply by ${agent.label}`}
@@ -246,7 +232,7 @@ export function CodeCommentThread({
                   ) : null}
                   {draftComment ? (
                     <CommentStatusBadge status="draft">
-                      Private
+                      Pending
                     </CommentStatusBadge>
                   ) : (
                     <CommentStatusBadge status="published">
@@ -255,11 +241,6 @@ export function CodeCommentThread({
                   )}
                   {!draftComment && comment.status !== "open" ? (
                     <span>{statusLabel(comment.status)}</span>
-                  ) : null}
-                  {active ? (
-                    <span className="code-thread-current-stop">
-                      Current stop
-                    </span>
                   ) : null}
                 </div>
                 <p>{comment.body}</p>
@@ -280,44 +261,12 @@ export function CodeCommentThread({
           <span aria-hidden="true" />
           {composerModeLabel}
         </div>
-        {hasPublishedThread && draft.threadId ? (
-          <div
-            className="code-comment-intent-toggle"
-            role="group"
-            aria-label="Comment composer intent"
-          >
-            <button
-              className={composerIntent === "new-thread" ? "active" : ""}
-              type="button"
-              aria-pressed={composerIntent === "new-thread"}
-              onClick={() => {
-                setComposerIntent("new-thread");
-                textareaRef.current?.focus();
-              }}
-            >
-              New thread
-            </button>
-            <button
-              className={composerIntent === "reply" ? "active" : ""}
-              type="button"
-              aria-pressed={composerIntent === "reply"}
-              onClick={() => {
-                setComposerIntent("reply");
-                textareaRef.current?.focus();
-              }}
-            >
-              Continue
-            </button>
-          </div>
-        ) : null}
         <textarea
           ref={textareaRef}
-          autoFocus={!hasPublishedThread}
+          autoFocus={!hasThreadMessages}
           rows={2}
           value={body}
-          placeholder={
-            isReplyComposer ? "Add a follow-up" : "Start a new thread"
-          }
+          placeholder={isReplyComposer ? "Add a follow-up" : "Add a comment"}
           aria-label={isReplyComposer ? "Continue thread" : "New line comment"}
           aria-describedby={`${composerModeId} ${replyHintId}`}
           aria-keyshortcuts="Meta+Enter Control+Enter"
@@ -360,11 +309,6 @@ export function CodeCommentThread({
                 >
                   {archiveLabel}
                 </button>
-                {onStartNewThread ? (
-                  <button type="button" onClick={onStartNewThread}>
-                    Start separate thread
-                  </button>
-                ) : null}
               </>
             ) : null}
           </div>

@@ -1,5 +1,6 @@
 import {
   buildCommentThreads,
+  type CommentAnchor,
   type CommentStatus,
   type CommentThread,
   type DraftReviewComment,
@@ -74,11 +75,15 @@ interface Props {
   onRestoreAcceptedReviewPath?: (path: string) => void;
   onRevealInTree: () => void;
   onOutlineSelect?: (id: string) => void;
-  onOpenComments?: () => void;
   onOpenComment?: (comment: ViviComment) => void;
   onOpenDraft?: (draft: DraftReviewComment) => void;
   onPublishDrafts?: (draftIds?: string[]) => void | Promise<void>;
   onCommentStatusChange?: (threadId: string, status: CommentStatus) => void;
+}
+
+interface PendingDraftThreadGroup {
+  id: string;
+  drafts: DraftReviewComment[];
 }
 
 export function Inspector({
@@ -185,9 +190,18 @@ export function Inspector({
     const threadToggleId = `review-queue-item-${index + 1}-thread-toggle`;
     const itemThreads = reviewQueueThreadsForPath(item.path, reviewComments);
     const itemDrafts = reviewQueueDraftsForPath(item.path, draftComments);
+    const itemDraftsByThreadId = reviewQueueDraftsByThreadId(
+      itemThreads,
+      itemDrafts,
+    );
+    const standaloneDrafts = itemDrafts.filter(
+      (draft) => !draft.threadId || !itemDraftsByThreadId.has(draft.threadId),
+    );
+    const standaloneDraftGroups =
+      reviewQueueStandaloneDraftGroups(standaloneDrafts);
     const itemPendingCount = item.pendingDraftCount ?? itemDrafts.length;
     const itemOpenCount = item.threadCounts.open;
-    const itemReviewCount = itemThreads.length + itemDrafts.length;
+    const itemReviewCount = itemThreads.length + standaloneDraftGroups.length;
     const itemStatusLabel = change
       ? changeStatusLabel(change.status, change.kind)
       : "comment";
@@ -309,77 +323,142 @@ export function Inspector({
           >
             {itemThreads.map((thread) => {
               const primaryComment = thread.comments[0]!;
-              const latestComment =
-                thread.comments[thread.comments.length - 1] ?? primaryComment;
+              const quoteLines = reviewThreadQuoteLines(primaryComment.anchor);
+              const sourceLineLabel = commentLineLabel(primaryComment);
+              const pendingDrafts = itemDraftsByThreadId.get(thread.id) ?? [];
               const activeThread = thread.comments.some(
                 (comment) => comment.id === activeCommentId,
+              );
+              const activePendingDraft = pendingDrafts.some(
+                (draft) =>
+                  activeCommentId === draft.id ||
+                  activeCommentId === `draft:${draft.id}`,
               );
               return (
                 <div className="review-thread-hairline-item" key={thread.id}>
                   <button
-                    className={`review-thread-hairline-row${activeThread ? " active" : ""}`}
+                    className={`review-thread-hairline-row${activeThread || activePendingDraft ? " active" : ""}${pendingDrafts.length ? " has-publish-action" : ""}`}
                     type="button"
-                    aria-label={`Open ${statusLabel(thread.status)} thread in ${thread.path}, ${surfaceLabel(primaryComment)}, ${commentLineLabel(primaryComment)}`}
+                    aria-label={`Open ${statusLabel(thread.status)} thread in ${thread.path}, ${sourceLineLabel}${pendingDrafts.length ? `, ${pendingDraftCountLabel(pendingDrafts.length)}` : ""}`}
                     onClick={() => onOpenComment?.(primaryComment)}
                   >
                     <span className="review-thread-hairline-main">
                       <span className="review-thread-hairline-title">
-                        <span>
-                          {surfaceLabel(primaryComment)} ·{" "}
-                          {commentLineLabel(primaryComment)}
-                        </span>
+                        <span>{sourceLineLabel}</span>
                         <span
                           className={`review-thread-status-badge ${thread.status}`}
                         >
                           {statusLabel(thread.status)}
                         </span>
+                        {pendingDrafts.length ? (
+                          <span className="review-thread-status-badge pending">
+                            {pendingDraftCountLabel(pendingDrafts.length)}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="review-thread-hairline-preview">
-                        {truncateCommentPreview(latestComment.body, 96)}
-                      </span>
+                      {quoteLines.length ? (
+                        <span
+                          className="review-thread-hairline-quote"
+                          aria-label="Thread target excerpt"
+                        >
+                          {quoteLines.map((line, index) => (
+                            <span key={`${index}:${line}`}>{line}</span>
+                          ))}
+                        </span>
+                      ) : null}
                       <span className="review-thread-hairline-meta">
-                        {totalMessageCountLabel(thread.comments.length)}
+                        {[
+                          totalMessageCountLabel(thread.comments.length),
+                          pendingDrafts.length
+                            ? `${pendingDraftCountLabel(pendingDrafts.length)} not agent-visible`
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     </span>
                   </button>
+                  {pendingDrafts.length ? (
+                    <button
+                      className="review-thread-publish-button"
+                      type="button"
+                      aria-label={`Publish ${pendingDraftCountLabel(pendingDrafts.length)} in ${thread.path}, ${sourceLineLabel}`}
+                      onClick={() =>
+                        void onPublishDrafts?.(
+                          pendingDrafts.map((draft) => draft.id),
+                        )
+                      }
+                    >
+                      Publish
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
-            {itemDrafts.map((draft) => {
-              const activeDraft =
-                activeCommentId === draft.id ||
-                activeCommentId === `draft:${draft.id}`;
+            {standaloneDraftGroups.map((group) => {
+              const latestDraft = group.drafts[0]!;
+              const sourceLineLabel = commentLineLabelForAnchor(
+                latestDraft.anchor.canonical,
+              );
+              const activeDraft = group.drafts.some(
+                (draft) =>
+                  activeCommentId === draft.id ||
+                  activeCommentId === `draft:${draft.id}`,
+              );
+              const groupedPendingLabel =
+                group.drafts.length > 1
+                  ? pendingDraftCountLabel(group.drafts.length)
+                  : "Pending";
+              const quoteLines = reviewThreadQuoteLines(latestDraft.anchor);
+              const ariaAction =
+                latestDraft.threadId || group.drafts.length > 1
+                  ? "Open pending thread"
+                  : "Open pending item";
               return (
-                <div className="review-thread-hairline-item" key={draft.id}>
+                <div className="review-thread-hairline-item" key={group.id}>
                   <button
                     className={`review-thread-hairline-row${activeDraft ? " active" : ""} has-publish-action`}
                     type="button"
-                    aria-label={`Open pending item, ${draft.path}, ${commentLineLabelForAnchor(draft.anchor.canonical)}, ${draftSurfaceLabel(draft)}`}
-                    onClick={() => onOpenDraft?.(draft)}
+                    aria-label={`${ariaAction}, ${latestDraft.path}, ${sourceLineLabel}${group.drafts.length > 1 ? `, ${pendingDraftCountLabel(group.drafts.length)}` : ""}`}
+                    onClick={() => onOpenDraft?.(latestDraft)}
                   >
                     <span className="review-thread-hairline-main">
                       <span className="review-thread-hairline-title">
-                        <span>
-                          {commentLineLabelForAnchor(draft.anchor.canonical)} ·{" "}
-                          {draftSurfaceLabel(draft)}
-                        </span>
+                        <span>{sourceLineLabel}</span>
                         <span className="review-thread-status-badge pending">
-                          Pending
+                          {groupedPendingLabel}
                         </span>
                       </span>
-                      <span className="review-thread-hairline-preview">
-                        {truncateCommentPreview(draft.body, 96)}
-                      </span>
+                      {quoteLines.length ? (
+                        <span
+                          className="review-thread-hairline-quote"
+                          aria-label="Thread target excerpt"
+                        >
+                          {quoteLines.map((line, index) => (
+                            <span key={`${index}:${line}`}>{line}</span>
+                          ))}
+                        </span>
+                      ) : null}
                       <span className="review-thread-hairline-meta">
-                        not agent-visible · publishes as open
+                        {group.drafts.length > 1
+                          ? `${pendingDraftCountLabel(group.drafts.length)} not agent-visible · publishes as open`
+                          : "not agent-visible · publishes as open"}
                       </span>
                     </span>
                   </button>
                   <button
                     className="review-thread-publish-button"
                     type="button"
-                    aria-label={`Publish pending item, ${draft.path}, ${commentLineLabelForAnchor(draft.anchor.canonical)}`}
-                    onClick={() => void onPublishDrafts?.([draft.id])}
+                    aria-label={
+                      group.drafts.length > 1
+                        ? `Publish ${pendingDraftCountLabel(group.drafts.length)} in ${latestDraft.path}, ${sourceLineLabel}`
+                        : `Publish pending item, ${latestDraft.path}, ${sourceLineLabel}`
+                    }
+                    onClick={() =>
+                      void onPublishDrafts?.(
+                        group.drafts.map((draft) => draft.id),
+                      )
+                    }
                   >
                     Publish
                   </button>
@@ -769,6 +848,62 @@ function reviewQueueDraftsForPath(
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function reviewQueueDraftsByThreadId(
+  threads: CommentThread[],
+  drafts: DraftReviewComment[],
+): Map<string, DraftReviewComment[]> {
+  const threadIds = new Set(threads.map((thread) => thread.id));
+  const draftsByThreadId = new Map<string, DraftReviewComment[]>();
+  for (const draft of drafts) {
+    if (!draft.threadId || !threadIds.has(draft.threadId)) continue;
+    draftsByThreadId.set(draft.threadId, [
+      ...(draftsByThreadId.get(draft.threadId) ?? []),
+      draft,
+    ]);
+  }
+  return draftsByThreadId;
+}
+
+function reviewQueueStandaloneDraftGroups(
+  drafts: DraftReviewComment[],
+): PendingDraftThreadGroup[] {
+  const draftIds = new Set(drafts.map((draft) => draft.id));
+  const groupIds: string[] = [];
+  const draftsByGroupId = new Map<string, DraftReviewComment[]>();
+  for (const draft of drafts) {
+    const groupId = reviewQueueStandaloneDraftGroupId(draft, draftIds);
+    if (!draftsByGroupId.has(groupId)) {
+      groupIds.push(groupId);
+      draftsByGroupId.set(groupId, []);
+    }
+    draftsByGroupId.get(groupId)!.push(draft);
+  }
+  return groupIds.map((id) => ({
+    id,
+    drafts: draftsByGroupId.get(id)!,
+  }));
+}
+
+function reviewQueueStandaloneDraftGroupId(
+  draft: DraftReviewComment,
+  draftIds: ReadonlySet<string>,
+): string {
+  if (!draft.threadId) return `draft:${draft.id}`;
+  const targetDraftId = draftOnlyThreadTargetDraftId(draft.threadId);
+  if (targetDraftId && draftIds.has(targetDraftId)) {
+    return `draft:${targetDraftId}`;
+  }
+  return `thread:${draft.threadId}`;
+}
+
+function draftOnlyThreadTargetDraftId(threadId: string): string | null {
+  if (!threadId.startsWith("draft-thread:")) return null;
+  const withoutPrefix = threadId.slice("draft-thread:".length);
+  const separatorIndex = withoutPrefix.indexOf(":");
+  if (separatorIndex <= 0) return null;
+  return withoutPrefix.slice(0, separatorIndex);
+}
+
 function reviewItemCountLabel(
   openCount: number,
   pendingCount: number,
@@ -779,6 +914,10 @@ function reviewItemCountLabel(
   if (pendingCount) return `${pendingCount} pending`;
   if (openCount) return `${openCount} open`;
   return `${fallbackCount} open`;
+}
+
+function pendingDraftCountLabel(count: number): string {
+  return `${count} pending`;
 }
 
 function draftSurfaceLabel(draft: DraftReviewComment): string {
@@ -813,6 +952,17 @@ function focusReviewQueueTarget(index: number) {
 
 function totalMessageCountLabel(count: number): string {
   return `${count} total ${count === 1 ? "message" : "messages"}`;
+}
+
+function reviewThreadQuoteLines(anchor: CommentAnchor): string[] {
+  const quote = anchor.rendered?.textQuote ?? anchor.canonical.quote;
+  if (!quote?.trim()) return [];
+  const lines = quote
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+$/u, ""));
+  while (lines[0]?.trim() === "") lines.shift();
+  return lines.slice(0, 3).map((line) => line || " ");
 }
 
 function summarizeActiveThreads(comments: ViviComment[]): CommentThread[] {

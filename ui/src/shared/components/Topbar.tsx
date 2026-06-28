@@ -11,10 +11,6 @@ interface TopbarProps {
   onThemeCycle: () => void;
   onQuickOpen: () => void;
   onSearchText: () => void;
-  openCommentThreadCount?: number;
-  reviewOpenCommentThreadCount?: number;
-  commentAttentionCount?: number;
-  onOpenComments?: () => void;
   onOpenShortcuts: () => void;
 }
 
@@ -24,20 +20,11 @@ export function Topbar({
   onThemeCycle,
   onQuickOpen,
   onSearchText,
-  openCommentThreadCount = 0,
-  reviewOpenCommentThreadCount,
-  commentAttentionCount = 0,
-  onOpenComments,
   onOpenShortcuts,
 }: TopbarProps) {
   const workspaceName = workspaceDisplayName(root);
   const workspaceParent = workspaceParentPath(root);
   const themeLabel = themePreferenceLabel(themePreference);
-  const commentsButton = commentsButtonState({
-    attentionCount: commentAttentionCount,
-    openThreadCount: openCommentThreadCount,
-    reviewOpenThreadCount: reviewOpenCommentThreadCount,
-  });
 
   return (
     <header className={styles.topbar}>
@@ -89,25 +76,6 @@ export function Topbar({
         </button>
         <button
           type="button"
-          className={[
-            styles.commandButton,
-            styles.commandButtonSecondary,
-            commentAttentionCount ? styles.needsAttention : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          aria-label={commentsButton.ariaLabel}
-          title={commentsButton.title}
-          data-topbar-action="comments"
-          onClick={onOpenComments}
-        >
-          <span>{commentsButton.label}</span>
-          <span className={styles.commentCountBadge}>
-            {commentsButton.count}
-          </span>
-        </button>
-        <button
-          type="button"
           className={`${styles.commandButton} ${styles.commandButtonSecondary}`}
           aria-label="Search workspace text"
           aria-keyshortcuts="Meta+Shift+F Control+Shift+F"
@@ -121,54 +89,6 @@ export function Topbar({
       </div>
     </header>
   );
-}
-
-function commentsButtonState({
-  attentionCount,
-  openThreadCount,
-  reviewOpenThreadCount,
-}: {
-  attentionCount: number;
-  openThreadCount: number;
-  reviewOpenThreadCount?: number;
-}): {
-  ariaLabel: string;
-  count: number;
-  label: string;
-  title: string;
-} {
-  if (attentionCount > 0) {
-    const noun = attentionCount === 1 ? "thread" : "threads";
-    const verb = attentionCount === 1 ? "needs" : "need";
-    return {
-      ariaLabel: `Open Comments hub, ${attentionCount} comment ${noun} ${verb} attention`,
-      count: attentionCount,
-      label: "Attention",
-      title: `Open Comments hub: ${attentionCount} comment ${noun} ${verb} attention`,
-    };
-  }
-
-  const noun = openThreadCount === 1 ? "thread" : "threads";
-  const summary = openThreadCount
-    ? `${openThreadCount} open ${noun}`
-    : "no open threads";
-  const reviewSummary =
-    reviewOpenThreadCount !== undefined &&
-    reviewOpenThreadCount >= 0 &&
-    reviewOpenThreadCount !== openThreadCount
-      ? `, ${openReviewThreadSummary(reviewOpenThreadCount)}`
-      : "";
-  return {
-    ariaLabel: `Open Comments hub, ${summary}${reviewSummary}`,
-    count: openThreadCount,
-    label: "Comments",
-    title: `Open Comments hub: ${summary}${reviewSummary}`,
-  };
-}
-
-function openReviewThreadSummary(count: number): string {
-  if (count === 0) return "no open review threads";
-  return `${count} open review ${count === 1 ? "thread" : "threads"}`;
 }
 
 export function workspaceDisplayName(root: string | null): string {
