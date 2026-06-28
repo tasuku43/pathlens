@@ -276,9 +276,14 @@ export class ViewerService {
     );
     const publishedAt = isoNow();
     const reviewBatchId = `review-${randomUUID()}`;
+    const draftIds = new Set(drafts.map((draft) => draft.id));
+    const threadIdByDraftOnlyGroup = new Map<string, string>();
     for (const draft of drafts) {
+      const publishThreadId =
+        draftOnlyPublishThreadId(draft, draftIds, threadIdByDraftOnlyGroup) ??
+        draft.threadId;
       await this.createNormalizedComment({
-        threadId: draft.threadId,
+        threadId: publishThreadId,
         path: draft.path,
         viewerKind: draft.viewerKind,
         reviewBatchId,
@@ -575,6 +580,30 @@ function fallbackFileScore(path: string, terms: string[]): number {
     score += 100 - index;
   }
   return score;
+}
+
+function draftOnlyPublishThreadId(
+  draft: DraftReviewComment,
+  draftIds: ReadonlySet<string>,
+  threadIdByDraftOnlyGroup: Map<string, string>,
+): string | undefined {
+  const targetDraftId = draft.threadId
+    ? draftOnlyThreadTargetDraftId(draft.threadId)
+    : draft.id;
+  if (!targetDraftId || !draftIds.has(targetDraftId)) return undefined;
+  const existing = threadIdByDraftOnlyGroup.get(targetDraftId);
+  if (existing) return existing;
+  const threadId = randomUUID();
+  threadIdByDraftOnlyGroup.set(targetDraftId, threadId);
+  return threadId;
+}
+
+function draftOnlyThreadTargetDraftId(threadId: string): string | null {
+  if (!threadId.startsWith("draft-thread:")) return null;
+  const withoutPrefix = threadId.slice("draft-thread:".length);
+  const separatorIndex = withoutPrefix.indexOf(":");
+  if (separatorIndex <= 0) return null;
+  return withoutPrefix.slice(0, separatorIndex);
 }
 
 function pathFromCommentInput(input: unknown): string {
