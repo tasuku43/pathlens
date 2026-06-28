@@ -1,5 +1,5 @@
-github.com/99designs/gqlgen v0.17.92 h1:Ovj/hoMVqFaVLj7O2jlQNc8Z7FWpsd44LmA70e6qruM=
-github.com/99designs/gqlgen v0.17.92/go.mod h1:D51dk25OyUPz7jBw3P7B3+k4vsLxZo9f0yOrT4t/vLE=
+github.com/99designs/gqlgen v0.17.93 h1:oqLJS61cSp3YraGIowQPtyrUYfC8LpUFpQTeoFHAVKQ=
+github.com/99designs/gqlgen v0.17.93/go.mod h1:cXtBb9IeSiGflq69Io7DIAZY4JQJRinpIUgkNm8jEU0=
 github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
 github.com/agnivade/levenshtein v1.2.1/go.mod h1:QVVI16kDrtSuwcpd0p1+xMC6Z/VfhtCyDIjcwga4/DU=
 github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0 h1:jfIu9sQUG6Ig+0+Ap1h4unLjW6YQJpKZVmUzxsD4E/Q=
@@ -14,8 +14,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgryski/trifles v0.0.0-20230903005119-f50d829f2e54 h1:SG7nF6SRlWhcT7cNTs5R6Hk4V2lcmLz2NsG2VnInyNo=
 github.com/dgryski/trifles v0.0.0-20230903005119-f50d829f2e54/go.mod h1:if7Fbed8SFyPtHLHbg49SI7NAdJiC5WIA09pe59rfAA=
-github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S9k=
-github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
+github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=
+github.com/fsnotify/fsnotify v1.10.1/go.mod h1:TLheqan6HD6GBK6PrDWyDPBaEV8LspOxvPSjC+bVfgo=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
@@ -41,8 +41,8 @@ github.com/sosodev/duration v1.4.0 h1:35ed0KiVFriGHHzZZJaZLgmTEEICIyt8Sx0RQfj9Ij
 github.com/sosodev/duration v1.4.0/go.mod h1:RQIBBX0+fMLc/D9+Jb/fwvVmo0eZvDDEERAikUR6SDg=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
-github.com/urfave/cli/v3 v3.9.0 h1:AV9lIiPv3ukYnxunaCUsHnEozptYmDN2F0+yWqLMn/c=
-github.com/urfave/cli/v3 v3.9.0/go.mod h1:ysVLtOEmg2tOy6PknnYVhDoouyC/6N42TMeoMzskhso=
+github.com/urfave/cli/v3 v3.10.0 h1:0aU8yOObVDMkM13Cj4G+zb4P0PdeJMec65f81Ak1ioM=
+github.com/urfave/cli/v3 v3.10.0/go.mod h1:ysVLtOEmg2tOy6PknnYVhDoouyC/6N42TMeoMzskhso=
 github.com/vektah/gqlparser/v2 v2.5.35 h1:LEr/wXnTKkOqNn+4tNClYclksXN2781VoBFzzFW51Dk=
 github.com/vektah/gqlparser/v2 v2.5.35/go.mod h1:cAJ9qwVgPaUkWv6Gn8vn0mqOE0Ui5Pn56wNy5396XWo=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
