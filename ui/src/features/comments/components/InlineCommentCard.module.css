@@ -3,10 +3,10 @@
   z-index: 75;
   width: min(340px, calc(100vw - 24px));
   overflow: auto;
-  border: 1px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 12px;
-  background: var(--palette);
-  box-shadow: 0 24px 68px var(--shadow);
+  background: var(--vivi-color-surface-palette);
+  box-shadow: 0 24px 68px var(--vivi-color-shadow);
   padding: 12px;
 }
 
@@ -15,36 +15,36 @@
   position: absolute;
   width: 12px;
   height: 12px;
-  background: var(--palette);
+  background: var(--vivi-color-surface-palette);
   transform: rotate(45deg);
 }
 
 .pointsLeft::before {
   left: -7px;
   top: var(--comment-card-arrow-y, 22px);
-  border-left: 1px solid var(--comment-line);
-  border-bottom: 1px solid var(--comment-line);
+  border-left: 1px solid var(--vivi-color-comment-border);
+  border-bottom: 1px solid var(--vivi-color-comment-border);
 }
 
 .pointsRight::before {
   right: -7px;
   top: var(--comment-card-arrow-y, 22px);
-  border-right: 1px solid var(--comment-line);
-  border-top: 1px solid var(--comment-line);
+  border-right: 1px solid var(--vivi-color-comment-border);
+  border-top: 1px solid var(--vivi-color-comment-border);
 }
 
 .pointsTop::before {
   left: var(--comment-card-arrow-x, 24px);
   top: -7px;
-  border-left: 1px solid var(--comment-line);
-  border-top: 1px solid var(--comment-line);
+  border-left: 1px solid var(--vivi-color-comment-border);
+  border-top: 1px solid var(--vivi-color-comment-border);
 }
 
 .pointsBottom::before {
   left: var(--comment-card-arrow-x, 24px);
   bottom: -7px;
-  border-right: 1px solid var(--comment-line);
-  border-bottom: 1px solid var(--comment-line);
+  border-right: 1px solid var(--vivi-color-comment-border);
+  border-bottom: 1px solid var(--vivi-color-comment-border);
 }
 
 .top {
@@ -64,37 +64,37 @@
 .path {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .lineLabel {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
 .closeButton {
   width: 30px;
   height: 28px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 7px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
 }
 
 .body {
   margin: 9px 0;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   line-height: 1.55;
 }
 
 .quote {
-  border-left: 2px solid var(--line);
-  color: var(--muted);
+  border-left: 2px solid var(--vivi-color-border-default);
+  color: var(--vivi-color-content-muted);
   margin: 9px 0 10px;
   padding-left: 9px;
   font-size: 12px;
@@ -107,10 +107,10 @@
 }
 
 .actions button {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 7px;
-  background: var(--panel);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font: inherit;
   font-size: 12px;

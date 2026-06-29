@@ -8,8 +8,8 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: var(--code);
-  border: 1px solid var(--line);
+  background: var(--vivi-color-surface-code);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 12px;
 }
 
@@ -26,10 +26,10 @@
 .markdownSource {
   margin: 0;
   overflow-x: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--code);
-  color: var(--text);
+  background: var(--vivi-color-surface-code);
+  color: var(--vivi-color-content-primary);
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 13px;
@@ -82,10 +82,10 @@
 }
 
 .diffToggle {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -93,53 +93,53 @@
 
 .diffToggleActive,
 .diffToggle[aria-pressed="true"] {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
 }
 
 .segmentedControl {
   display: inline-flex;
   flex: 0 0 auto;
   overflow: hidden;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
 }
 
 .segmentedControl button {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
 }
 
 .segmentedControl button:global(.active) {
-  background: var(--accent-soft);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-content-primary);
 }
 
 .largePreviewNote {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   padding: 9px 11px;
   font-size: 12px;
 }
 
 .binaryMetadataPanel {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
   padding: 16px;
 }
 
 .binaryMetadataPanel p {
   margin: 0 0 14px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 13px;
 }
 
@@ -155,7 +155,7 @@
 }
 
 .binaryMetadataPanel dt {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   text-transform: uppercase;
 }
@@ -170,7 +170,7 @@
 .htmlFrame {
   width: 100%;
   height: calc(100vh - 140px);
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 12px;
   background: white;
 }
@@ -199,9 +199,9 @@
 .imageStage {
   min-height: 280px;
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 10px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 18px;
 }
 
@@ -222,9 +222,9 @@
 
 .csvTableWrap {
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
 }
 
 .csvTable {
@@ -238,8 +238,8 @@
 .csvTable td {
   max-width: 360px;
   overflow: hidden;
-  border-right: 1px solid var(--soft-line);
-  border-bottom: 1px solid var(--soft-line);
+  border-right: 1px solid var(--vivi-color-border-soft);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   padding: 9px 11px;
   text-align: left;
   text-overflow: ellipsis;
@@ -251,17 +251,17 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   font-weight: 760;
 }
 
 .jsonTree {
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--code);
+  background: var(--vivi-color-surface-code);
   padding: 12px;
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -269,7 +269,7 @@
 }
 
 .jsonNode {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   line-height: 1.7;
 }
 
@@ -280,32 +280,32 @@
 .jsonChildren {
   margin-left: 18px;
   padding-left: 12px;
-  border-left: 1px solid var(--soft-line);
+  border-left: 1px solid var(--vivi-color-border-soft);
 }
 
 .jsonKey {
-  color: var(--accent);
+  color: var(--vivi-color-accent);
   margin-right: 8px;
 }
 
 .jsonValue {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .jsonValueString {
-  color: #9ece6a;
+  color: var(--vivi-color-json-string);
 }
 
 .jsonValueNumber {
-  color: #ff9e64;
+  color: var(--vivi-color-json-number);
 }
 
 .jsonValueBoolean {
-  color: #bb9af7;
+  color: var(--vivi-color-json-boolean);
 }
 
 .jsonValueNull {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 
 .mermaidRenderSurface {
@@ -315,9 +315,9 @@
 
 .mermaidRenderTargetRendered {
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 14px;
 }
 

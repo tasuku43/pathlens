@@ -55,7 +55,7 @@
 .resizer:hover::after,
 .resizer:focus-visible::after,
 .resizingWorkbenchPane .resizer::after {
-  background: var(--accent);
+  background: var(--vivi-color-accent);
 }
 
 .resizingWorkbenchPane {
@@ -72,21 +72,21 @@
   width: 24px;
   height: 42px;
   margin: 0;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--chrome);
-  color: var(--muted);
+  background: var(--vivi-color-surface-chrome);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   opacity: 0.78;
   transform: translateY(-50%);
-  box-shadow: 0 8px 18px var(--shadow);
+  box-shadow: 0 8px 18px var(--vivi-color-shadow);
 }
 
 .railToggle:hover,
 .railToggle:focus-visible {
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
-  color: var(--text);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-content-primary);
   opacity: 1;
 }
 
@@ -166,12 +166,12 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--vivi-color-border-default);
+  border-bottom: 1px solid var(--vivi-color-border-default);
 }
 
 .activePane {
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+  box-shadow: inset 0 0 0 1px var(--vivi-color-accent-border);
 }
 
 .splitDropZone {
@@ -188,10 +188,10 @@
   content: "";
   position: absolute;
   inset: 0;
-  border: 2px solid var(--accent);
+  border: 2px solid var(--vivi-color-accent);
   border-radius: 8px;
-  background: var(--accent-soft);
-  box-shadow: 0 0 0 1px var(--shadow);
+  background: var(--vivi-color-accent-surface);
+  box-shadow: 0 0 0 1px var(--vivi-color-shadow);
 }
 
 .dropLeft::after {
@@ -216,7 +216,7 @@
   flex: 1;
   overflow: auto;
   padding: 0;
-  background: var(--bg);
+  background: var(--vivi-color-surface-canvas);
 }
 
 .storyFocusReviewQueue {
@@ -246,7 +246,7 @@
     z-index: 5;
     display: block;
     width: var(--compact-inspector-width);
-    box-shadow: -18px 0 34px var(--shadow);
+    box-shadow: -18px 0 34px var(--vivi-color-shadow);
   }
 
   .inspectorHidden :global(.inspector) {
@@ -284,7 +284,7 @@
   z-index: 5;
   display: block;
   width: var(--compact-inspector-width);
-  box-shadow: -18px 0 34px var(--shadow);
+  box-shadow: -18px 0 34px var(--vivi-color-shadow);
 }
 
 .storyWorkbenchCompactInspector.inspectorHidden :global(.inspector) {
@@ -307,9 +307,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--accent-line);
-  background: color-mix(in srgb, var(--accent-faint) 72%, var(--panel));
-  color: var(--muted);
+  border-bottom: 1px solid var(--vivi-color-accent-border);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface-subtle) 72%,
+    var(--vivi-color-surface-panel)
+  );
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   padding: 7px 24px;
 }
@@ -333,7 +337,7 @@
 .textSearchNavQuery {
   max-width: min(340px, 42vw);
   overflow: hidden;
-  color: var(--accent);
+  color: var(--vivi-color-accent);
   font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -342,7 +346,7 @@
 .textSearchNavPreview {
   min-width: 80px;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-family:
     ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   text-overflow: ellipsis;
@@ -351,8 +355,8 @@
 
 .textSearchNavMatch {
   border-radius: 4px;
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
   padding: 0 2px;
 }
 
@@ -361,10 +365,10 @@
 }
 
 .textSearchNavActions button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 4px 8px;
@@ -372,10 +376,10 @@
 
 .textSearchNavActions button:hover,
 .textSearchNavActions button:focus-visible {
-  border-color: var(--accent-line);
+  border-color: var(--vivi-color-accent-border);
   outline: none;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
 }
 
 @media (max-width: 720px) {
@@ -402,28 +406,28 @@
   align-items: flex-start;
   justify-content: center;
   padding-top: 104px;
-  background: var(--overlay);
+  background: var(--vivi-color-overlay);
   backdrop-filter: blur(8px);
 }
 
 .restorePrompt {
   width: min(460px, calc(100vw - 40px));
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 12px;
-  background: var(--palette);
-  box-shadow: 0 24px 80px var(--shadow);
+  background: var(--vivi-color-surface-palette);
+  box-shadow: 0 24px 80px var(--vivi-color-shadow);
   padding: 18px;
 }
 
 .restorePrompt strong {
   display: block;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 16px;
 }
 
 .restorePrompt p {
   margin: 8px 0 16px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -435,17 +439,17 @@
 }
 
 .restoreActions button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 7px 9px;
 }
 
 .restoreActions button:first-child {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
 }

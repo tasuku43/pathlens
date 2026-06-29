@@ -11,10 +11,10 @@
 
 .panel {
   width: min(420px, calc(100vw - 32px));
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 12px;
-  background: var(--palette);
-  box-shadow: 0 24px 80px var(--shadow);
+  background: var(--vivi-color-surface-palette);
+  box-shadow: 0 24px 80px var(--vivi-color-shadow);
   padding: 16px;
 }
 
@@ -23,13 +23,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   padding-bottom: 12px;
 }
 
 .header p {
   margin: 0 0 3px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -41,10 +41,10 @@
 }
 
 .close {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -56,7 +56,7 @@
 
 .group h3 {
   margin: 0 0 8px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   font-weight: 650;
 }
@@ -73,8 +73,8 @@
   justify-content: space-between;
   gap: 18px;
   min-height: 32px;
-  border-bottom: 1px solid var(--soft-line);
-  color: var(--text);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-primary);
   font-size: 13px;
 }
 

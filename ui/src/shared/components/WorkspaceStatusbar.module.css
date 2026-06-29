@@ -5,11 +5,11 @@
     minmax(160px, 1.1fr);
   align-items: center;
   gap: 12px;
-  background: var(--chrome);
+  background: var(--vivi-color-surface-chrome);
   padding: 0 14px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--vivi-color-border-default);
   border-bottom: 0;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
@@ -33,7 +33,7 @@
 
 .label {
   flex: 0 0 auto;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -45,20 +45,22 @@
   height: 7px;
   flex: 0 0 7px;
   border-radius: 999px;
-  background: var(--muted);
+  background: var(--vivi-color-content-muted);
 }
 
 .live {
-  background: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  background: var(--vivi-color-accent);
+  box-shadow: 0 0 0 3px var(--vivi-color-accent-surface);
 }
 
 .pending {
-  background: var(--warn);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 18%, transparent);
+  background: var(--vivi-color-warning);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--vivi-color-warning) 18%, transparent);
 }
 
 .offline {
-  background: var(--error);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--error) 18%, transparent);
+  background: var(--vivi-color-danger);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--vivi-color-danger) 18%, transparent);
 }

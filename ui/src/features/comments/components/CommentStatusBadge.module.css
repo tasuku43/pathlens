@@ -1,38 +1,50 @@
 .status {
   border-radius: 999px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   padding: 2px 7px;
   font-size: 11px;
   font-weight: 720;
 }
 
 .open {
-  border-color: var(--comment-line);
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
 }
 
 .resolved {
-  color: var(--warn);
+  color: var(--vivi-color-warning);
 }
 
 .archived {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .draft {
-  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
-  background: color-mix(in srgb, var(--warn) 13%, transparent);
-  color: color-mix(in srgb, var(--warn) 82%, var(--text));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 54%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-warning) 13%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 82%,
+    var(--vivi-color-content-primary)
+  );
 }
 
 .published {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .accepted,
 .reviewed {
-  border-color: color-mix(in srgb, var(--good) 52%, var(--soft-line));
-  background: color-mix(in srgb, var(--good) 10%, transparent);
-  color: var(--good);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-success) 52%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-success) 10%, transparent);
+  color: var(--vivi-color-success);
 }

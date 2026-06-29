@@ -1,16 +1,21 @@
 :local(.threadRoot) {
-  --code-comment-thread-module: 1;
+  --vivi-color-surface-code-comment-thread-module: 1;
 }
 
 :global(.code-comment-thread) {
   grid-column: 2;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--panel) 94%, var(--code));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--shadow) 58%, transparent);
-  color: var(--text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 94%,
+    var(--vivi-color-surface-code)
+  );
+  box-shadow: 0 10px 28px
+    color-mix(in srgb, var(--vivi-color-shadow) 58%, transparent);
+  color: var(--vivi-color-content-primary);
   font-family:
     Inter,
     ui-sans-serif,
@@ -27,8 +32,12 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 36px;
-  border-bottom: 1px solid var(--soft-line);
-  background: color-mix(in srgb, var(--panel-2) 82%, var(--code));
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 82%,
+    var(--vivi-color-surface-code)
+  );
   padding: 6px 8px 6px 11px;
 }
 
@@ -50,7 +59,7 @@
 }
 
 :global(.code-comment-thread-header span:not(.comment-status)) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
 }
 
@@ -59,7 +68,7 @@
   width: 13px;
   height: 10px;
   flex: 0 0 auto;
-  border: 1.5px solid var(--comment-text);
+  border: 1.5px solid var(--vivi-color-comment-text);
   border-radius: 4px;
 }
 
@@ -70,7 +79,7 @@
   bottom: -4px;
   width: 4px;
   height: 4px;
-  border-left: 1.5px solid var(--comment-text);
+  border-left: 1.5px solid var(--vivi-color-comment-text);
   transform: skew(-25deg);
 }
 
@@ -81,7 +90,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
@@ -91,8 +100,8 @@
 :global(.code-comment-thread-header > button:hover),
 :global(.code-comment-thread-header > button:focus-visible) {
   outline: none;
-  background: var(--soft-line);
-  color: var(--text);
+  background: var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-primary);
 }
 
 :global(.code-comment-thread-messages) {
@@ -101,7 +110,7 @@
 }
 
 :global(.code-thread-comment) {
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   padding: 10px 12px 11px;
 }
 
@@ -109,7 +118,7 @@
   background:
     linear-gradient(
       90deg,
-      color-mix(in srgb, var(--accent) 55%, transparent),
+      color-mix(in srgb, var(--vivi-color-accent) 55%, transparent),
       transparent 5px
     ),
     color-mix(in srgb, #456184 26%, transparent);
@@ -119,23 +128,35 @@
 }
 
 :global(.code-thread-comment.active) {
-  background: color-mix(in srgb, var(--accent-faint) 62%, transparent);
-  box-shadow: inset 3px 0 0 var(--accent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface-subtle) 62%,
+    transparent
+  );
+  box-shadow: inset 3px 0 0 var(--vivi-color-accent);
 }
 
 :global(.code-thread-comment.resolved),
 :global(.code-thread-comment.archived) {
-  background: color-mix(in srgb, var(--panel-2) 62%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 62%,
+    transparent
+  );
 }
 
 :global(.code-thread-comment.draft) {
-  border-left: 3px solid var(--comment-line);
-  background: color-mix(in srgb, var(--panel-2) 74%, transparent);
+  border-left: 3px solid var(--vivi-color-comment-border);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 74%,
+    transparent
+  );
 }
 
 :global(.code-thread-comment-meta) {
   gap: 9px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
   min-height: 28px;
 }
@@ -143,9 +164,18 @@
 :global(.code-thread-comment-avatar) {
   width: 28px;
   height: 28px;
-  border: 1px solid color-mix(in srgb, var(--soft-line) 76%, var(--text));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vivi-color-border-soft) 76%,
+      var(--vivi-color-content-primary)
+    );
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel-2) 78%, var(--code));
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 78%,
+    var(--vivi-color-surface-code)
+  );
   flex: 0 0 auto;
   object-fit: contain;
   padding: 1px;
@@ -153,30 +183,39 @@
 }
 
 :global(.code-thread-comment-avatar.codex) {
-  background: color-mix(in srgb, var(--code) 72%, black);
+  background: color-mix(in srgb, var(--vivi-color-surface-code) 72%, black);
 }
 
 :global(.code-thread-comment-meta strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   font-weight: 760;
 }
 
 :global(.code-thread-current-stop) {
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
   font-size: 10px;
   font-weight: 760;
   padding: 1px 6px;
 }
 
 :global(.code-thread-self-chip) {
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--soft-line));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vivi-color-accent) 34%,
+      var(--vivi-color-border-soft)
+    );
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
-  color: color-mix(in srgb, var(--accent) 44%, var(--text));
+  background: color-mix(in srgb, var(--vivi-color-accent) 13%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-accent) 44%,
+    var(--vivi-color-content-primary)
+  );
   font-size: 10px;
   font-weight: 760;
   padding: 1px 6px;
@@ -184,7 +223,7 @@
 
 :global(.code-thread-comment p) {
   margin: 6px 0 0;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -199,7 +238,7 @@
   align-items: center;
   gap: 6px;
   margin: 0 2px 6px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   font-weight: 680;
   line-height: 1.35;
@@ -209,17 +248,17 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  background: var(--vivi-color-accent);
+  box-shadow: 0 0 0 2px var(--vivi-color-accent-surface-subtle);
 }
 
 :global(.code-comment-intent-toggle) {
   display: inline-flex;
   gap: 2px;
   margin: 0 0 7px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 7px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 2px;
 }
 
@@ -227,7 +266,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
@@ -236,21 +275,21 @@
 }
 
 :global(.code-comment-intent-toggle button.active) {
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
 }
 
 :global(.code-comment-intent-toggle button:hover),
 :global(.code-comment-intent-toggle button:focus-visible) {
   outline: none;
-  background: var(--soft-line);
-  color: var(--text);
+  background: var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-primary);
 }
 
 :global(.code-comment-intent-toggle button.active:hover),
 :global(.code-comment-intent-toggle button.active:focus-visible) {
-  background: var(--comment-tint-active);
-  color: var(--comment-text);
+  background: var(--vivi-color-comment-surface-active);
+  color: var(--vivi-color-comment-text);
 }
 
 :global(.code-comment-thread-reply textarea) {
@@ -258,10 +297,10 @@
   width: 100%;
   min-height: 58px;
   resize: vertical;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 6px;
-  background: var(--code);
-  color: var(--text);
+  background: var(--vivi-color-surface-code);
+  color: var(--vivi-color-content-primary);
   font: inherit;
   font-size: 12px;
   line-height: 1.5;
@@ -270,8 +309,8 @@
 }
 
 :global(.code-comment-thread-reply textarea:focus) {
-  border-color: var(--accent-line);
-  box-shadow: 0 0 0 2px var(--accent-faint);
+  border-color: var(--vivi-color-accent-border);
+  box-shadow: 0 0 0 2px var(--vivi-color-accent-surface-subtle);
 }
 
 :global(.code-comment-thread-hint) {
@@ -279,13 +318,13 @@
   align-items: center;
   gap: 6px;
   margin: 6px 2px 0;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   line-height: 1.35;
 }
 
 :global(.code-comment-thread-hint span) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 
 :global(.code-comment-thread-footer) {
@@ -303,7 +342,7 @@
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
   font-size: 11px;
@@ -313,8 +352,8 @@
 :global(.code-comment-thread-footer button:hover),
 :global(.code-comment-thread-footer button:focus-visible) {
   outline: none;
-  background: var(--soft-line);
-  color: var(--text);
+  background: var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-primary);
 }
 
 :global(.code-comment-thread-footer .code-comment-submit) {
@@ -322,8 +361,8 @@
   place-items: center;
   width: 28px;
   height: 28px;
-  background: var(--comment-text);
-  color: var(--panel);
+  background: var(--vivi-color-comment-text);
+  color: var(--vivi-color-surface-panel);
   font-size: 17px;
   font-weight: 800;
   padding: 0;
@@ -335,7 +374,7 @@
 }
 
 :global(.code-comment-thread-error) {
-  color: var(--error);
+  color: var(--vivi-color-danger);
   font-size: 11px;
   margin: 6px 2px 0;
 }

@@ -12,8 +12,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  border-bottom: 1px solid var(--soft-line);
-  color: var(--muted);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   padding: 6px 10px;
 }
@@ -26,16 +26,20 @@
 :global(.comment-activity-summary > span) {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 72%,
+    transparent
+  );
   padding: 3px 7px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 :global(.comment-activity-timeline) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
 }
 
@@ -56,6 +60,6 @@
 }
 
 :global(.comment-activity-timeline small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
 }

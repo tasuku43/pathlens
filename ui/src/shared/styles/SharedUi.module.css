@@ -25,7 +25,7 @@
 
 .pill,
 .commandButton {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
   font-size: 12px;
 }
@@ -35,17 +35,17 @@
   align-items: center;
   gap: 9px;
   min-height: 28px;
-  background: var(--panel);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   padding: 5px 9px 5px 10px;
 }
 
 .commandButton kbd {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 5px;
-  background: var(--panel-2);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-muted);
   font-size: 10px;
   padding: 1px 4px;
 }
@@ -53,25 +53,25 @@
 .commandButtonPrimary {
   min-width: 138px;
   justify-content: space-between;
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 
 .commandButtonSecondary {
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .commandButtonSecondaryAttention {
-  border-color: var(--comment-line);
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
 }
 
 .commandButtonSecondary:hover {
-  border-color: var(--line);
-  background: var(--accent-faint);
-  color: var(--text);
+  border-color: var(--vivi-color-border-default);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-content-primary);
 }
 
 .pill {
@@ -79,8 +79,8 @@
   align-items: center;
   gap: 5px;
   border-radius: 999px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   cursor: default;
   padding: 5px 10px;
 }
@@ -97,24 +97,24 @@ button.pill {
 }
 
 .pillActive {
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
 }
 
 .sidebar,
 .inspector {
   min-width: 0;
   overflow: auto;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
 }
 
 .sidebar {
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--vivi-color-border-default);
 }
 
 .inspector {
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--vivi-color-border-default);
 }
 
 .panelTitle {
@@ -127,9 +127,9 @@ button.pill {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--muted);
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   letter-spacing: 0.08em;
   padding: 0 12px;
@@ -137,18 +137,18 @@ button.pill {
 }
 
 .error {
-  color: var(--error);
+  color: var(--vivi-color-danger);
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .keycap {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--code);
-  color: var(--text);
+  background: var(--vivi-color-surface-code);
+  color: var(--vivi-color-content-primary);
   padding: 2px 7px;
 }
 

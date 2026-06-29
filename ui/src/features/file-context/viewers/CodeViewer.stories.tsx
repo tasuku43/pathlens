@@ -380,7 +380,7 @@ export const NarrowInlineCommentDraft: Story = {
       style={{
         width: 520,
         height: 620,
-        borderRight: "1px solid var(--line)",
+        borderRight: "1px solid var(--vivi-color-border-default)",
       }}
     >
       <CodeViewer {...args} />

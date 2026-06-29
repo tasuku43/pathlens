@@ -7,8 +7,8 @@
   gap: 8px;
   overflow: hidden;
   padding: 0 8px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel-2);
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  background: var(--vivi-color-surface-panel-raised);
 }
 
 .strip {
@@ -31,7 +31,7 @@
   border-bottom: 0;
   border-radius: 9px 9px 0 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   padding: 0 4px 0 0;
   white-space: nowrap;
 }
@@ -62,9 +62,9 @@
 }
 
 .active {
-  border-color: var(--line);
-  background: var(--bg);
-  color: var(--text);
+  border-color: var(--vivi-color-border-default);
+  background: var(--vivi-color-surface-canvas);
+  color: var(--vivi-color-content-primary);
 }
 
 .preview .title {
@@ -88,7 +88,7 @@
 
 .context {
   max-width: 132px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
 }
 
@@ -97,18 +97,19 @@
 }
 
 .previewMark {
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 999px;
-  color: var(--accent);
+  color: var(--vivi-color-accent);
   font-size: 10px;
   line-height: 1;
   padding: 3px 5px;
 }
 
 .removedMark {
-  border: 1px solid color-mix(in srgb, var(--error) 44%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--vivi-color-danger) 44%, transparent);
   border-radius: 999px;
-  color: var(--error);
+  color: var(--vivi-color-danger);
   font-size: 10px;
   line-height: 1;
   padding: 3px 5px;
@@ -119,7 +120,7 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--warn);
+  background: var(--vivi-color-warning);
 }
 
 .removed {
@@ -134,14 +135,14 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   cursor: pointer;
 }
 
 .close:hover,
 .close:focus-visible {
-  background: var(--accent-faint);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-content-primary);
 }
 
 .actions {
@@ -154,10 +155,10 @@
 }
 
 .actions button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 11px;
   padding: 4px 6px;
@@ -165,8 +166,8 @@
 }
 
 .actions button:hover:not(:disabled) {
-  border-color: var(--accent-line);
-  color: var(--text);
+  border-color: var(--vivi-color-accent-border);
+  color: var(--vivi-color-content-primary);
 }
 
 .actions button:disabled {

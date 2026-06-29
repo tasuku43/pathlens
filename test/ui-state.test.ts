@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { expect, it, vi } from "vitest";
 import type { FilePayload, FsNode } from "../ui/src/domain/fs-node.js";
 import type { FileSearchResult } from "../ui/src/domain/search.js";
@@ -88,6 +89,10 @@ import {
   resolveThemePreference,
   themePreferenceLabel,
 } from "../ui/src/state/theme.js";
+import {
+  colorTokenNames,
+  colorTokenVar,
+} from "../ui/src/state/color-tokens.js";
 import {
   clampInspectorWidth,
   clampSidebarWidth,
@@ -2749,6 +2754,77 @@ it("cycles theme preference while keeping system as the default option", () => {
   expect(isThemePreference("sepia")).toBe(false);
   expect(isThemePreference("dark")).toBe(true);
 });
+
+it("keeps color token definitions aligned across light and dark themes", () => {
+  const css = readFileSync(
+    new URL("../ui/src/styles.css", import.meta.url),
+    "utf8",
+  );
+  const darkThemeBlock = cssBlockForSelector(css, ":root");
+  const lightThemeBlock = cssBlockForSelector(css, ':root[data-theme="light"]');
+
+  for (const tokenName of colorTokenNames) {
+    expect(darkThemeBlock).toContain(`--${tokenName}:`);
+    expect(lightThemeBlock).toContain(`--${tokenName}:`);
+  }
+});
+
+it("keeps color usage on semantic token names", () => {
+  const css = readFileSync(
+    new URL("../ui/src/styles.css", import.meta.url),
+    "utf8",
+  );
+  const darkThemeBlock = cssBlockForSelector(css, ":root");
+  const retiredAliasPattern =
+    /--(?:bg|panel|panel-2|text|muted|line|accent|warn|code|chrome|soft-line|accent-soft|accent-faint|accent-line|accent-strong|accent-glow|comment-tint|comment-tint-active|comment-line|comment-text|diff-add|diff-remove|overlay|palette|shadow|subtle|error|good)\b/;
+
+  expect(darkThemeBlock).not.toMatch(retiredAliasPattern);
+
+  for (const filePath of sourceFilesForColorTokenAudit()) {
+    expect(readFileSync(filePath, "utf8"), filePath).not.toMatch(
+      retiredAliasPattern,
+    );
+  }
+
+  expect(colorTokenVar("vivi-color-accent")).toBe("var(--vivi-color-accent)");
+});
+
+function cssBlockForSelector(css: string, selector: string): string {
+  const selectorIndex = css.indexOf(selector);
+  expect(selectorIndex).toBeGreaterThanOrEqual(0);
+
+  const blockStart = css.indexOf("{", selectorIndex);
+  expect(blockStart).toBeGreaterThanOrEqual(0);
+
+  let depth = 0;
+  for (let index = blockStart; index < css.length; index += 1) {
+    const char = css[index];
+    if (char === "{") depth += 1;
+    if (char === "}") depth -= 1;
+    if (depth === 0) return css.slice(blockStart + 1, index);
+  }
+
+  throw new Error(`CSS block for ${selector} was not closed`);
+}
+
+function sourceFilesForColorTokenAudit(): string[] {
+  const root = new URL("../ui/src/", import.meta.url);
+  const sourceFiles: string[] = [];
+  const visit = (directory: URL) => {
+    for (const entry of readdirSync(directory)) {
+      const entryUrl = new URL(entry, `${directory.href}/`);
+      const stat = statSync(entryUrl);
+      if (stat.isDirectory()) {
+        visit(entryUrl);
+        continue;
+      }
+      if (/\.(css|ts|tsx)$/.test(entry)) sourceFiles.push(entryUrl.pathname);
+    }
+  };
+
+  visit(root);
+  return sourceFiles;
+}
 
 it("clamps side widths for draggable workbench layout", () => {
   expect(clampSidebarWidth(320.4)).toBe(320);

@@ -18,6 +18,23 @@ docs/ui-mocks/06-classic-reader-commandk.html
 
 This direction was chosen because it keeps the mental model simple: the filesystem tree stays visible, open files stay visible as tabs, the active file is central, and secondary navigation lives in a right inspector.
 
+## Color and theme system
+
+Product UI colors should be consumed through semantic CSS custom properties named
+`--vivi-color-*` and defined in `ui/src/styles.css`. Do not introduce short
+alias tokens such as `--panel` or `--muted`; component CSS should read as if the
+semantic token system had always existed.
+
+Dark mode is the default token set on `:root`. Light mode is the
+`:root[data-theme="light"]` override. Browser theme preference management stays
+in `ui/src/state/theme.ts` as `system | light | dark`, with the resolved value
+written to `document.documentElement.dataset.theme`.
+
+Each semantic color token must be present in both light and dark theme blocks.
+When a new product color role is needed, add it to `ui/src/state/color-tokens.ts`
+and keep the corresponding token contract test updated. Snapshot tests should
+show no visual diff for pure token migrations.
+
 ## Workspace layout
 
 The app should use this default layout:

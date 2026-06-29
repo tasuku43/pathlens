@@ -199,7 +199,7 @@ export const ViewerToolbarChromeConsistency: Story = {
             style={{
               height: 220,
               overflow: "auto",
-              border: "1px solid var(--line)",
+              border: "1px solid var(--vivi-color-border-default)",
             }}
           >
             <FileViewer

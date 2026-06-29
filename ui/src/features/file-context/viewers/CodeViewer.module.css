@@ -4,20 +4,20 @@
   min-height: 100%;
   border: 0;
   border-radius: 0;
-  background: var(--code);
+  background: var(--vivi-color-surface-code);
 }
 
 .actions {
   min-width: 0;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
 .actions > button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -25,7 +25,7 @@
 
 .copyStatus,
 .refreshPill {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
@@ -34,10 +34,10 @@
 }
 
 .refreshPill {
-  border: 1px solid rgba(224, 175, 104, 0.34);
+  border: 1px solid var(--vivi-color-warning-border-subtle);
   border-radius: 999px;
-  background: rgba(224, 175, 104, 0.1);
-  color: var(--warn);
+  background: var(--vivi-color-warning-surface-muted);
+  color: var(--vivi-color-warning);
   padding: 4px 7px;
 }
 
@@ -48,9 +48,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 1px solid var(--soft-line);
-  background: color-mix(in srgb, var(--code) 92%, var(--panel));
-  color: var(--muted);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-code) 92%,
+    var(--vivi-color-surface-panel)
+  );
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   padding: 8px 14px;
 }
@@ -58,7 +62,7 @@
 .scopeBar strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -70,7 +74,7 @@
 .codePro :global(.diff-viewer .diff-preview) {
   margin: 0;
   border-radius: 0;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
 }
 
 .codePro :global(.diff-viewer .diff-viewer-status) {

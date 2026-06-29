@@ -1,8 +1,11 @@
-.document :global(.markdown-mermaid[data-mermaid-status="rendered"] .mermaid-render-target) {
+.document
+  :global(
+    .markdown-mermaid[data-mermaid-status="rendered"] .mermaid-render-target
+  ) {
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 14px;
 }
 
@@ -13,12 +16,16 @@
 }
 
 .document
-  :global(.markdown-mermaid[data-mermaid-status="rendered"] .markdown-mermaid-fallback) {
+  :global(
+    .markdown-mermaid[data-mermaid-status="rendered"] .markdown-mermaid-fallback
+  ) {
   display: none;
 }
 
 .document
-  :global(.markdown-mermaid[data-mermaid-status="loading"] .markdown-mermaid-fallback) {
+  :global(
+    .markdown-mermaid[data-mermaid-status="loading"] .markdown-mermaid-fallback
+  ) {
   opacity: 0.7;
 }
 
@@ -35,7 +42,7 @@
 .document :global(.markdown-mermaid figcaption),
 .document :global(.html-mermaid figcaption),
 .document :global(.markdown-mermaid-source summary) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
@@ -53,9 +60,9 @@
 
 .document :global(.markdown-mermaid.unsupported),
 .document :global(.html-mermaid.unsupported) {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 12px;
 }
 
@@ -83,7 +90,9 @@
   --rendered-comment-marker-top: calc(0.85em + 1px);
 }
 
-:global(.markdown li.vivi-rendered-comment-block:has(> .rendered-comment-thread-host)) {
+:global(
+  .markdown li.vivi-rendered-comment-block:has(> .rendered-comment-thread-host)
+) {
   --rendered-comment-block-bottom-pad: 11px;
 }
 
@@ -126,7 +135,7 @@
 
 :global(.markdown .vivi-rendered-comment-block:not(tr):hover::before),
 :global(.markdown tr.vivi-rendered-comment-block:hover) {
-  background: var(--soft-line);
+  background: var(--vivi-color-border-soft);
 }
 
 :global(.markdown .vivi-rendered-comment-block.has-rendered-comment),
@@ -135,52 +144,72 @@
 }
 
 :global(.markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)),
-:global(.markdown .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)) {
+:global(
+  .markdown .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)
+) {
   background: transparent;
   box-shadow: none;
 }
 
-:global(.markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)::before),
-:global(.markdown
-  .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before),
+:global(
+  .markdown .vivi-rendered-comment-block.has-rendered-comment:not(tr)::before
+),
+:global(
+  .markdown
+    .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before
+),
 :global(.markdown tr.vivi-rendered-comment-block.has-rendered-comment),
 :global(.markdown tr.vivi-rendered-comment-block.drafting-rendered-comment) {
   background: linear-gradient(
     90deg,
-    var(--comment-tint-active),
-    color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
+    var(--vivi-color-comment-surface-active),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%,
     transparent
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment),
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-start.has-rendered-comment
+),
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-start.drafting-rendered-comment
+) {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment),
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-middle.has-rendered-comment
+),
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-middle.drafting-rendered-comment
+) {
   border-radius: 0;
 }
 
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment),
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-end.has-rendered-comment
+),
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-end.drafting-rendered-comment
+) {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
 
-:global(.markdown
-  .vivi-rendered-comment-block.rendered-comment-range-join-after:not(
-    tr
-  )::after) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block.rendered-comment-range-join-after:not(
+      tr
+    )::after
+) {
   content: "";
   position: absolute;
   z-index: 1;
@@ -191,8 +220,8 @@
   pointer-events: none;
   background: linear-gradient(
     90deg,
-    var(--comment-tint-active),
-    color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%,
+    var(--vivi-color-comment-surface-active),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%,
     transparent
   );
 }
@@ -202,27 +231,32 @@
   box-shadow: none;
 }
 
-:global(.markdown .vivi-rendered-comment-block.active-rendered-comment:not(tr)::before),
+:global(
+  .markdown .vivi-rendered-comment-block.active-rendered-comment:not(tr)::before
+),
 :global(.markdown tr.vivi-rendered-comment-block.active-rendered-comment) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint-active) 86%, white),
-    var(--comment-tint) 72%,
+    color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white),
+    var(--vivi-color-comment-surface) 72%,
     transparent
   );
   box-shadow:
-    inset 3px 0 0 var(--comment-text),
-    0 0 0 1px color-mix(in srgb, var(--comment-line) 46%, transparent);
+    inset 3px 0 0 var(--vivi-color-comment-text),
+    0 0 0 1px
+      color-mix(in srgb, var(--vivi-color-comment-border) 46%, transparent);
 }
 
-:global(.markdown
-  .vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(
-    tr
-  )::after) {
+:global(
+  .markdown
+    .vivi-rendered-comment-block.active-rendered-comment.rendered-comment-range-join-after:not(
+      tr
+    )::after
+) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint-active) 86%, white),
-    var(--comment-tint) 72%,
+    color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white),
+    var(--vivi-color-comment-surface) 72%,
     transparent
   );
 }
@@ -234,11 +268,12 @@
   right: -12px;
   width: 20px;
   height: 20px;
-  border: 1px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 6px;
-  background: var(--panel);
-  color: var(--comment-text);
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--shadow) 42%, transparent);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-comment-text);
+  box-shadow: 0 5px 14px
+    color-mix(in srgb, var(--vivi-color-shadow) 42%, transparent);
   cursor: pointer;
   padding: 0;
   transition:
@@ -281,8 +316,8 @@
 :global(.rendered-comment-marker:hover),
 :global(.rendered-comment-marker:focus-visible) {
   outline: none;
-  border-color: var(--comment-text);
-  background: var(--comment-tint-active);
+  border-color: var(--vivi-color-comment-text);
+  background: var(--vivi-color-comment-surface-active);
   transform: translateY(calc(-50% - 1px));
 }
 
@@ -294,10 +329,10 @@
   place-items: center;
   min-width: 13px;
   height: 13px;
-  border: 1px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 999px;
-  background: var(--palette);
-  color: var(--comment-text);
+  background: var(--vivi-color-surface-palette);
+  color: var(--vivi-color-comment-text);
   font-size: 8px;
   font-weight: 800;
   line-height: 1;
@@ -312,10 +347,14 @@
   right: 8px;
 }
 
-:global(.markdown tr.vivi-rendered-comment-block .rendered-comment-marker:hover),
-:global(.markdown
-  tr.vivi-rendered-comment-block
-  .rendered-comment-marker:focus-visible) {
+:global(
+  .markdown tr.vivi-rendered-comment-block .rendered-comment-marker:hover
+),
+:global(
+  .markdown
+    tr.vivi-rendered-comment-block
+    .rendered-comment-marker:focus-visible
+) {
   transform: translateY(calc(-50% - 1px));
 }
 
@@ -335,6 +374,6 @@
 
 :global(.markdown .rendered-comment-thread-table-row > td) {
   padding: 8px 14px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--vivi-color-border-default);
   background: transparent;
 }
