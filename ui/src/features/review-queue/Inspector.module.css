@@ -23,7 +23,7 @@
 }
 
 :global(.review-panel-heading > span) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   font-weight: 560;
 }
@@ -31,7 +31,7 @@
 :global(.review-panel-heading strong) {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 15px;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -52,10 +52,10 @@
 }
 
 :global(.section-title.with-action button) {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -70,10 +70,10 @@
   gap: 3px 8px;
   min-height: 56px;
   border: 0;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
   border-radius: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   padding: 10px 14px;
   text-align: left;
 }
@@ -83,48 +83,57 @@
 }
 
 :global(.change-open:hover:not(:disabled)) {
-  background: color-mix(in srgb, var(--accent-soft) 58%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface) 58%,
+    transparent
+  );
 }
 
 :global(.change-open.has-open-threads) {
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--muted) 34%, transparent);
+  box-shadow: inset 2px 0 0
+    color-mix(in srgb, var(--vivi-color-content-muted) 34%, transparent);
 }
 
 :global(.change-open.has-agent-reply) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint) 42%, transparent),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 42%, transparent),
     transparent 58%
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
 :global(.change-open.active) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent-faint) 78%, transparent),
+    color-mix(
+      in srgb,
+      var(--vivi-color-accent-surface-subtle) 78%,
+      transparent
+    ),
     transparent 62%
   );
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
 }
 
 :global(.change-open.active.has-open-threads) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint) 48%, transparent),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 48%, transparent),
     transparent 62%
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
 :global(.change-open.active b) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 :global(.change-open b) {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -132,7 +141,7 @@
 }
 
 :global(.change-open small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
   line-height: 1.25;
   min-width: 0;
@@ -147,22 +156,30 @@
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent);
+  background: var(--vivi-color-accent);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--vivi-color-accent) 16%, transparent);
 }
 
 :global(.unread-dot.agent-reply) {
   width: 9px;
   height: 9px;
-  background: var(--comment-text);
+  background: var(--vivi-color-comment-text);
   box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--comment-line) 22%, transparent),
-    0 0 16px color-mix(in srgb, var(--comment-line) 42%, transparent);
+    0 0 0 3px
+      color-mix(in srgb, var(--vivi-color-comment-border) 22%, transparent),
+    0 0 16px
+      color-mix(in srgb, var(--vivi-color-comment-border) 42%, transparent);
 }
 
 :global(.unread-dot.muted) {
-  background: color-mix(in srgb, var(--muted) 58%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--muted) 16%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-content-muted) 58%,
+    transparent
+  );
+  box-shadow: 0 0 0 1px
+    color-mix(in srgb, var(--vivi-color-content-muted) 16%, transparent);
 }
 
 :global(.unread-dot.read) {
@@ -190,10 +207,14 @@
 :global(.change-kind) {
   flex: 0 0 auto;
   min-width: 24px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 5px;
-  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   font-size: 9px;
   font-weight: 860;
   line-height: 1;
@@ -220,13 +241,13 @@
 
 :global(.change-source) {
   flex: 0 0 auto;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 :global(.review-thread-summary) {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted) !important;
+  color: var(--vivi-color-content-muted) !important;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -236,12 +257,12 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
-  color: var(--muted) !important;
+  color: var(--vivi-color-content-muted) !important;
 }
 
 :global(.review-stop-summary strong) {
   flex: 0 0 auto;
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
   font-size: 10px;
 }
 
@@ -253,17 +274,17 @@
 }
 
 :global(.review-stop-summary span:last-child) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 
 :global(.change-activity) {
   padding-left: 8px;
-  border-left: 1px solid var(--soft-line);
+  border-left: 1px solid var(--vivi-color-border-soft);
 }
 
 :global(.review-next) {
   align-self: center;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 18px;
   line-height: 1;
 }
@@ -273,22 +294,22 @@
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 :global(.diff-stat.muted) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 
 :global(.diff-add) {
-  color: var(--diff-add);
+  color: var(--vivi-color-diff-add);
 }
 
 :global(.diff-remove) {
-  color: var(--diff-remove);
+  color: var(--vivi-color-diff-remove);
 }
 
 :global(.review-state-summary) {
@@ -297,7 +318,7 @@
   overflow: hidden;
   gap: 0;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--vivi-color-border-default);
   border-radius: 0;
 }
 :global(.review-state-card) {
@@ -305,17 +326,17 @@
   min-width: 0;
   gap: 3px;
   border: 0;
-  border-right: 1px solid var(--soft-line);
+  border-right: 1px solid var(--vivi-color-border-soft);
   border-radius: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   padding: 10px 12px;
 }
 :global(.review-state-card:last-child) {
   border-right: 0;
 }
 :global(.review-state-card strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 18px;
   line-height: 1;
 }
@@ -340,20 +361,24 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 78%,
+    transparent
+  );
   padding: 3px;
 }
 :global(.split-tabs button) {
   border-color: transparent;
   background: transparent;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   padding: 6px;
 }
 :global(.split-tabs button[aria-selected="true"]) {
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
 }
 :global(.thread-queue-context) {
   margin-top: 8px;
@@ -370,8 +395,8 @@
   text-align: left;
 }
 :global(.compact-queue-item.active) {
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 :global(.compact-queue-main) {
   display: grid;
@@ -386,7 +411,7 @@
   white-space: nowrap;
 }
 :global(.compact-queue-main small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
 }
 :global(.reader-mini) {
@@ -398,9 +423,13 @@
   align-items: center;
   gap: 8px;
   margin: -2px -2px 2px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel-2) 86%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 86%,
+    transparent
+  );
   padding: 9px;
   backdrop-filter: blur(12px);
 }
@@ -417,19 +446,23 @@
   white-space: nowrap;
 }
 :global(.reader-mini-main small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
 }
 :global(.reader-mini .badge) {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
   font-size: 10px;
   font-weight: 820;
   padding: 2px 6px;
 }
 :global(.badge.live) {
-  border-color: color-mix(in srgb, var(--good) 52%, var(--soft-line));
-  color: var(--good);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-success) 52%,
+    var(--vivi-color-border-soft)
+  );
+  color: var(--vivi-color-success);
 }
 :global(.reader-review-summary) {
   margin-top: 4px;
@@ -447,19 +480,23 @@
   flex-wrap: wrap;
 }
 :global(.review-focus-metrics span) {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   padding: 3px 7px;
 }
 :global(.review-focus-metrics strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 :global(.hidden-review-history) {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel) 80%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 80%,
+    transparent
+  );
 }
 :global(.hidden-review-history summary) {
   display: flex;
@@ -468,7 +505,7 @@
   justify-content: space-between;
   gap: 8px;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   font-weight: 780;
   list-style: none;
@@ -484,33 +521,41 @@
   white-space: nowrap;
 }
 :global(.hidden-review-history summary span) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 :global(.hidden-review-history summary small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
 }
 :global(.hidden-review-history-list) {
   display: grid;
   gap: 5px;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
   padding: 7px;
 }
 :global(.hidden-review-history-item) {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 5px 7px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--panel-2) 62%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 62%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
   padding: 7px;
   text-align: left;
 }
 :global(.hidden-review-history-item.accepted) {
-  border-color: color-mix(in srgb, var(--good) 36%, var(--soft-line));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-success) 36%,
+    var(--vivi-color-border-soft)
+  );
 }
 :global(.hidden-review-history-item strong),
 :global(.hidden-review-history-item small) {
@@ -519,11 +564,11 @@
   white-space: nowrap;
 }
 :global(.hidden-review-history-item strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 11px;
 }
 :global(.hidden-review-history-item > span:not(.comment-status)) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
 }
 :global(.hidden-review-history-item small) {
@@ -532,12 +577,12 @@
 }
 :global(.hidden-review-history-item:hover),
 :global(.hidden-review-history-item:focus-visible) {
-  border-color: var(--accent-line);
+  border-color: var(--vivi-color-accent-border);
   outline: none;
-  background: var(--accent-faint);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 :global(.hidden-review-history-more) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
   padding: 3px 4px;
 }
@@ -562,39 +607,59 @@
   width: 100%;
   gap: 4px;
   justify-self: stretch;
-  border: 1px solid var(--soft-line);
-  border-left: 3px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-border-soft);
+  border-left: 3px solid var(--vivi-color-comment-border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel) 72%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   padding: 8px;
   text-align: left;
 }
 :global(.comment-summary .active-draft-comment) {
   border-left-color: color-mix(
     in srgb,
-    var(--comment-line) 58%,
-    var(--soft-line)
+    var(--vivi-color-comment-border) 58%,
+    var(--vivi-color-border-soft)
   );
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 78%,
+    transparent
+  );
 }
 :global(.comment-summary .active-comment-thread:hover),
 :global(.comment-summary .active-draft-comment:hover) {
-  border-color: color-mix(in srgb, var(--comment-line) 72%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 34%, var(--panel));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 72%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 34%,
+    var(--vivi-color-surface-panel)
+  );
 }
 :global(.comment-summary .active-comment-thread.active) {
-  border-color: var(--accent-line);
-  border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent-faint) 58%, var(--panel));
+  border-color: var(--vivi-color-accent-border);
+  border-left-color: var(--vivi-color-accent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface-subtle) 58%,
+    var(--vivi-color-surface-panel)
+  );
 }
 :global(.comment-summary .active-comment-thread.resolved),
 :global(.comment-summary .active-comment-thread.archived) {
-  border-left-color: var(--soft-line);
+  border-left-color: var(--vivi-color-border-soft);
 }
 :global(.comment-summary .active-comment-thread.active.resolved),
 :global(.comment-summary .active-comment-thread.active.archived) {
-  border-left-color: var(--accent);
+  border-left-color: var(--vivi-color-accent);
 }
 :global(.active-comment-thread-head) {
   display: flex;
@@ -618,15 +683,15 @@
 }
 :global(.active-comment-thread-head strong),
 :global(.active-draft-comment-head strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-weight: 760;
 }
 :global(.active-comment-current) {
   flex: 0 0 auto;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
   font-size: 10px;
   font-weight: 760;
   padding: 1px 6px;
@@ -640,27 +705,31 @@
 :global(.active-comment-thread-more),
 :global(.change-activity) {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 :global(.active-comment-thread-location) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
 }
 :global(.active-comment-thread-preview) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   line-height: 1.35;
 }
 :global(.active-draft-comment-preview) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   line-height: 1.35;
 }
 :global(.active-draft-comment-quote) {
   border-left: 2px solid
-    color-mix(in srgb, var(--comment-line) 58%, var(--soft-line));
+    color-mix(
+      in srgb,
+      var(--vivi-color-comment-border) 58%,
+      var(--vivi-color-border-soft)
+    );
   font-size: 11px;
   line-height: 1.35;
   padding-left: 7px;
@@ -674,10 +743,14 @@
   gap: 5px;
 }
 :global(.active-comment-thread-actions button) {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--panel) 80%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 80%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
   font-size: 10.5px;
@@ -686,9 +759,9 @@
 }
 :global(.active-comment-thread-actions button:hover),
 :global(.active-comment-thread-actions button:focus-visible) {
-  border-color: var(--comment-line);
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
   outline: 0;
 }
 :global(.inspector-timeline) {
@@ -705,7 +778,7 @@
 :global(.file-map-summary) {
   min-width: 0;
   overflow: hidden;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -722,7 +795,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -742,14 +815,18 @@
   font-size: 12px;
 }
 :global(.inspector-outline-list button.active) {
-  border-left-color: var(--accent);
-  background: linear-gradient(90deg, var(--accent-soft), transparent);
-  color: var(--accent);
+  border-left-color: var(--vivi-color-accent);
+  background: linear-gradient(
+    90deg,
+    var(--vivi-color-accent-surface),
+    transparent
+  );
+  color: var(--vivi-color-accent);
 }
 :global(.outline-level) {
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
   font-weight: 820;
   line-height: 1;
@@ -761,24 +838,24 @@
   text-overflow: ellipsis;
 }
 :global(.outline-current) {
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
   font-size: 10px;
   font-weight: 780;
   line-height: 1;
   padding: 3px 6px;
 }
 :global(.outline-line) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
   font-weight: 720;
 }
 :global(.inspector-outline-list button.active .outline-level) {
-  border-color: var(--accent-line);
-  background: var(--panel);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-accent);
 }
 :global(.inspector-symbol-list button) {
   display: grid;
@@ -791,21 +868,21 @@
 :global(.inspector-outline-list button:focus-visible),
 :global(.inspector-symbol-list button:hover),
 :global(.inspector-symbol-list button:focus-visible) {
-  border-color: var(--line);
+  border-color: var(--vivi-color-border-default);
   outline: none;
-  background: var(--accent-faint);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-content-primary);
 }
 :global(.inspector-symbol-list span),
 :global(.inspector-symbol-list small),
 :global(.inspector-outline-more) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
 }
 :global(.inspector-symbol-list strong) {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -813,7 +890,7 @@
 :global(.section-title) {
   margin: 22px 0 8px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -835,7 +912,7 @@
 :global(.file-map-title small) {
   min-width: 0;
   overflow: hidden;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
   font-weight: 720;
   letter-spacing: 0;
@@ -852,10 +929,10 @@
 }
 :global(.queue-actions button),
 :global(.secondary-action) {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 11px;
   padding: 5px 7px;
@@ -864,8 +941,8 @@
 :global(.queue-actions button:focus-visible),
 :global(.secondary-action:hover),
 :global(.secondary-action:focus-visible) {
-  border-color: var(--accent);
-  color: var(--text);
+  border-color: var(--vivi-color-accent);
+  color: var(--vivi-color-content-primary);
   outline: none;
 }
 :global(.queue-actions button:disabled) {
@@ -880,15 +957,19 @@
   display: grid;
   gap: 5px;
   margin-top: 8px;
-  border: 1px dashed var(--soft-line);
+  border: 1px dashed var(--vivi-color-border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--panel-2) 58%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 58%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   line-height: 1.45;
   padding: 10px;
 }
 :global(.review-empty-state strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
 }
 :global(.review-empty-state span) {
@@ -896,11 +977,11 @@
 }
 :global(.file-details) {
   margin-top: 18px;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
   padding-top: 10px;
 }
 :global(.file-details summary) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
 }
@@ -914,12 +995,12 @@
   margin-top: 8px;
 }
 :global(.outline) {
-  border-left: 1px solid var(--line);
+  border-left: 1px solid var(--vivi-color-border-default);
   margin-left: 4px;
 }
 :global(.outline a) {
   display: block;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   text-decoration: none;
   padding: 7px 0 7px 13px;
   font-size: 13px;
@@ -931,9 +1012,13 @@
   font-size: 12.5px;
 }
 :global(.outline a.active) {
-  color: var(--accent);
-  border-left-color: var(--accent);
-  background: linear-gradient(90deg, var(--accent-soft), transparent);
+  color: var(--vivi-color-accent);
+  border-left-color: var(--vivi-color-accent);
+  background: linear-gradient(
+    90deg,
+    var(--vivi-color-accent-surface),
+    transparent
+  );
 }
 :global(.symbol-list) {
   display: grid;
@@ -946,23 +1031,23 @@
   align-items: center;
   border: 1px solid transparent;
   border-radius: 8px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   padding: 7px 8px;
   text-decoration: none;
 }
 :global(.symbol-list a:hover) {
-  border-color: var(--line);
-  background: var(--accent-faint);
+  border-color: var(--vivi-color-border-default);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 :global(.symbol-list span),
 :global(.symbol-list small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
 }
 :global(.symbol-list strong) {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -974,15 +1059,15 @@
   gap: 6px 8px;
   padding: 7px 0;
   border: 0;
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
   text-align: left;
 }
 :global(.event b) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 :global(.event span) {
   overflow: hidden;
@@ -991,7 +1076,7 @@
 }
 :global(.event small) {
   grid-column: 2;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 :global(.event:disabled) {
   cursor: default;
@@ -1006,25 +1091,25 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
   padding: 7px 8px;
   text-align: left;
 }
 :global(.review-target:hover) {
-  border-color: var(--line);
-  background: var(--accent-faint);
+  border-color: var(--vivi-color-border-default);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 :global(.review-target span:not(.file-icon)) {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 :global(.review-target small) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 :global(.review-queue) {
   display: grid;
@@ -1049,7 +1134,7 @@
   position: relative;
 }
 :global(.review-state-section + .review-state-section) {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--vivi-color-border-default);
 }
 :global(.review-state-section summary) {
   display: flex;
@@ -1069,14 +1154,14 @@
   display: none;
 }
 :global(.review-state-section summary span) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   font-weight: 820;
 }
 :global(.review-state-section summary small) {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1088,20 +1173,20 @@
 :global(.review-state-section .hidden-review-history-list) {
   display: grid;
   gap: 0;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
   padding: 0;
 }
 :global(.review-thread-expand-file) {
   position: relative;
   display: grid;
-  border-top: 1px solid var(--soft-line);
+  border-top: 1px solid var(--vivi-color-border-soft);
 }
 :global(.review-thread-expand-file > .change-open) {
   border-top: 0;
   padding-right: 102px;
 }
 :global(.review-thread-expand-file > .change-open.active) {
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
 }
 :global(.review-thread-pattern-a .review-thread-expand-file > .change-open) {
   padding-right: 132px;
@@ -1138,7 +1223,7 @@
   overflow: hidden;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -1152,7 +1237,7 @@
 :global(.review-thread-file-link:hover),
 :global(.review-thread-file-link:focus-visible) {
   outline: 0;
-  color: var(--accent);
+  color: var(--vivi-color-accent);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -1160,10 +1245,18 @@
   flex: 0 0 auto;
   min-height: 20px;
   border: 1px solid
-    color-mix(in srgb, var(--comment-line) 52%, var(--soft-line));
+    color-mix(
+      in srgb,
+      var(--vivi-color-comment-border) 52%,
+      var(--vivi-color-border-soft)
+    );
   border-radius: 999px;
-  background: color-mix(in srgb, var(--comment-tint) 70%, transparent);
-  color: var(--comment-text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 70%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
   cursor: pointer;
   font: inherit;
   font-size: 10px;
@@ -1179,44 +1272,82 @@
 }
 :global(.review-thread-count-toggle:hover),
 :global(.review-thread-count-toggle:focus-visible) {
-  outline: 2px solid color-mix(in srgb, var(--comment-line) 42%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--vivi-color-comment-border) 42%, transparent);
   outline-offset: 1px;
-  background: color-mix(in srgb, var(--comment-tint) 92%, transparent);
-  color: var(--text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 92%,
+    transparent
+  );
+  color: var(--vivi-color-content-primary);
 }
 :global(.review-thread-toggle-control):focus-visible
   + :global(.review-thread-count-toggle) {
-  outline: 2px solid color-mix(in srgb, var(--comment-line) 42%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--vivi-color-comment-border) 42%, transparent);
   outline-offset: 1px;
 }
 :global(.review-thread-count-toggle[aria-expanded="true"]) {
-  border-color: color-mix(in srgb, var(--comment-line) 72%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 84%, transparent);
-  color: var(--comment-text);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 72%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 84%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
 }
 :global(.review-thread-toggle-control):checked
   + :global(.review-thread-count-toggle) {
-  border-color: color-mix(in srgb, var(--comment-line) 72%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 84%, transparent);
-  color: var(--comment-text);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 72%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 84%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
 }
 :global(.review-thread-count-toggle.pending) {
-  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
-  background: color-mix(in srgb, var(--warn) 13%, transparent);
-  color: color-mix(in srgb, var(--warn) 82%, var(--text));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 54%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-warning) 13%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 82%,
+    var(--vivi-color-content-primary)
+  );
 }
 :global(.review-thread-count-toggle.pending[aria-expanded="true"]),
 :global(.review-thread-toggle-control):checked
   + :global(.review-thread-count-toggle.pending) {
-  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
-  background: color-mix(in srgb, var(--warn) 13%, transparent);
-  color: color-mix(in srgb, var(--warn) 82%, var(--text));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 54%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-warning) 13%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 82%,
+    var(--vivi-color-content-primary)
+  );
 }
 :global(.review-thread-count-toggle.pending:hover),
 :global(.review-thread-count-toggle.pending:focus-visible) {
-  outline-color: color-mix(in srgb, var(--warn) 34%, transparent);
-  background: color-mix(in srgb, var(--warn) 18%, transparent);
-  color: var(--text);
+  outline-color: color-mix(in srgb, var(--vivi-color-warning) 34%, transparent);
+  background: color-mix(in srgb, var(--vivi-color-warning) 18%, transparent);
+  color: var(--vivi-color-content-primary);
 }
 :global(.review-thread-toggle-control):not(:checked)
   ~ :global(.review-thread-hairline-list) {
@@ -1225,8 +1356,12 @@
 :global(.review-thread-hairline-list) {
   display: grid;
   grid-column: 1 / -1;
-  border-top: 1px solid var(--soft-line);
-  background: color-mix(in srgb, var(--panel) 76%, transparent);
+  border-top: 1px solid var(--vivi-color-border-soft);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel) 76%,
+    transparent
+  );
 }
 :global(.review-thread-hairline-item) {
   position: relative;
@@ -1238,9 +1373,9 @@
   width: 100%;
   min-width: 0;
   border: 0;
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   background: transparent;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font: inherit;
   padding: 9px 14px 9px 32px;
@@ -1252,12 +1387,16 @@
 :global(.review-thread-hairline-row:hover),
 :global(.review-thread-hairline-row:focus-visible) {
   outline: 0;
-  background: color-mix(in srgb, var(--comment-tint) 46%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 46%,
+    transparent
+  );
 }
 :global(.review-thread-hairline-row.active) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint) 42%, transparent),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 42%, transparent),
     transparent 68%
   );
 }
@@ -1273,10 +1412,19 @@
 :global(.review-publish-action),
 :global(.review-thread-publish-button) {
   min-height: 22px;
-  border: 1px solid color-mix(in srgb, var(--warn) 54%, var(--soft-line));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vivi-color-warning) 54%,
+      var(--vivi-color-border-soft)
+    );
   border-radius: 5px;
-  background: color-mix(in srgb, var(--warn) 18%, var(--panel));
-  color: var(--text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 18%,
+    var(--vivi-color-surface-panel)
+  );
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font: inherit;
   font-size: 10.5px;
@@ -1286,9 +1434,14 @@
 }
 :global(.review-thread-publish-button:hover),
 :global(.review-thread-publish-button:focus-visible) {
-  outline: 2px solid color-mix(in srgb, var(--warn) 34%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--vivi-color-warning) 34%, transparent);
   outline-offset: 1px;
-  background: color-mix(in srgb, var(--warn) 24%, var(--panel));
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 24%,
+    var(--vivi-color-surface-panel)
+  );
 }
 :global(.review-thread-hairline-main) {
   display: grid;
@@ -1301,7 +1454,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 11.5px;
   font-weight: 800;
   text-overflow: ellipsis;
@@ -1314,33 +1467,65 @@
 }
 :global(.review-thread-status-badge) {
   flex: 0 0 auto;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 9px;
   font-weight: 820;
   line-height: 1;
   padding: 3px 6px;
 }
 :global(.review-thread-status-badge.open) {
-  border-color: color-mix(in srgb, var(--comment-line) 60%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 72%, transparent);
-  color: var(--comment-text);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 60%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 72%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
 }
 :global(.review-thread-status-badge.resolved) {
-  border-color: color-mix(in srgb, var(--diff-add) 45%, var(--soft-line));
-  background: color-mix(in srgb, var(--diff-add) 12%, transparent);
-  color: color-mix(in srgb, var(--diff-add) 78%, var(--text));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-diff-add) 45%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-diff-add) 12%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-diff-add) 78%,
+    var(--vivi-color-content-primary)
+  );
 }
 :global(.review-thread-status-badge.archived) {
-  border-color: color-mix(in srgb, var(--muted) 34%, var(--soft-line));
-  background: color-mix(in srgb, var(--panel-2) 76%, transparent);
-  color: var(--muted);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-content-muted) 34%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 76%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
 }
 :global(.review-thread-status-badge.pending) {
-  border-color: color-mix(in srgb, var(--warn) 54%, var(--soft-line));
-  background: color-mix(in srgb, var(--warn) 13%, transparent);
-  color: color-mix(in srgb, var(--warn) 82%, var(--text));
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 54%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(in srgb, var(--vivi-color-warning) 13%, transparent);
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 82%,
+    var(--vivi-color-content-primary)
+  );
 }
 :global(.review-thread-hairline-preview),
 :global(.review-thread-hairline-meta) {
@@ -1350,7 +1535,7 @@
   white-space: nowrap;
 }
 :global(.review-thread-hairline-preview) {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   line-height: 1.35;
 }
@@ -1359,10 +1544,22 @@
   min-width: 0;
   gap: 2px;
   border-left: 2px solid
-    color-mix(in srgb, var(--comment-line) 54%, var(--soft-line));
+    color-mix(
+      in srgb,
+      var(--vivi-color-comment-border) 54%,
+      var(--vivi-color-border-soft)
+    );
   border-radius: 4px;
-  background: color-mix(in srgb, var(--code) 62%, transparent);
-  color: color-mix(in srgb, var(--text) 74%, var(--muted));
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-code) 62%,
+    transparent
+  );
+  color: color-mix(
+    in srgb,
+    var(--vivi-color-content-primary) 74%,
+    var(--vivi-color-content-muted)
+  );
   font-family:
     "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
   font-size: 10.5px;
@@ -1376,7 +1573,7 @@
   white-space: pre;
 }
 :global(.review-thread-hairline-meta) {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
 }
 :global(.review-section-publish-control) {
@@ -1390,10 +1587,18 @@
 }
 :global(.review-section-publish-control.published) {
   border: 1px solid
-    color-mix(in srgb, var(--comment-line) 44%, var(--soft-line));
+    color-mix(
+      in srgb,
+      var(--vivi-color-comment-border) 44%,
+      var(--vivi-color-border-soft)
+    );
   border-radius: 999px;
-  background: color-mix(in srgb, var(--comment-tint) 42%, transparent);
-  color: var(--comment-text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 42%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
   font-size: 10px;
   font-weight: 840;
   line-height: 1;
@@ -1404,9 +1609,14 @@
 }
 :global(.review-publish-action:hover),
 :global(.review-publish-action:focus-visible) {
-  outline: 2px solid color-mix(in srgb, var(--warn) 34%, transparent);
+  outline: 2px solid
+    color-mix(in srgb, var(--vivi-color-warning) 34%, transparent);
   outline-offset: 1px;
-  background: color-mix(in srgb, var(--warn) 24%, var(--panel));
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-warning) 24%,
+    var(--vivi-color-surface-panel)
+  );
 }
 :global(.review-state-empty-row) {
   display: grid;
@@ -1414,8 +1624,8 @@
   align-items: start;
   gap: 9px;
   min-height: 46px;
-  border-top: 1px solid var(--soft-line);
-  color: var(--muted);
+  border-top: 1px solid var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-muted);
   padding: 11px 14px 13px;
 }
 :global(.review-state-empty-row .unread-dot) {
@@ -1428,7 +1638,7 @@
 }
 :global(.review-state-empty-copy strong) {
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -1436,7 +1646,7 @@
 }
 :global(.review-state-empty-copy span) {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -1448,21 +1658,21 @@
   align-items: center;
   gap: 8px;
   margin: -2px 0 8px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 10.5px;
 }
 :global(.review-progress strong) {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 :global(.review-progress-track) {
   height: 3px;
   overflow: hidden;
   border-radius: 999px;
-  background: var(--panel-2);
+  background: var(--vivi-color-surface-panel-raised);
 }
 :global(.review-progress-track > span) {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--vivi-color-accent);
 }

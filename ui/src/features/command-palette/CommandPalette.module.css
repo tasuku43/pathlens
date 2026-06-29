@@ -6,22 +6,22 @@
   align-items: flex-start;
   justify-content: center;
   padding-top: 86px;
-  background: var(--overlay);
+  background: var(--vivi-color-overlay);
   backdrop-filter: blur(8px);
 }
 
 .palette {
   width: min(760px, calc(100vw - 40px));
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--vivi-color-accent-border);
   border-radius: 18px;
-  background: var(--palette);
-  box-shadow: 0 30px 110px var(--shadow);
+  background: var(--vivi-color-surface-palette);
+  box-shadow: 0 30px 110px var(--vivi-color-shadow);
   overflow: hidden;
 }
 
 .top {
   padding: 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--vivi-color-border-default);
 }
 
 .modeBar {
@@ -31,30 +31,30 @@
 }
 
 .modeButton {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 10px;
 }
 
 .activeMode {
-  border-color: var(--accent-line);
-  background: var(--accent-faint);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
 }
 
 .input {
   width: 100%;
   border: 0;
   outline: none;
-  background: var(--code);
-  color: var(--text);
+  background: var(--vivi-color-surface-code);
+  color: var(--vivi-color-content-primary);
   border-radius: 12px;
   padding: 13px 14px;
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: inset 0 0 0 1px var(--vivi-color-border-default);
 }
 
 .body {
@@ -65,7 +65,7 @@
 
 .results {
   padding: 8px;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--vivi-color-border-default);
 }
 
 .result {
@@ -78,7 +78,7 @@
   border: 0;
   border-radius: 11px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   text-align: left;
 }
 
@@ -96,8 +96,8 @@
 }
 
 .activeResult {
-  background: var(--accent-soft);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-content-primary);
 }
 
 .result:disabled {
@@ -107,7 +107,7 @@
 
 .result small {
   display: block;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   margin-top: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -115,35 +115,35 @@
 }
 
 .linePrefix {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-weight: 700;
 }
 
 .searchMatch {
   border-radius: 4px;
-  background: var(--comment-tint);
-  color: var(--comment-text);
+  background: var(--vivi-color-comment-surface);
+  color: var(--vivi-color-comment-text);
   padding: 0 2px;
 }
 
 .type {
   justify-self: end;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
   padding: 3px 6px;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .help {
   padding: 14px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
 }
 
 .help div {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   padding: 8px 0;
 }

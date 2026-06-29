@@ -9,10 +9,10 @@
 
 .perfNote {
   margin: 6px 8px 4px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   padding: 7px 9px;
   font-size: 11px;
   line-height: 1.4;
@@ -26,7 +26,7 @@
   box-sizing: border-box;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font: inherit;
   text-align: left;
   padding: 5px 8px;
@@ -37,33 +37,42 @@
 
 .row:hover,
 .selected {
-  background: var(--accent-soft);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-content-primary);
 }
 
 .selected {
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
 }
 
 .containsSelection:not(.selected) {
-  background: color-mix(in srgb, var(--accent-soft) 56%, transparent);
-  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--accent) 58%, transparent);
-  color: var(--text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface) 56%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0
+    color-mix(in srgb, var(--vivi-color-accent) 58%, transparent);
+  color: var(--vivi-color-content-primary);
 }
 
 .containsCurrentStop:not(.selected),
 .currentReviewStop:not(.selected) {
-  background: color-mix(in srgb, var(--accent-soft) 42%, transparent);
-  box-shadow: inset 2px 0 0 var(--accent);
-  color: var(--text);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-accent-surface) 42%,
+    transparent
+  );
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
+  color: var(--vivi-color-content-primary);
 }
 
 .changed {
-  color: var(--warn);
+  color: var(--vivi-color-warning);
 }
 
 .hasReviewWork {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 .hasUnreadWork {
@@ -77,7 +86,7 @@
   height: 5px;
   margin-left: 7px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--vivi-color-accent);
   vertical-align: middle;
 }
 
@@ -108,23 +117,23 @@
 }
 
 .reason {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
   font-weight: 560;
   line-height: 1.1;
 }
 
 .hasUnreadWork .reason {
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
 }
 
 .currentReviewStop .reason,
 .containsCurrentStop .reason {
-  color: var(--accent);
+  color: var(--vivi-color-accent);
 }
 
 .changed .reason {
-  color: var(--warn);
+  color: var(--vivi-color-warning);
 }
 
 .reviewStateLabel {
@@ -132,10 +141,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   font-size: 9px;
   font-weight: 840;
   line-height: 1;
@@ -153,18 +166,18 @@
 }
 
 .queued {
-  border-color: var(--accent-line);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  color: var(--vivi-color-accent);
 }
 
 .reviewing {
-  border-color: var(--comment-line);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  color: var(--vivi-color-comment-text);
 }
 
 .reviewed {
-  border-color: color-mix(in srgb, var(--good) 46%, transparent);
-  color: color-mix(in srgb, var(--good) 84%, white);
+  border-color: color-mix(in srgb, var(--vivi-color-success) 46%, transparent);
+  color: color-mix(in srgb, var(--vivi-color-success) 84%, white);
 }
 
 .badges {
@@ -180,7 +193,7 @@
 
 .badge {
   flex: 0 0 auto;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -191,16 +204,16 @@
 .review,
 .open,
 .current {
-  color: var(--accent);
+  color: var(--vivi-color-accent);
 }
 
 .attention {
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
 }
 
 .changedBadge,
 .loading {
-  color: var(--warn);
+  color: var(--vivi-color-warning);
 }
 
 .unreadDot {
@@ -208,12 +221,12 @@
   height: 7px;
   flex: 0 0 7px;
   border-radius: 999px;
-  background: var(--comment-text);
-  box-shadow: 0 0 0 3px var(--comment-tint);
+  background: var(--vivi-color-comment-text);
+  box-shadow: 0 0 0 3px var(--vivi-color-comment-surface);
 }
 
 .twisty {
   width: 12px;
   flex: 0 0 12px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }

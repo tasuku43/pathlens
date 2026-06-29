@@ -86,7 +86,7 @@ const meta = {
           width: 396,
           minHeight: "100vh",
           marginLeft: "auto",
-          background: "var(--panel)",
+          background: "var(--vivi-color-surface-panel)",
         }}
       >
         <Story />

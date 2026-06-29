@@ -9,10 +9,10 @@
   align-items: center;
   gap: 12px;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--vivi-color-border-default);
   border-radius: 0;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   padding: 6px 24px;
 }
@@ -20,7 +20,7 @@
 .toolbar strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -34,10 +34,10 @@
 }
 
 .actions > button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -53,7 +53,7 @@
   min-width: 0;
   align-items: center;
   gap: 12px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 12px;
 }
 
@@ -77,7 +77,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font: inherit;
   font-size: 12px;
   padding: 4px 6px;
@@ -96,7 +96,7 @@
 }
 
 .fileSegment {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-weight: 600;
 }
 
@@ -104,10 +104,10 @@
 .segmentButton:focus-visible,
 .reviewStop:hover:not(:disabled),
 .reviewStop:focus-visible {
-  border-color: var(--line);
+  border-color: var(--vivi-color-border-default);
   outline: none;
-  background: var(--accent-faint);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-accent);
 }
 
 .reviewStop {
@@ -116,9 +116,13 @@
   max-width: min(360px, 34vw);
   align-items: center;
   gap: 6px;
-  border-color: var(--comment-line);
-  background: color-mix(in srgb, var(--comment-tint) 48%, transparent);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 48%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
 }
 
 .reviewStop:disabled {
@@ -136,17 +140,17 @@
 
 .reviewStop strong {
   flex: 0 0 auto;
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
   font-size: 11px;
 }
 
 .reviewStop span {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 11px;
 }
 
 .reviewStop span:last-child {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
 }
 
 .reviewSummary {
@@ -155,10 +159,14 @@
   max-width: min(220px, 24vw);
   align-items: center;
   overflow: hidden;
-  border-color: var(--soft-line);
+  border-color: var(--vivi-color-border-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
-  color: var(--subtle);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
   font-weight: 720;
   text-overflow: ellipsis;
@@ -166,13 +174,21 @@
 }
 
 .reviewSummaryActive {
-  border-color: color-mix(in srgb, var(--comment-line) 70%, var(--soft-line));
-  background: color-mix(in srgb, var(--comment-tint) 36%, transparent);
-  color: var(--comment-text);
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-comment-border) 70%,
+    var(--vivi-color-border-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-comment-surface) 36%,
+    transparent
+  );
+  color: var(--vivi-color-comment-text);
 }
 
 .reviewSummaryHistory {
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .reviewStateLabel {
@@ -180,10 +196,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
-  color: var(--muted);
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-surface-panel-raised) 72%,
+    transparent
+  );
+  color: var(--vivi-color-content-muted);
   font-size: 9px;
   font-weight: 840;
   line-height: 1;
@@ -201,39 +221,43 @@
 }
 
 .queued {
-  border-color: var(--accent-line);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  color: var(--vivi-color-accent);
 }
 
 .reviewing {
-  border-color: var(--comment-line);
-  color: var(--comment-text);
+  border-color: var(--vivi-color-comment-border);
+  color: var(--vivi-color-comment-text);
 }
 
 .reviewed {
-  border-color: color-mix(in srgb, var(--good) 46%, transparent);
-  color: color-mix(in srgb, var(--good) 84%, white);
+  border-color: color-mix(in srgb, var(--vivi-color-success) 46%, transparent);
+  color: color-mix(in srgb, var(--vivi-color-success) 84%, white);
 }
 
 .markReviewedButton {
   border-color: color-mix(
     in srgb,
-    var(--good) 54%,
-    var(--soft-line)
+    var(--vivi-color-success) 54%,
+    var(--vivi-color-border-soft)
   ) !important;
-  background: color-mix(in srgb, var(--good) 15%, var(--panel-2)) !important;
-  color: color-mix(in srgb, var(--good) 88%, white) !important;
+  background: color-mix(
+    in srgb,
+    var(--vivi-color-success) 15%,
+    var(--vivi-color-surface-panel-raised)
+  ) !important;
+  color: color-mix(in srgb, var(--vivi-color-success) 88%, white) !important;
 }
 
 .separator {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 12px;
 }
 
 .sandboxStatus {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

@@ -1,32 +1,48 @@
 :root {
   color-scheme: light dark;
-  --bg: #0f1117;
-  --panel: #151923;
-  --panel-2: #1b2130;
-  --text: #e6e8ef;
-  --muted: #9ba4b5;
-  --line: #2a3346;
-  --accent: #7aa2ff;
-  --warn: #e0af68;
-  --code: #0b0e14;
-  --chrome: rgba(15, 17, 23, 0.94);
-  --soft-line: rgba(255, 255, 255, 0.06);
-  --accent-soft: rgba(122, 162, 255, 0.16);
-  --accent-faint: rgba(122, 162, 255, 0.09);
-  --accent-line: rgba(122, 162, 255, 0.36);
-  --accent-strong: rgba(122, 162, 255, 0.86);
-  --accent-glow: rgba(122, 162, 255, 0.62);
-  --comment-tint: rgba(169, 134, 255, 0.14);
-  --comment-tint-active: rgba(169, 134, 255, 0.22);
-  --comment-line: rgba(169, 134, 255, 0.42);
-  --comment-text: #d8c7ff;
-  --diff-add: #56d364;
-  --diff-remove: #ff7b72;
-  --overlay: rgba(5, 8, 13, 0.56);
-  --palette: rgba(21, 25, 35, 0.98);
-  --shadow: rgba(0, 0, 0, 0.62);
-  --subtle: #8f99ab;
-  --error: #f7768e;
+  --vivi-color-surface-canvas: #0f1117;
+  --vivi-color-surface-panel: #151923;
+  --vivi-color-surface-panel-raised: #1b2130;
+  --vivi-color-surface-code: #0b0e14;
+  --vivi-color-surface-chrome: rgba(15, 17, 23, 0.94);
+  --vivi-color-surface-palette: rgba(21, 25, 35, 0.98);
+  --vivi-color-content-primary: #e6e8ef;
+  --vivi-color-content-muted: #9ba4b5;
+  --vivi-color-content-subtle: #8f99ab;
+  --vivi-color-content-on-accent: #11091c;
+  --vivi-color-border-default: #2a3346;
+  --vivi-color-border-soft: rgba(255, 255, 255, 0.06);
+  --vivi-color-accent: #7aa2ff;
+  --vivi-color-accent-gradient-end: #c099ff;
+  --vivi-color-accent-surface: rgba(122, 162, 255, 0.16);
+  --vivi-color-accent-surface-subtle: rgba(122, 162, 255, 0.09);
+  --vivi-color-accent-border: rgba(122, 162, 255, 0.36);
+  --vivi-color-accent-strong: rgba(122, 162, 255, 0.86);
+  --vivi-color-accent-glow: rgba(122, 162, 255, 0.62);
+  --vivi-color-warning: #e0af68;
+  --vivi-color-warning-border-subtle: rgba(224, 175, 104, 0.34);
+  --vivi-color-warning-border: rgba(224, 175, 104, 0.38);
+  --vivi-color-warning-surface: rgba(224, 175, 104, 0.08);
+  --vivi-color-warning-surface-muted: rgba(224, 175, 104, 0.1);
+  --vivi-color-warning-surface-strong: rgba(224, 175, 104, 0.12);
+  --vivi-color-danger: #f7768e;
+  --vivi-color-success: #43d9a3;
+  --vivi-color-success-text: #9ece6a;
+  --vivi-color-success-surface: rgba(67, 217, 163, 0.1);
+  --vivi-color-success-border: rgba(67, 217, 163, 0.28);
+  --vivi-color-diff-add: #56d364;
+  --vivi-color-diff-remove: #ff7b72;
+  --vivi-color-diff-add-line: #43d9a3;
+  --vivi-color-diff-remove-line: #f7768e;
+  --vivi-color-json-string: #9ece6a;
+  --vivi-color-json-number: #ff9e64;
+  --vivi-color-json-boolean: #bb9af7;
+  --vivi-color-comment-surface: rgba(169, 134, 255, 0.14);
+  --vivi-color-comment-surface-active: rgba(169, 134, 255, 0.22);
+  --vivi-color-comment-border: rgba(169, 134, 255, 0.42);
+  --vivi-color-comment-text: #d8c7ff;
+  --vivi-color-overlay: rgba(5, 8, 13, 0.56);
+  --vivi-color-shadow: rgba(0, 0, 0, 0.62);
   font-family:
     Inter,
     ui-sans-serif,
@@ -38,33 +54,50 @@
 }
 
 :root[data-theme="light"] {
-  --bg: #f6f7fb;
-  --panel: #ffffff;
-  --panel-2: #eef2f8;
-  --text: #18202f;
-  --muted: #657086;
-  --line: #d7deea;
-  --accent: #315fce;
-  --warn: #a65f00;
-  --code: #f8fafc;
-  --chrome: rgba(255, 255, 255, 0.94);
-  --soft-line: rgba(24, 32, 47, 0.08);
-  --accent-soft: rgba(49, 95, 206, 0.12);
-  --accent-faint: rgba(49, 95, 206, 0.07);
-  --accent-line: rgba(49, 95, 206, 0.28);
-  --accent-strong: rgba(49, 95, 206, 0.64);
-  --accent-glow: rgba(49, 95, 206, 0.3);
-  --comment-tint: rgba(126, 87, 194, 0.12);
-  --comment-tint-active: rgba(126, 87, 194, 0.2);
-  --comment-line: rgba(126, 87, 194, 0.35);
-  --comment-text: #5e3aa3;
-  --diff-add: #2da44e;
-  --diff-remove: #cf222e;
-  --overlay: rgba(17, 24, 39, 0.28);
-  --palette: rgba(255, 255, 255, 0.98);
-  --shadow: rgba(17, 24, 39, 0.2);
-  --subtle: #7b8496;
-  --error: #b42318;
+  color-scheme: light;
+  --vivi-color-surface-canvas: #f6f7fb;
+  --vivi-color-surface-panel: #ffffff;
+  --vivi-color-surface-panel-raised: #eef2f8;
+  --vivi-color-surface-code: #f8fafc;
+  --vivi-color-surface-chrome: rgba(255, 255, 255, 0.94);
+  --vivi-color-surface-palette: rgba(255, 255, 255, 0.98);
+  --vivi-color-content-primary: #18202f;
+  --vivi-color-content-muted: #657086;
+  --vivi-color-content-subtle: #7b8496;
+  --vivi-color-content-on-accent: #11091c;
+  --vivi-color-border-default: #d7deea;
+  --vivi-color-border-soft: rgba(24, 32, 47, 0.08);
+  --vivi-color-accent: #315fce;
+  --vivi-color-accent-gradient-end: #c099ff;
+  --vivi-color-accent-surface: rgba(49, 95, 206, 0.12);
+  --vivi-color-accent-surface-subtle: rgba(49, 95, 206, 0.07);
+  --vivi-color-accent-border: rgba(49, 95, 206, 0.28);
+  --vivi-color-accent-strong: rgba(49, 95, 206, 0.64);
+  --vivi-color-accent-glow: rgba(49, 95, 206, 0.3);
+  --vivi-color-warning: #a65f00;
+  --vivi-color-warning-border-subtle: rgba(224, 175, 104, 0.34);
+  --vivi-color-warning-border: rgba(224, 175, 104, 0.38);
+  --vivi-color-warning-surface: rgba(224, 175, 104, 0.08);
+  --vivi-color-warning-surface-muted: rgba(224, 175, 104, 0.1);
+  --vivi-color-warning-surface-strong: rgba(224, 175, 104, 0.12);
+  --vivi-color-danger: #b42318;
+  --vivi-color-success: #43d9a3;
+  --vivi-color-success-text: #9ece6a;
+  --vivi-color-success-surface: rgba(67, 217, 163, 0.1);
+  --vivi-color-success-border: rgba(67, 217, 163, 0.28);
+  --vivi-color-diff-add: #2da44e;
+  --vivi-color-diff-remove: #cf222e;
+  --vivi-color-diff-add-line: #43d9a3;
+  --vivi-color-diff-remove-line: #f7768e;
+  --vivi-color-json-string: #9ece6a;
+  --vivi-color-json-number: #ff9e64;
+  --vivi-color-json-boolean: #bb9af7;
+  --vivi-color-comment-surface: rgba(126, 87, 194, 0.12);
+  --vivi-color-comment-surface-active: rgba(126, 87, 194, 0.2);
+  --vivi-color-comment-border: rgba(126, 87, 194, 0.35);
+  --vivi-color-comment-text: #5e3aa3;
+  --vivi-color-overlay: rgba(17, 24, 39, 0.28);
+  --vivi-color-shadow: rgba(17, 24, 39, 0.2);
 }
 
 * {
@@ -72,8 +105,8 @@
 }
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--vivi-color-surface-canvas);
+  color: var(--vivi-color-content-primary);
 }
 button,
 input {

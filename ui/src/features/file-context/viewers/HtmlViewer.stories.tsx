@@ -346,11 +346,11 @@ function htmlWorkspaceLinkPreviewStoryDocument(path: string): string {
 function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
   const annotated = addRenderedCommentBlockIdsToHtml(docReaderMockHtml);
   const styles = `<style data-vivi-story-comment-preview>
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(255,255,255,.06); --comment-tint: rgba(169,134,255,.14); --comment-tint-active: rgba(169,134,255,.22); --comment-line: rgba(169,134,255,.42); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(255,255,255,.06); --vivi-color-comment-surface: rgba(169,134,255,.14); --vivi-color-comment-surface-active: rgba(169,134,255,.22); --vivi-color-comment-border: rgba(169,134,255,.42); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
     .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; top: 0; right: var(--rendered-comment-block-right); bottom: 0; left: var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
     .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
-    .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--soft-line); }
-    .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before, tr.vivi-rendered-comment-block.drafting-rendered-comment { background: linear-gradient(90deg, var(--comment-tint-active), color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%, transparent); box-shadow: inset 2px 0 0 var(--comment-line); }
+    .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--vivi-color-border-soft); }
+    .vivi-rendered-comment-block.drafting-rendered-comment:not(tr)::before, tr.vivi-rendered-comment-block.drafting-rendered-comment { background: linear-gradient(90deg, var(--vivi-color-comment-surface-active), color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%, transparent); box-shadow: inset 2px 0 0 var(--vivi-color-comment-border); }
   </style>`;
   const script = `<script>
     (() => {
@@ -483,10 +483,10 @@ function htmlDraftPreviewStoryDocument(path: string): string {
       table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 13px; }
       th, td { border-bottom: 1px solid #e5ded4; padding: 9px 10px; text-align: left; }
       button { border: 1px solid #b9ac96; border-radius: 7px; background: #fffaf0; color: #332b20; padding: 8px 12px; }
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(24,32,47,.08); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(24,32,47,.08); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
       .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; top: 0; right: var(--rendered-comment-block-right); bottom: 0; left: var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
       .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
-      .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--soft-line); }
+      .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--vivi-color-border-soft); }
       .drafting-rendered-comment { outline: 2px solid #7e57c2; outline-offset: 3px; }
     </style>
   </head>
@@ -694,21 +694,21 @@ function htmlCommentPreviewStoryDocument(path: string): string {
     <style>
       body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #172426; background: #fbfaf7; }
       .review-card { max-width: 760px; border: 1px solid #d4c9b8; border-radius: 8px; background: white; padding: 24px; }
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --soft-line: rgba(24,32,47,.08); --panel: white; --palette: #fbfaf7; --comment-tint: rgba(126,87,194,.12); --comment-tint-active: rgba(126,87,194,.2); --comment-line: rgba(126,87,194,.35); --comment-text: #5e3aa3; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(24,32,47,.08); --vivi-color-surface-panel: white; --vivi-color-surface-palette: #fbfaf7; --vivi-color-comment-surface: rgba(126,87,194,.12); --vivi-color-comment-surface-active: rgba(126,87,194,.2); --vivi-color-comment-border: rgba(126,87,194,.35); --vivi-color-comment-text: #5e3aa3; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
       .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; inset: 0 var(--rendered-comment-block-right) 0 var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
       .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
-	      .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--soft-line); }
+	      .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--vivi-color-border-soft); }
 	      .has-rendered-comment:not(tr), .active-rendered-comment:not(tr), .drafting-rendered-comment:not(tr) { background: transparent; box-shadow: none; }
 	      blockquote.vivi-rendered-comment-block.has-rendered-comment, blockquote.vivi-rendered-comment-block.drafting-rendered-comment, blockquote.vivi-rendered-comment-block.active-rendered-comment { border-left-color: transparent !important; }
-	      .has-rendered-comment:not(tr)::before, .drafting-rendered-comment:not(tr)::before, tr.has-rendered-comment, tr.drafting-rendered-comment { background: linear-gradient(90deg, var(--comment-tint-active), color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%, transparent); box-shadow: inset 2px 0 0 var(--comment-line); }
-      .active-rendered-comment:not(tr)::before, tr.active-rendered-comment { background: linear-gradient(90deg, color-mix(in srgb, var(--comment-tint-active) 86%, white), var(--comment-tint) 72%, transparent); box-shadow: inset 3px 0 0 var(--comment-text), 0 0 0 1px color-mix(in srgb, var(--comment-line) 46%, transparent); }
+	      .has-rendered-comment:not(tr)::before, .drafting-rendered-comment:not(tr)::before, tr.has-rendered-comment, tr.drafting-rendered-comment { background: linear-gradient(90deg, var(--vivi-color-comment-surface-active), color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%, transparent); box-shadow: inset 2px 0 0 var(--vivi-color-comment-border); }
+      .active-rendered-comment:not(tr)::before, tr.active-rendered-comment { background: linear-gradient(90deg, color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white), var(--vivi-color-comment-surface) 72%, transparent); box-shadow: inset 3px 0 0 var(--vivi-color-comment-text), 0 0 0 1px color-mix(in srgb, var(--vivi-color-comment-border) 46%, transparent); }
       .rendered-comment-range-start.has-rendered-comment, .rendered-comment-range-start.drafting-rendered-comment { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
       .rendered-comment-range-middle.has-rendered-comment, .rendered-comment-range-middle.drafting-rendered-comment { border-radius: 0; }
       .rendered-comment-range-end.has-rendered-comment, .rendered-comment-range-end.drafting-rendered-comment { border-top-left-radius: 0; border-top-right-radius: 0; }
-      .rendered-comment-range-join-after:not(tr)::after { content: ""; position: absolute; z-index: 1; left: var(--rendered-comment-block-left); right: var(--rendered-comment-block-right); top: 100%; height: var(--rendered-comment-join-after, 0); pointer-events: none; background: linear-gradient(90deg, var(--comment-tint-active), color-mix(in srgb, var(--comment-tint) 56%, transparent) 68%, transparent); }
-      .active-rendered-comment.rendered-comment-range-join-after:not(tr)::after { background: linear-gradient(90deg, color-mix(in srgb, var(--comment-tint-active) 86%, white), var(--comment-tint) 72%, transparent); }
-      .rendered-comment-marker { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; border: 1px solid var(--comment-line); border-radius: 6px; background: var(--panel); color: var(--comment-text); transform: translateY(-50%); cursor: pointer; }
-      .rendered-comment-marker-count { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; border: 1px solid var(--comment-line); border-radius: 999px; background: var(--palette); color: var(--comment-text); font-size: 8px; font-weight: 800; line-height: 13px; }
+      .rendered-comment-range-join-after:not(tr)::after { content: ""; position: absolute; z-index: 1; left: var(--rendered-comment-block-left); right: var(--rendered-comment-block-right); top: 100%; height: var(--rendered-comment-join-after, 0); pointer-events: none; background: linear-gradient(90deg, var(--vivi-color-comment-surface-active), color-mix(in srgb, var(--vivi-color-comment-surface) 56%, transparent) 68%, transparent); }
+      .active-rendered-comment.rendered-comment-range-join-after:not(tr)::after { background: linear-gradient(90deg, color-mix(in srgb, var(--vivi-color-comment-surface-active) 86%, white), var(--vivi-color-comment-surface) 72%, transparent); }
+      .rendered-comment-marker { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; border: 1px solid var(--vivi-color-comment-border); border-radius: 6px; background: var(--vivi-color-surface-panel); color: var(--vivi-color-comment-text); transform: translateY(-50%); cursor: pointer; }
+      .rendered-comment-marker-count { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; border: 1px solid var(--vivi-color-comment-border); border-radius: 999px; background: var(--vivi-color-surface-palette); color: var(--vivi-color-comment-text); font-size: 8px; font-weight: 800; line-height: 13px; }
     </style>
   </head>
   <body>

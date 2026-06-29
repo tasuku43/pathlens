@@ -9,14 +9,14 @@
   gap: 6px;
   margin: 0 auto;
   padding: 18px;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 8px;
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-content-muted);
 }
 
 .error strong {
-  color: var(--error);
+  color: var(--vivi-color-danger);
   font-size: 13px;
 }
 

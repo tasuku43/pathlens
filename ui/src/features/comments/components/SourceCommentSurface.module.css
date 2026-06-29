@@ -17,60 +17,70 @@
   display: grid;
   grid-template-columns: 64px max-content minmax(0, 1fr);
   min-height: 23px;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 :global(.code-line:hover) {
-  background: var(--soft-line);
+  background: var(--vivi-color-border-soft);
 }
 
 :global(.code-line.selected) {
-  background: var(--accent-faint);
+  background: var(--vivi-color-accent-surface-subtle);
 }
 
 :global(.code-line.search-focus) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent-soft) 82%, transparent),
+    color-mix(in srgb, var(--vivi-color-accent-surface) 82%, transparent),
     transparent 72%
   );
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
 }
 
 :global(.code-line.has-comment),
 :global(.code-line.drafting-comment) {
   background: linear-gradient(
     90deg,
-    var(--comment-tint-active),
-    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    var(--vivi-color-comment-surface-active),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 52%, transparent) 56%,
     transparent
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
 :global(.code-line.active-comment) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--comment-tint-active) 88%, var(--accent-faint)),
-    color-mix(in srgb, var(--comment-tint-active) 72%, transparent) 66%,
+    color-mix(
+      in srgb,
+      var(--vivi-color-comment-surface-active) 88%,
+      var(--vivi-color-accent-surface-subtle)
+    ),
+    color-mix(
+        in srgb,
+        var(--vivi-color-comment-surface-active) 72%,
+        transparent
+      )
+      66%,
     transparent
   );
   box-shadow:
-    inset 2px 0 0 var(--comment-text),
-    inset 0 0 0 1px color-mix(in srgb, var(--comment-line) 52%, transparent);
+    inset 2px 0 0 var(--vivi-color-comment-text),
+    inset 0 0 0 1px
+      color-mix(in srgb, var(--vivi-color-comment-border) 52%, transparent);
 }
 
 :global(.code-line.has-comment .line-number),
 :global(.code-line.drafting-comment .line-number) {
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
 }
 
 :global(.line-number) {
   position: relative;
   border: 0;
-  border-right: 1px solid var(--soft-line);
+  border-right: 1px solid var(--vivi-color-border-soft);
   background: transparent;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
@@ -87,7 +97,7 @@
   right: -2px;
   bottom: 0;
   width: 3px;
-  background: var(--accent);
+  background: var(--vivi-color-accent);
 }
 
 :global(.code-line.selection-start .line-number::after) {
@@ -105,12 +115,12 @@
 }
 
 :global(.code-line.drafting-comment .line-number::after) {
-  background: var(--comment-text);
+  background: var(--vivi-color-comment-text);
 }
 
 :global(.line-number:hover),
 :global(.code-line.selected .line-number) {
-  color: var(--accent);
+  color: var(--vivi-color-accent);
 }
 
 :global(.line-code) {

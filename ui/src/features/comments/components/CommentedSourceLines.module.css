@@ -13,30 +13,30 @@
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   min-height: 23px;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 .lines :global(.commented-source-line:hover) {
-  background: var(--soft-line);
+  background: var(--vivi-color-border-soft);
 }
 
 .lines :global(.commented-source-line.search-focus) {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent-soft) 82%, transparent),
+    color-mix(in srgb, var(--vivi-color-accent-surface) 82%, transparent),
     transparent 72%
   );
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--vivi-color-accent);
 }
 
 .lines :global(.commented-source-line.has-comment) {
   background: linear-gradient(
     90deg,
-    var(--comment-tint-active),
-    color-mix(in srgb, var(--comment-tint) 52%, transparent) 56%,
+    var(--vivi-color-comment-surface-active),
+    color-mix(in srgb, var(--vivi-color-comment-surface) 52%, transparent) 56%,
     transparent
   );
-  box-shadow: inset 2px 0 0 var(--comment-line);
+  box-shadow: inset 2px 0 0 var(--vivi-color-comment-border);
 }
 
 .lines :global(.commented-source-line code) {
@@ -52,8 +52,8 @@
 
 .lines :global(.commented-source-gutter) {
   position: relative;
-  border-right: 1px solid var(--soft-line);
-  color: var(--subtle);
+  border-right: 1px solid var(--vivi-color-border-soft);
+  color: var(--vivi-color-content-subtle);
   font-size: 12px;
   text-align: right;
   user-select: none;
@@ -61,7 +61,7 @@
 }
 
 .lines :global(.commented-source-line.has-comment .commented-source-gutter) {
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
 }
 
 .lines :global(.commented-source-gutter > span) {

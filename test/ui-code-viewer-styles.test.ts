@@ -3,9 +3,25 @@ import { describe, expect, it } from "vitest";
 
 const styles = readFileSync("ui/src/styles.css", "utf8");
 function normalizeCssModuleGlobals(css: string): string {
-  return css
-    .replace(/:global\(/g, "")
-    .replace(/\)(?=\s*(?:\{|,))/g, "");
+  let normalized = "";
+  for (let index = 0; index < css.length; index += 1) {
+    if (!css.startsWith(":global(", index)) {
+      normalized += css[index];
+      continue;
+    }
+
+    index += ":global(".length;
+    let depth = 1;
+    while (index < css.length && depth > 0) {
+      const char = css[index];
+      if (char === "(") depth += 1;
+      if (char === ")") depth -= 1;
+      if (depth > 0) normalized += char;
+      index += 1;
+    }
+    index -= 1;
+  }
+  return normalized;
 }
 
 const markdownViewerStyles = readFileSync(
@@ -64,7 +80,7 @@ describe("rendered comment block ranges", () => {
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?top: var\(--rendered-comment-block-top\);[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad\)/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block:not\(tr\):hover::before,[\s\S]*?background: var\(--soft-line\);/,
+      /\.vivi-rendered-comment-block:not\(tr\):hover::before,[\s\S]*?background: var\(--vivi-color-border-soft\);/,
     );
   });
 
@@ -85,7 +101,7 @@ describe("rendered comment block ranges", () => {
       /li\.vivi-rendered-comment-block \{[\s\S]*?--rendered-comment-block-y-pad: 2px;[\s\S]*?--rendered-comment-block-bottom-pad: 1px;[\s\S]*?--rendered-comment-block-top: calc\([\s\S]*?-1 \* var\(--rendered-comment-block-y-pad\)/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\) \{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,
+      /li\.vivi-rendered-comment-block:has\(> \.rendered-comment-thread-host\)\s*\{[\s\S]*?--rendered-comment-block-bottom-pad: 11px;/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
       /\.vivi-rendered-comment-block:not\(tr\)::before \{[\s\S]*?bottom: calc\([\s\S]*?var\(--rendered-comment-block-bottom\)[\s\S]*?var\(--rendered-comment-block-bottom-pad\)/,
@@ -109,10 +125,10 @@ describe("rendered comment block ranges", () => {
 
   it("uses the block surface for comment highlights", () => {
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before,[\s\S]*?background: linear-gradient/,
+      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before\s*,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before\s*,[\s\S]*?background: linear-gradient/,
     );
     expect(normalizedRenderedCommentStyles).toMatch(
-      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before,[\s\S]*?box-shadow: inset 2px 0 0 var\(--comment-line\);/,
+      /\.vivi-rendered-comment-block\.has-rendered-comment:not\(tr\)::before\s*,[\s\S]*?\.vivi-rendered-comment-block\.drafting-rendered-comment:not\(tr\)::before\s*,[\s\S]*?box-shadow: inset 2px 0 0 var\(--vivi-color-comment-border\);/,
     );
   });
 
@@ -124,7 +140,7 @@ describe("rendered comment block ranges", () => {
       "--rendered-comment-join-after",
     );
     const bridgeRule = normalizedRenderedCommentStyles.match(
-      /\.vivi-rendered-comment-block\.rendered-comment-range-join-after[\s\S]*?::after \{[\s\S]*?\n\}/,
+      /\.vivi-rendered-comment-block\.rendered-comment-range-join-after[\s\S]*?::after\s*\{[\s\S]*?\n\s*\}/,
     );
     expect(bridgeRule?.[0]).toBeDefined();
     expect(bridgeRule?.[0]).toContain(

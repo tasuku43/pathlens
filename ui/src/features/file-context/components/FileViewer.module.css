@@ -8,13 +8,13 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 16px;
   padding: 16px;
-  background: var(--bg);
+  background: var(--vivi-color-surface-canvas);
 }
 
 .toolbarStickyCase {
   min-width: 0;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  border: 1px solid var(--vivi-color-border-default);
+  background: var(--vivi-color-surface-panel);
 }
 
 .toolbarStickyCase > header {
@@ -22,8 +22,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
+  border-bottom: 1px solid var(--vivi-color-border-default);
+  color: var(--vivi-color-content-muted);
   font-size: 12px;
   padding: 8px 10px;
 }
@@ -36,13 +36,13 @@
 }
 
 .toolbarStickyCase > header strong {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 .toolbarStickyScroll {
   height: 180px;
   overflow: auto;
-  background: var(--bg);
+  background: var(--vivi-color-surface-canvas);
 }
 
 .localOutlineControl {
@@ -56,10 +56,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   font-size: 12px;
   padding: 5px 8px;
@@ -68,17 +68,17 @@
 .localOutlineButton:hover,
 .localOutlineButton:focus-visible,
 .localOutlineButton[aria-expanded="true"] {
-  border-color: var(--accent-line);
+  border-color: var(--vivi-color-accent-border);
   outline: none;
-  background: var(--panel);
-  color: var(--accent);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-accent);
 }
 
 .localOutlineButton small {
   min-width: 20px;
   border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--vivi-color-accent-surface);
+  color: var(--vivi-color-accent);
   font-size: 11px;
   line-height: 1.5;
   padding: 0 6px;
@@ -92,10 +92,10 @@
   width: min(340px, calc(100vw - 48px));
   max-height: min(420px, calc(100vh - 190px));
   overflow: auto;
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 8px;
-  background: var(--panel);
-  box-shadow: 0 22px 70px var(--shadow);
+  background: var(--vivi-color-surface-panel);
+  box-shadow: 0 22px 70px var(--vivi-color-shadow);
   padding: 10px;
 }
 
@@ -104,12 +104,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--soft-line);
+  border-bottom: 1px solid var(--vivi-color-border-soft);
   padding: 0 0 8px;
 }
 
 .localOutlineHeader strong {
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
 }
 
@@ -117,7 +117,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   cursor: pointer;
   font-size: 11px;
   padding: 4px 6px;
@@ -125,9 +125,9 @@
 
 .localOutlineHeader button:hover,
 .localOutlineHeader button:focus-visible {
-  border-color: var(--line);
+  border-color: var(--vivi-color-border-default);
   outline: none;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
 }
 
 .localOutlineList,
@@ -142,7 +142,7 @@
   min-width: 0;
   border: 1px solid transparent;
   border-radius: 7px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
   font-size: 13px;
   text-decoration: none;
 }
@@ -164,15 +164,19 @@
 }
 
 .localOutlineList a.active {
-  border-left-color: var(--accent);
-  background: linear-gradient(90deg, var(--accent-soft), transparent);
-  color: var(--accent);
+  border-left-color: var(--vivi-color-accent);
+  background: linear-gradient(
+    90deg,
+    var(--vivi-color-accent-surface),
+    transparent
+  );
+  color: var(--vivi-color-accent);
 }
 
 .localOutlineList a.active .outlineLevel {
-  border-color: var(--accent-line);
-  background: var(--panel);
-  color: var(--accent);
+  border-color: var(--vivi-color-accent-border);
+  background: var(--vivi-color-surface-panel);
+  color: var(--vivi-color-accent);
 }
 
 .localSymbolList a {
@@ -187,22 +191,22 @@
 .localOutlineList a:focus-visible,
 .localSymbolList a:hover,
 .localSymbolList a:focus-visible {
-  border-color: var(--line);
+  border-color: var(--vivi-color-border-default);
   outline: none;
-  background: var(--accent-faint);
-  color: var(--text);
+  background: var(--vivi-color-accent-surface-subtle);
+  color: var(--vivi-color-content-primary);
 }
 
 .localSymbolList span,
 .localSymbolList small {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 11px;
 }
 
 .localSymbolList strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -210,9 +214,9 @@
 
 .outlineLevel {
   flex: 0 0 auto;
-  border: 1px solid var(--soft-line);
+  border: 1px solid var(--vivi-color-border-soft);
   border-radius: 999px;
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
@@ -226,7 +230,7 @@
 }
 
 .outlineLine {
-  color: var(--subtle);
+  color: var(--vivi-color-content-subtle);
   font-size: 10.5px;
   font-weight: 720;
 }
@@ -234,22 +238,27 @@
 .removed {
   max-width: 680px;
   margin: 64px auto;
-  border: 1px solid color-mix(in srgb, var(--error) 32%, var(--line));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--vivi-color-danger) 32%,
+      var(--vivi-color-border-default)
+    );
   border-radius: 8px;
-  background: var(--panel);
+  background: var(--vivi-color-surface-panel);
   padding: 22px;
-  color: var(--muted);
+  color: var(--vivi-color-content-muted);
 }
 
 .removed h2 {
   margin: 4px 0 10px;
-  color: var(--text);
+  color: var(--vivi-color-content-primary);
   overflow-wrap: anywhere;
 }
 
 .removedEyebrow {
   margin: 0;
-  color: var(--error);
+  color: var(--vivi-color-danger);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -261,10 +270,10 @@
 }
 
 .removedActions button {
-  border: 1px solid var(--line);
+  border: 1px solid var(--vivi-color-border-default);
   border-radius: 7px;
-  background: var(--panel-2);
-  color: var(--text);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
   cursor: pointer;
   padding: 7px 10px;
 }

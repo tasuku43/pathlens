@@ -1,5 +1,5 @@
 .lineCommentRailStyles {
-  --line-comment-rail-module: 1;
+  --vivi-color-border-default-comment-rail-module: 1;
 }
 
 :global(.code-line-comment-action) {
@@ -11,8 +11,8 @@
   height: 24px;
   border: 0;
   border-radius: 5px;
-  background: var(--panel-2);
-  color: var(--accent);
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-accent);
   cursor: pointer;
   opacity: 0;
   padding: 0;
@@ -41,7 +41,7 @@
 }
 
 :global(.code-line-comment-action.has-thread) {
-  color: var(--comment-text);
+  color: var(--vivi-color-comment-text);
   opacity: 1;
 }
 
@@ -83,7 +83,7 @@
 :global(.code-line-comment-action:hover),
 :global(.code-line-comment-action:focus-visible) {
   outline: none;
-  background: var(--accent-soft);
+  background: var(--vivi-color-accent-surface);
 }
 
 :global(.code-line-comment-count) {
@@ -94,10 +94,10 @@
   place-items: center;
   min-width: 14px;
   height: 14px;
-  border: 1px solid var(--comment-line);
+  border: 1px solid var(--vivi-color-comment-border);
   border-radius: 999px;
-  background: var(--palette);
-  color: var(--comment-text);
+  background: var(--vivi-color-surface-palette);
+  color: var(--vivi-color-comment-text);
   font-size: 9px;
   font-weight: 800;
   line-height: 1;
@@ -118,12 +118,15 @@
   z-index: 2;
   width: 9px;
   height: 9px;
-  border: 1px solid color-mix(in srgb, var(--comment-line) 86%, white);
+  border: 1px solid
+    color-mix(in srgb, var(--vivi-color-comment-border) 86%, white);
   border-radius: 999px;
-  background: var(--comment-text);
+  background: var(--vivi-color-comment-text);
   box-shadow:
-    0 0 0 4px color-mix(in srgb, var(--comment-tint) 72%, transparent),
-    0 0 14px color-mix(in srgb, var(--comment-line) 42%, transparent);
+    0 0 0 4px
+      color-mix(in srgb, var(--vivi-color-comment-surface) 72%, transparent),
+    0 0 14px
+      color-mix(in srgb, var(--vivi-color-comment-border) 42%, transparent);
   cursor: pointer;
   padding: 0;
 }
