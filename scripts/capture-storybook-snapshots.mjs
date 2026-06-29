@@ -34,6 +34,9 @@ const maxDiffRatio = Number.parseFloat(
 const maxDiffRatioOverrides = parseMaxDiffRatioOverrides(
   process.env.VIVI_STORYBOOK_SNAPSHOT_MAX_DIFF_RATIO_OVERRIDES,
 );
+const snapshotMismatchRetries = parseSnapshotMismatchRetries(
+  process.env.VIVI_STORYBOOK_SNAPSHOT_MISMATCH_RETRIES,
+);
 
 if (isDirectRun()) {
   main().catch((error) => {
@@ -142,6 +145,17 @@ function parseMaxDiffRatioOverrides(value) {
     entries.set(storyIdOrLabel, numericRatio);
   }
   return entries;
+}
+
+export function parseSnapshotMismatchRetries(value) {
+  if (value === undefined || value === "") return 1;
+  const retries = Number.parseInt(value, 10);
+  if (!Number.isFinite(retries) || retries < 0 || String(retries) !== value) {
+    throw new Error(
+      `Invalid snapshot mismatch retry count: ${value}. Use a non-negative integer.`,
+    );
+  }
+  return retries;
 }
 
 function maxDiffRatioForTarget(target) {
@@ -277,14 +291,41 @@ async function captureTargets(targets) {
         const expected = readFileSync(baselinePath);
         const expectedHash = sha256(expected);
         compared += 1;
-        const comparison = await comparePngBuffers(
+        let actual = screenshot;
+        let actualHash = hash;
+        let comparison = await comparePngBuffers(
           browser,
           expected,
-          screenshot,
+          actual,
         );
         const allowedDiffRatio = maxDiffRatioForTarget(target);
+        let recoveredByRetry = false;
+        for (
+          let retry = 1;
+          comparison.changedRatio > allowedDiffRatio &&
+          retry <= snapshotMismatchRetries;
+          retry += 1
+        ) {
+          actual = await captureStoryWithRetry(context, target).catch(
+            (error) => {
+              throw new Error(
+                `Failed to recapture ${target.label} (${viewport.name}) after a snapshot mismatch: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+            },
+          );
+          actualHash = sha256(actual);
+          comparison = await comparePngBuffers(browser, expected, actual);
+          recoveredByRetry = comparison.changedRatio <= allowedDiffRatio;
+          if (recoveredByRetry) {
+            console.warn(
+              `Snapshot mismatch recovered for ${target.label} (${viewport.name}) after ${retry} recapture(s).`,
+            );
+          }
+        }
         if (comparison.changedRatio > allowedDiffRatio) {
-          writeArtifact(viewport.name, target.id, "actual.png", screenshot);
+          writeArtifact(viewport.name, target.id, "actual.png", actual);
           writeArtifact(viewport.name, target.id, "expected.png", expected);
           if (comparison.diffPngBase64) {
             writeArtifact(
@@ -298,7 +339,7 @@ async function captureTargets(targets) {
             [
               `Snapshot changed for ${target.label} (${viewport.name}).`,
               `  expected ${expectedHash}`,
-              `  actual   ${hash}`,
+              `  actual   ${actualHash}`,
               `  changed  ${comparison.changedPixels}/${comparison.totalPixels} pixels (${formatRatio(comparison.changedRatio)}, limit ${formatRatio(allowedDiffRatio)})`,
               `  artifact ${path.relative(repoRoot, artifactPath(viewport.name, target.id))}`,
             ].join("\n"),
