@@ -5,8 +5,8 @@ go 1.25.0
 toolchain go1.26.4
 
 require (
-	github.com/99designs/gqlgen v0.17.92
-	github.com/fsnotify/fsnotify v1.9.0
+	github.com/99designs/gqlgen v0.17.93
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/vektah/gqlparser/v2 v2.5.35
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0
@@ -27,7 +27,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
-	github.com/urfave/cli/v3 v3.9.0 // indirect
+	github.com/urfave/cli/v3 v3.10.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
