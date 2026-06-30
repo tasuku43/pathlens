@@ -12,7 +12,7 @@
 
 .palette {
   width: min(760px, calc(100vw - 40px));
-  border: 1px solid var(--vivi-color-accent-border);
+  border: 1px solid var(--vivi-color-selection-border);
   border-radius: 18px;
   background: var(--vivi-color-surface-palette);
   box-shadow: 0 30px 110px var(--vivi-color-shadow);
@@ -41,9 +41,9 @@
 }
 
 .activeMode {
-  border-color: var(--vivi-color-accent-border);
-  background: var(--vivi-color-accent-surface-subtle);
-  color: var(--vivi-color-accent);
+  border-color: var(--vivi-color-selection-border);
+  background: var(--vivi-color-selection-surface-subtle);
+  color: var(--vivi-color-selection-indicator);
 }
 
 .input {
@@ -55,6 +55,12 @@
   border-radius: 12px;
   padding: 13px 14px;
   box-shadow: inset 0 0 0 1px var(--vivi-color-border-default);
+}
+
+.input:focus {
+  box-shadow:
+    inset 0 0 0 1px var(--vivi-color-focus-ring),
+    0 0 0 3px var(--vivi-color-focus-shadow);
 }
 
 .body {
@@ -96,8 +102,8 @@
 }
 
 .activeResult {
-  background: var(--vivi-color-accent-surface);
-  color: var(--vivi-color-content-primary);
+  background: var(--vivi-color-selection-surface);
+  color: var(--vivi-color-selection-text);
 }
 
 .result:disabled {
@@ -121,8 +127,8 @@
 
 .searchMatch {
   border-radius: 4px;
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
+  background: var(--vivi-color-review-surface);
+  color: var(--vivi-color-review-text);
   padding: 0 2px;
 }
 

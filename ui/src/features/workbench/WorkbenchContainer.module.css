@@ -55,7 +55,7 @@
 .resizer:hover::after,
 .resizer:focus-visible::after,
 .resizingWorkbenchPane .resizer::after {
-  background: var(--vivi-color-accent);
+  background: var(--vivi-color-focus-ring);
 }
 
 .resizingWorkbenchPane {
@@ -84,8 +84,8 @@
 
 .railToggle:hover,
 .railToggle:focus-visible {
-  border-color: var(--vivi-color-accent-border);
-  background: var(--vivi-color-accent-surface-subtle);
+  border-color: var(--vivi-color-selection-border);
+  background: var(--vivi-color-selection-surface-subtle);
   color: var(--vivi-color-content-primary);
   opacity: 1;
 }
@@ -171,7 +171,7 @@
 }
 
 .activePane {
-  box-shadow: inset 0 0 0 1px var(--vivi-color-accent-border);
+  box-shadow: inset 0 0 0 1px var(--vivi-color-selection-border);
 }
 
 .splitDropZone {
@@ -188,9 +188,9 @@
   content: "";
   position: absolute;
   inset: 0;
-  border: 2px solid var(--vivi-color-accent);
+  border: 2px solid var(--vivi-color-focus-ring);
   border-radius: 8px;
-  background: var(--vivi-color-accent-surface);
+  background: var(--vivi-color-selection-surface);
   box-shadow: 0 0 0 1px var(--vivi-color-shadow);
 }
 
@@ -307,10 +307,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--vivi-color-accent-border);
+  border-bottom: 1px solid var(--vivi-color-selection-border);
   background: color-mix(
     in srgb,
-    var(--vivi-color-accent-surface-subtle) 72%,
+    var(--vivi-color-selection-surface-subtle) 72%,
     var(--vivi-color-surface-panel)
   );
   color: var(--vivi-color-content-muted);
@@ -337,7 +337,7 @@
 .textSearchNavQuery {
   max-width: min(340px, 42vw);
   overflow: hidden;
-  color: var(--vivi-color-accent);
+  color: var(--vivi-color-selection-indicator);
   font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -355,8 +355,8 @@
 
 .textSearchNavMatch {
   border-radius: 4px;
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
+  background: var(--vivi-color-review-surface);
+  color: var(--vivi-color-review-text);
   padding: 0 2px;
 }
 
@@ -376,10 +376,10 @@
 
 .textSearchNavActions button:hover,
 .textSearchNavActions button:focus-visible {
-  border-color: var(--vivi-color-accent-border);
+  border-color: var(--vivi-color-selection-border);
   outline: none;
-  background: var(--vivi-color-accent-surface);
-  color: var(--vivi-color-accent);
+  background: var(--vivi-color-selection-surface);
+  color: var(--vivi-color-selection-indicator);
 }
 
 @media (max-width: 720px) {
@@ -412,7 +412,7 @@
 
 .restorePrompt {
   width: min(460px, calc(100vw - 40px));
-  border: 1px solid var(--vivi-color-accent-border);
+  border: 1px solid var(--vivi-color-selection-border);
   border-radius: 12px;
   background: var(--vivi-color-surface-palette);
   box-shadow: 0 24px 80px var(--vivi-color-shadow);
@@ -449,7 +449,7 @@
 }
 
 .restoreActions button:first-child {
-  border-color: var(--vivi-color-accent-border);
-  background: var(--vivi-color-accent-surface);
-  color: var(--vivi-color-accent);
+  border-color: var(--vivi-color-selection-border);
+  background: var(--vivi-color-selection-surface);
+  color: var(--vivi-color-selection-indicator);
 }

@@ -146,7 +146,7 @@ it("serves tree, config, file, preview, and path-safety API responses", async ()
   );
   expect(previewHtml).toContain("spansMultipleLines");
   expect(previewHtml).toContain('data-vivi-html-theme="dark"');
-  expect(previewHtml).toContain("--vivi-rendered-palette:#0e1316");
+  expect(previewHtml).toContain("--vivi-rendered-palette:#0b1218");
   expect(previewHtml).not.toContain("html{color-scheme:dark;background:");
   expect(previewHtml).not.toContain("body{background:");
 

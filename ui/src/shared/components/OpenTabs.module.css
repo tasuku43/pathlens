@@ -97,9 +97,9 @@
 }
 
 .previewMark {
-  border: 1px solid var(--vivi-color-accent-border);
+  border: 1px solid var(--vivi-color-selection-border);
   border-radius: 999px;
-  color: var(--vivi-color-accent);
+  color: var(--vivi-color-selection-indicator);
   font-size: 10px;
   line-height: 1;
   padding: 3px 5px;
@@ -120,7 +120,7 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--vivi-color-warning);
+  background: var(--vivi-color-change-text);
 }
 
 .removed {
@@ -141,7 +141,7 @@
 
 .close:hover,
 .close:focus-visible {
-  background: var(--vivi-color-accent-surface-subtle);
+  background: var(--vivi-color-selection-surface-subtle);
   color: var(--vivi-color-content-primary);
 }
 
@@ -166,7 +166,7 @@
 }
 
 .actions button:hover:not(:disabled) {
-  border-color: var(--vivi-color-accent-border);
+  border-color: var(--vivi-color-selection-border);
   color: var(--vivi-color-content-primary);
 }
 

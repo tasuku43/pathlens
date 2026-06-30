@@ -25,6 +25,15 @@ Product UI colors should be consumed through semantic CSS custom properties name
 alias tokens such as `--panel` or `--muted`; component CSS should read as if the
 semantic token system had always existed.
 
+The current product theme is Blueprint Ledger: dark mode is a quiet blue-black
+review workspace with restrained cyan selection/focus and amber change signals;
+light mode is its cool daylight pair with white reader surfaces and blue-gray
+chrome. The theme is based on:
+
+```text
+docs/ui-mocks/35-theme-compare-11-12.html
+```
+
 Dark mode is the default token set on `:root`. Light mode is the
 `:root[data-theme="light"]` override. Browser theme preference management stays
 in `ui/src/state/theme.ts` as `system | light | dark`, with the resolved value
@@ -34,6 +43,18 @@ Each semantic color token must be present in both light and dark theme blocks.
 When a new product color role is needed, add it to `ui/src/state/color-tokens.ts`
 and keep the corresponding token contract test updated. Snapshot tests should
 show no visual diff for pure token migrations.
+
+Prefer adding color roles by product state rather than by visual intensity:
+
+- `brand-*` is for the wordmark and identity signal.
+- `selection-*` is for selected tree rows, active command results, active panes,
+  current review stops, and other spatial selection.
+- `focus-*` is for keyboard and drag/drop focus rings.
+- `change-*` is for changed, stale, pending, watcher, and unseen-change signals.
+- `review-*` is for review work, open threads, unread review attention, and
+  search/comment highlights.
+- `comment-*` remains the lower-level inline comment surface family and should
+  stay visually compatible with `review-*`.
 
 ## Workspace layout
 

@@ -23,9 +23,10 @@
   border-radius: 7px;
   background: linear-gradient(
     135deg,
-    var(--vivi-color-accent),
-    var(--vivi-color-accent-gradient-end)
+    var(--vivi-color-brand-primary),
+    var(--vivi-color-brand-secondary)
   );
+  box-shadow: 0 0 22px var(--vivi-color-brand-glow);
 }
 
 .brandWordmark {
@@ -109,7 +110,7 @@
 .shortcutButton:hover,
 .themeButton:hover {
   border-color: var(--vivi-color-border-default);
-  background: var(--vivi-color-accent-surface-subtle);
+  background: var(--vivi-color-selection-surface-subtle);
   color: var(--vivi-color-content-primary);
 }
 
@@ -118,10 +119,10 @@
   place-items: center;
   min-width: 18px;
   height: 18px;
-  border: 1px solid var(--vivi-color-comment-border);
+  border: 1px solid var(--vivi-color-review-border);
   border-radius: 999px;
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
+  background: var(--vivi-color-review-surface);
+  color: var(--vivi-color-review-text);
   font-size: 11px;
   font-weight: 780;
 }
@@ -131,9 +132,9 @@
   background: color-mix(
     in srgb,
     var(--vivi-color-surface-panel) 80%,
-    var(--vivi-color-comment-surface)
+    var(--vivi-color-review-surface)
   );
-  color: var(--vivi-color-comment-text);
+  color: var(--vivi-color-review-text);
 }
 
 .commandButton {
@@ -162,8 +163,8 @@
 .commandButtonPrimary {
   min-width: 138px;
   justify-content: space-between;
-  border-color: var(--vivi-color-accent-border);
-  background: var(--vivi-color-accent-surface-subtle);
+  border-color: var(--vivi-color-selection-border);
+  background: var(--vivi-color-selection-surface-subtle);
 }
 
 .commandButtonSecondary {
@@ -173,14 +174,14 @@
 
 .commandButtonSecondary:hover {
   border-color: var(--vivi-color-border-default);
-  background: var(--vivi-color-accent-surface-subtle);
+  background: var(--vivi-color-selection-surface-subtle);
   color: var(--vivi-color-content-primary);
 }
 
 .needsAttention {
-  border-color: var(--vivi-color-comment-border);
-  background: var(--vivi-color-comment-surface);
-  color: var(--vivi-color-comment-text);
+  border-color: var(--vivi-color-review-border);
+  background: var(--vivi-color-review-surface);
+  color: var(--vivi-color-review-text);
 }
 
 @media (max-width: 820px) {

@@ -694,16 +694,16 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
 <html>
   <head>
     <style>
-      body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #172426; background: #fbfaf7; }
-      .review-card { max-width: 760px; border: 1px solid #d4c9b8; border-radius: 8px; background: white; padding: 24px; }
+      body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #17242a; background: #f4f7f8; }
+      .review-card { max-width: 760px; border: 1px solid #cfdee5; border-radius: 8px; background: white; padding: 24px; }
       h1 { margin: 0 0 14px; font-size: 28px; }
       p { margin: 0 0 14px; }
-      button { border: 1px solid #b9ac96; border-radius: 7px; background: #fffaf0; color: #332b20; padding: 8px 12px; margin: 0 0 14px; }
-      .vivi-rendered-comment-block { --vivi-color-comment-surface: rgba(126,87,194,.12); --vivi-color-comment-surface-active: rgba(126,87,194,.2); --vivi-color-comment-border: rgba(126,87,194,.35); --vivi-color-comment-text: #5e3aa3; --vivi-color-surface-panel: white; --vivi-color-surface-palette: #fbfaf7; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      button { border: 1px solid #b5cad4; border-radius: 7px; background: #e9f0f3; color: #17242a; padding: 8px 12px; margin: 0 0 14px; }
+      .vivi-rendered-comment-block { --vivi-color-comment-surface: rgba(57,143,118,.11); --vivi-color-comment-surface-active: rgba(57,143,118,.18); --vivi-color-comment-border: rgba(57,143,118,.32); --vivi-color-comment-text: #32745d; --vivi-color-surface-panel: white; --vivi-color-surface-palette: #f4f7f8; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
       .vivi-rendered-comment-block::before { content: ""; position: absolute; z-index: 0; inset: 0; border-radius: inherit; pointer-events: none; }
       .vivi-rendered-comment-block > * { position: relative; z-index: 1; }
       .has-rendered-comment::before, .drafting-rendered-comment::before { background: linear-gradient(90deg, var(--vivi-color-comment-surface-active), var(--vivi-color-comment-surface) 68%, transparent); box-shadow: inset 2px 0 0 var(--vivi-color-comment-border); }
-      .active-rendered-comment::before { background: linear-gradient(90deg, rgba(126,87,194,.26), rgba(126,87,194,.12) 72%, transparent); box-shadow: inset 3px 0 0 var(--vivi-color-comment-text), 0 0 0 1px rgba(126,87,194,.18); }
+      .active-rendered-comment::before { background: linear-gradient(90deg, rgba(57,143,118,.22), rgba(57,143,118,.11) 72%, transparent); box-shadow: inset 3px 0 0 var(--vivi-color-comment-text), 0 0 0 1px rgba(57,143,118,.18); }
       .rendered-comment-marker { position: absolute; right: 8px; top: 50%; width: 20px; height: 20px; border: 1px solid var(--vivi-color-comment-border); border-radius: 6px; background: var(--vivi-color-surface-panel); color: var(--vivi-color-comment-text); transform: translateY(-50%); cursor: pointer; }
       .rendered-comment-marker-count { position: absolute; right: -5px; top: -6px; min-width: 13px; height: 13px; border: 1px solid var(--vivi-color-comment-border); border-radius: 999px; background: var(--vivi-color-surface-palette); color: var(--vivi-color-comment-text); font-size: 8px; font-weight: 800; line-height: 13px; }
     </style>
@@ -800,7 +800,7 @@ function htmlMultiTargetPreviewStoryDocument(path: string): string {
 function htmlDocReaderDraftPreviewStoryDocument(path: string): string {
   const annotated = addRenderedCommentBlockIdsToHtml(docReaderMockHtml);
   const styles = `<style data-vivi-story-comment-preview>
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(255,255,255,.06); --vivi-color-comment-surface: rgba(169,134,255,.14); --vivi-color-comment-surface-active: rgba(169,134,255,.22); --vivi-color-comment-border: rgba(169,134,255,.42); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(238,244,244,.07); --vivi-color-comment-surface: rgba(139,214,195,.12); --vivi-color-comment-surface-active: rgba(139,214,195,.2); --vivi-color-comment-border: rgba(139,214,195,.36); isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
     .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; top: 0; right: var(--rendered-comment-block-right); bottom: 0; left: var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
     .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
     .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--vivi-color-border-soft); }
@@ -921,12 +921,12 @@ function htmlDraftPreviewStoryDocument(path: string): string {
     <style>
       body { margin: 0; padding: 24px; font: 14px/1.55 Inter, system-ui, sans-serif; color: #192225; background: #f6f4ee; }
       .reader-shell { max-width: 980px; border: 1px solid #d9d0c2; border-radius: 8px; background: white; overflow: hidden; box-shadow: 0 18px 40px rgba(42, 35, 24, .12); }
-      .reader-topbar { display: flex; gap: 12px; align-items: center; padding: 12px 18px; border-bottom: 1px solid #e7ded0; background: #fbfaf7; }
+      .reader-topbar { display: flex; gap: 12px; align-items: center; padding: 12px 18px; border-bottom: 1px solid #cfdee5; background: #f4f7f8; }
       .reader-topbar strong { margin-right: auto; }
       .pill { border: 1px solid #d8cebd; border-radius: 999px; color: #6b604f; font-size: 12px; padding: 3px 8px; }
       .reader-body { display: grid; grid-template-columns: minmax(0, 1fr) 240px; min-height: 520px; }
       .article { padding: 26px 32px 36px; }
-      .rail { border-left: 1px solid #e7ded0; background: #fbfaf7; padding: 18px; }
+      .rail { border-left: 1px solid #cfdee5; background: #f4f7f8; padding: 18px; }
       h1 { margin: 0 0 10px; font-size: 28px; }
       h2 { margin: 30px 0 10px; font-size: 18px; }
       p { margin: 0 0 14px; }
@@ -1260,9 +1260,9 @@ function htmlCommentPreviewStoryDocument(path: string): string {
 <html>
   <head>
     <style>
-      body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #172426; background: #fbfaf7; }
-      .review-card { max-width: 760px; border: 1px solid #d4c9b8; border-radius: 8px; background: white; padding: 24px; }
-      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(24,32,47,.08); --vivi-color-surface-panel: white; --vivi-color-surface-palette: #fbfaf7; --vivi-color-comment-surface: rgba(126,87,194,.12); --vivi-color-comment-surface-active: rgba(126,87,194,.2); --vivi-color-comment-border: rgba(126,87,194,.35); --vivi-color-comment-text: #5e3aa3; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
+      body { margin: 0; padding: 28px; font: 15px/1.6 Inter, system-ui, sans-serif; color: #17242a; background: #f4f7f8; }
+      .review-card { max-width: 760px; border: 1px solid #cfdee5; border-radius: 8px; background: white; padding: 24px; }
+      .vivi-rendered-comment-block { --rendered-comment-block-left: 0px; --rendered-comment-block-right: 0px; --vivi-color-border-soft: rgba(23,36,42,.08); --vivi-color-surface-panel: white; --vivi-color-surface-palette: #f4f7f8; --vivi-color-comment-surface: rgba(57,143,118,.11); --vivi-color-comment-surface-active: rgba(57,143,118,.18); --vivi-color-comment-border: rgba(57,143,118,.32); --vivi-color-comment-text: #32745d; isolation: isolate; position: relative; z-index: 0; border-radius: 8px; }
       .vivi-rendered-comment-block:not(tr)::before { content: ""; position: absolute; z-index: 0; inset: 0 var(--rendered-comment-block-right) 0 var(--rendered-comment-block-left); border-radius: inherit; pointer-events: none; }
       .vivi-rendered-comment-block:not(tr) > * { position: relative; z-index: 1; }
 	      .vivi-rendered-comment-block.hover-rendered-comment-block:not(tr)::before, tr.vivi-rendered-comment-block.hover-rendered-comment-block { background: var(--vivi-color-border-soft); }

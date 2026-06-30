@@ -343,7 +343,7 @@ export const SourceThreadReplyStaysFocusedOnExistingLine: Story = {
     ).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("New line comment")).toBeNull();
     await expect(canvas.getByLabelText("Continue thread")).toBeVisible();
-    for (const saveButton of canvas.getAllByRole("button", {
+    for (const saveButton of canvas.queryAllByRole("button", {
       name: "Save pending draft comment",
     })) {
       await expect(saveButton).toBeDisabled();

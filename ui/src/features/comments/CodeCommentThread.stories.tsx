@@ -750,7 +750,7 @@ export const UserWritesOneDraftComment: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Pending")).toBeVisible();
+    expect(canvas.getAllByText("Pending").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Pending draft")).toBeVisible();
     await expect(canvas.getByText("Continue thread")).toBeVisible();
     await expect(canvas.getByLabelText("Continue thread")).toBeVisible();

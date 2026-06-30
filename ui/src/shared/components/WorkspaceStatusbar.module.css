@@ -49,14 +49,14 @@
 }
 
 .live {
-  background: var(--vivi-color-accent);
-  box-shadow: 0 0 0 3px var(--vivi-color-accent-surface);
+  background: var(--vivi-color-selection-indicator);
+  box-shadow: 0 0 0 3px var(--vivi-color-selection-surface);
 }
 
 .pending {
-  background: var(--vivi-color-warning);
+  background: var(--vivi-color-change-text);
   box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--vivi-color-warning) 18%, transparent);
+    color-mix(in srgb, var(--vivi-color-change-text) 18%, transparent);
 }
 
 .offline {
