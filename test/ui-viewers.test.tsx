@@ -5069,6 +5069,10 @@ it("renders HTML diffs as rendered snippets without line numbers", () => {
   );
 
   expect(html).toContain("rendered-change-card changed");
+  expect(html).toContain(
+    'aria-label="Rendered change summary: 1 rendered change card, 1 changed, source diff remains canonical"',
+  );
+  expect(html).toContain("1 changed");
   expect(html).toContain("Before · HEAD");
   expect(html).toContain("After · working tree");
   expect(html).toContain("HTML diff line preview");

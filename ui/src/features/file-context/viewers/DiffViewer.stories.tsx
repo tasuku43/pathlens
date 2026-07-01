@@ -298,6 +298,10 @@ export const RenderedMarkdownComment: Story = {
     });
     await expect(cardsRegion).toBeVisible();
     const cardsCanvas = within(cardsRegion);
+    const summary = canvas.getByLabelText(/Rendered change summary:/);
+    await expect(summary).toHaveTextContent("rendered change cards");
+    await expect(summary).toHaveTextContent("source diff remains canonical");
+    await expect(summary).toHaveTextContent(/changed|added|removed/);
     expect(cardsCanvas.getAllByRole("article").length).toBeGreaterThan(0);
     await expect(cardsRegion).toHaveTextContent(
       "source diff remains canonical",

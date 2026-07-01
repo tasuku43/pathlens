@@ -203,9 +203,62 @@
 }
 
 .diffViewer :global(.rendered-change-card-summary strong) {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 999px;
+  background: var(--vivi-color-surface-panel-raised);
   color: var(--vivi-color-content-primary);
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1;
+}
+
+.diffViewer :global(.rendered-change-card-summary-copy) {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.diffViewer :global(.rendered-change-card-summary-breakdown) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.diffViewer :global(.rendered-change-summary-pill) {
+  display: inline-grid;
+  place-items: center;
+  min-height: 22px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 999px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 8px;
+}
+
+.diffViewer :global(.rendered-change-summary-pill.changed) {
+  border-color: var(--vivi-color-change-border);
+  color: var(--vivi-color-change-text);
+}
+
+.diffViewer :global(.rendered-change-summary-pill.added) {
+  border-color: var(--vivi-color-success-border);
+  color: var(--vivi-color-success-text);
+}
+
+.diffViewer :global(.rendered-change-summary-pill.removed) {
+  border-color: color-mix(
+    in srgb,
+    var(--vivi-color-danger) 44%,
+    var(--vivi-color-border-default)
+  );
+  color: var(--vivi-color-diff-remove-line);
 }
 
 .diffViewer :global(.rendered-change-card-stack) {

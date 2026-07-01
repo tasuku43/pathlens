@@ -670,6 +670,8 @@ function RenderedChangeCards({
     );
   }, [activeCommentId, comments, onOpenComment]);
 
+  const summary = renderedChangeCardsSummary(cards);
+
   const updateSelectionComment = () => {
     if (!file || !cardListRef.current || renderKind !== "markdown") return;
     const selection = window.getSelection();
@@ -720,9 +722,25 @@ function RenderedChangeCards({
       onMouseUp={() => scheduleSelectionCommentUpdate(updateSelectionComment)}
       onKeyUp={updateSelectionComment}
     >
-      <div className="rendered-change-card-summary">
-        <strong>{cards.length}</strong>
-        <span>rendered change cards · source diff remains canonical</span>
+      <div
+        className="rendered-change-card-summary"
+        aria-label={`Rendered change summary: ${summary.accessibleLabel}`}
+      >
+        <strong>{summary.total}</strong>
+        <span className="rendered-change-card-summary-copy">
+          <span>{summary.totalLabel}</span>
+          <span className="rendered-change-card-summary-breakdown">
+            {summary.parts.map((part) => (
+              <span
+                key={part.kind}
+                className={`rendered-change-summary-pill ${part.kind}`}
+              >
+                {part.label}
+              </span>
+            ))}
+          </span>
+          <span>source diff remains canonical</span>
+        </span>
       </div>
       <div className="rendered-change-card-stack">
         {cards.map((card) => (
@@ -759,6 +777,36 @@ function visibleDiffLinesForContent(content: string): VisibleDiffLine[] {
   return parseUnifiedDiff(content).filter(
     (line) => line.kind !== "meta" && line.kind !== "hunk",
   ) as VisibleDiffLine[];
+}
+
+function renderedChangeCardsSummary(cards: RenderedChangeCard[]): {
+  total: number;
+  totalLabel: string;
+  parts: Array<{ kind: RenderedChangeKind; label: string }>;
+  accessibleLabel: string;
+} {
+  const counts = cards.reduce(
+    (acc, card) => {
+      acc[card.kind] += 1;
+      return acc;
+    },
+    { changed: 0, added: 0, removed: 0 } satisfies Record<
+      RenderedChangeKind,
+      number
+    >,
+  );
+  const parts = (["changed", "added", "removed"] as const).flatMap((kind) => {
+    const count = counts[kind];
+    return count > 0 ? [{ kind, label: `${count} ${kind}` }] : [];
+  });
+  const totalLabel = `${cards.length} rendered ${cards.length === 1 ? "change card" : "change cards"}`;
+  const breakdownLabel = parts.map((part) => part.label).join(", ");
+  return {
+    total: cards.length,
+    totalLabel,
+    parts,
+    accessibleLabel: `${totalLabel}${breakdownLabel ? `, ${breakdownLabel}` : ""}, source diff remains canonical`,
+  };
 }
 
 export function diffCommentContextForRange(
