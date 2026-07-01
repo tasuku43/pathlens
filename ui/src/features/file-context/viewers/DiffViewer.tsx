@@ -152,10 +152,7 @@ function SourceDiff({
   const [openThreadKeys, setOpenThreadKeys] = useState<string[]>([]);
   const language = languageForPath(diff.path, "code");
   const lines = useMemo(
-    () =>
-      parseUnifiedDiff(diff.content).filter(
-        (line) => line.kind !== "meta" && line.kind !== "hunk",
-      ) as VisibleDiffLine[],
+    () => visibleDiffLinesForContent(diff.content),
     [diff.content],
   );
   const displayLines = useMemo(
@@ -283,19 +280,23 @@ function SourceDiff({
         ? "added"
         : "context");
     const key = codeCommentThreadKey(diff.path, lineStart, lineEnd);
-    const draft = diffCommentDraft(file, lineStart, lineEnd, changeKind, quote, {
-      base: diff.baseRef ?? diff.baseLabel,
-      ref: diff.compareLabel,
-      hunkId: hunkIdForLines(lines, lineStart, lineEnd),
-      diffHash: diff.diffHash,
-    });
+    const draft = diffCommentDraft(
+      file,
+      lineStart,
+      lineEnd,
+      changeKind,
+      quote,
+      diffCommentContextForRange(diff, lineStart, lineEnd),
+    );
     const existingThread = matchingOpenThreadForDraft(commentThreads, draft);
     if (existingThread) {
       setDraftThreads((items) =>
         items.filter((item) => item.thread.key !== existingThread.key),
       );
       setOpenThreadKeys((keys) =>
-        keys.includes(existingThread.key) ? keys : [...keys, existingThread.key],
+        keys.includes(existingThread.key)
+          ? keys
+          : [...keys, existingThread.key],
       );
       return;
     }
@@ -450,16 +451,6 @@ function SourceDiff({
       })}
     </div>
   );
-}
-
-function hunkIdForLines(
-  lines: VisibleDiffLine[],
-  start: number,
-  end: number,
-): string {
-  const first = lines.find((line) => line.newLine === start);
-  const oldStart = first?.oldLine ?? 0;
-  return `@@ -${oldStart} +${start},${end - start + 1} @@`;
 }
 
 function SourceDiffLine({
@@ -673,6 +664,11 @@ function RenderedChangeCards({
           ? "added"
           : "context",
         text,
+        diffCommentContextForRange(
+          diff,
+          Math.min(...lines),
+          Math.max(...lines),
+        ),
       ),
       rect: rectFromRange(range),
     });
@@ -713,6 +709,52 @@ function RenderedChangeCards({
       ) : null}
     </div>
   );
+}
+
+function visibleDiffLinesForContent(content: string): VisibleDiffLine[] {
+  return parseUnifiedDiff(content).filter(
+    (line) => line.kind !== "meta" && line.kind !== "hunk",
+  ) as VisibleDiffLine[];
+}
+
+export function diffCommentContextForRange(
+  diff: TextDiff,
+  lineStart: number,
+  lineEnd = lineStart,
+): { base?: string; ref?: string; hunkId?: string; diffHash?: string } {
+  return {
+    base: diff.baseRef ?? diff.baseLabel,
+    ref: diff.compareLabel,
+    hunkId: hunkIdForDiffRange(diff.content, lineStart, lineEnd),
+    diffHash: diff.diffHash,
+  };
+}
+
+function hunkIdForDiffRange(
+  content: string,
+  lineStart: number,
+  lineEnd: number,
+): string {
+  let currentHunk: string | undefined;
+  for (const line of parseUnifiedDiff(content)) {
+    if (line.kind === "hunk") {
+      currentHunk = line.text;
+      continue;
+    }
+    if (
+      line.kind !== "remove" &&
+      line.newLine &&
+      line.newLine >= lineStart &&
+      line.newLine <= lineEnd
+    ) {
+      return currentHunk ?? fallbackHunkIdForRange(lineStart, lineEnd);
+    }
+  }
+  return fallbackHunkIdForRange(lineStart, lineEnd);
+}
+
+function fallbackHunkIdForRange(start: number, end: number): string {
+  return `@@ -0 +${start},${end - start + 1} @@`;
 }
 
 function RenderedChangeCardView({

@@ -62,6 +62,7 @@ import {
   buildFocusedSourceDiffRows,
   buildRenderedDiffRows,
   buildRenderedHtmlRows,
+  diffCommentContextForRange,
   DiffViewer,
 } from "../ui/src/features/file-context/viewers/DiffViewer.js";
 import { HtmlViewer } from "../ui/src/features/file-context/viewers/HtmlViewer.js";
@@ -4664,6 +4665,37 @@ it("keeps source-only comments out of rendered diff card markers", () => {
   expect(html).not.toContain(
     'data-comment-id="source-only-rendered-card-line"',
   );
+});
+
+it("preserves unified diff metadata for selected diff comment drafts", () => {
+  const context = diffCommentContextForRange(
+    {
+      path: "README.md",
+      status: "available",
+      baseLabel: "HEAD",
+      baseRef: "refs/heads/main",
+      compareLabel: "working tree",
+      diffHash: "sha256:diff",
+      content: [
+        "diff --git a/README.md b/README.md",
+        "--- a/README.md",
+        "+++ b/README.md",
+        "@@ -10,1 +20,2 @@",
+        "-old removed line",
+        "+new line one",
+        "+new line two",
+      ].join("\n"),
+    },
+    20,
+    21,
+  );
+
+  expect(context).toEqual({
+    base: "refs/heads/main",
+    ref: "working tree",
+    hunkId: "@@ -10,1 +20,2 @@",
+    diffHash: "sha256:diff",
+  });
 });
 
 it("labels terminal diff comment markers as reopenable", () => {
