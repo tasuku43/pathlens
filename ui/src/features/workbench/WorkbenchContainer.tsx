@@ -112,6 +112,7 @@ import {
   startGitReviewPolling,
 } from "../../state/git-review-refresh.js";
 import {
+  activeCommentRendersInViewerThread,
   draftReviewCommentAsViviComment,
   visibleThreadComments,
   type CommentDraft,
@@ -661,14 +662,12 @@ export function WorkbenchContainer({ client }: { client: ViviClient }) {
     ? (viewerModes[file.path] ?? defaultViewerMode(file))
     : undefined;
   const activeFileOutline = useMemo(() => outlineForFile(file), [file]);
-  const usesInlineCommentThread = Boolean(
-    !diffEnabled &&
-    visibleActiveComment &&
-    ((file?.viewerKind === "markdown" && activeViewerMode === "rendered") ||
-      ((file?.viewerKind === "code" ||
-        (file?.viewerKind === "markdown" && activeViewerMode === "source")) &&
-        visibleActiveComment.anchor.canonical.lineStart)),
-  );
+  const usesInlineCommentThread = activeCommentRendersInViewerThread({
+    comment: visibleActiveComment,
+    diffEnabled,
+    viewerKind: file?.viewerKind,
+    viewerMode: activeViewerMode,
+  });
   const activeFileRemoved = Boolean(activeTab?.removed);
   const effectiveSidebarWidth = compactSidebarWidth(
     sidebarWidth,

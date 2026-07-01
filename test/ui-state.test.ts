@@ -159,6 +159,7 @@ import {
   openThreadNavigationTargets,
   reviewQueueOpenTransition,
 } from "../ui/src/state/review-navigation.js";
+import { activeCommentRendersInViewerThread } from "../ui/src/state/comments.js";
 import {
   boundedVisibleTreeRows,
   countTreeNodes,
@@ -243,6 +244,70 @@ it("prepares Review Queue opens by clearing stale viewer state", () => {
   expect(transition.paletteOpen).toBe(false);
   expect(transition.shortcutHelpOpen).toBe(false);
   expect(transition.error).toBeNull();
+});
+
+it("detects when active comments are already rendered inside the viewer", () => {
+  const sourceComment = {
+    anchor: {
+      surface: "source" as const,
+      canonical: { lineStart: 4 },
+    },
+  };
+  const renderedComment = {
+    anchor: {
+      surface: "rendered" as const,
+      canonical: {},
+    },
+  };
+
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: sourceComment,
+      diffEnabled: false,
+      viewerKind: "html",
+      viewerMode: "source",
+    }),
+  ).toBe(true);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: sourceComment,
+      diffEnabled: false,
+      viewerKind: "html",
+      viewerMode: "preview",
+    }),
+  ).toBe(false);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: sourceComment,
+      diffEnabled: false,
+      viewerKind: "code",
+      viewerMode: "source",
+    }),
+  ).toBe(true);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: sourceComment,
+      diffEnabled: false,
+      viewerKind: "markdown",
+      viewerMode: "source",
+    }),
+  ).toBe(true);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: renderedComment,
+      diffEnabled: false,
+      viewerKind: "markdown",
+      viewerMode: "rendered",
+    }),
+  ).toBe(true);
+  expect(
+    activeCommentRendersInViewerThread({
+      comment: sourceComment,
+      diffEnabled: true,
+      viewerKind: "html",
+      viewerMode: "source",
+    }),
+  ).toBe(false);
 });
 
 it("reuses one preview tab per pane while preserving normal tabs", () => {

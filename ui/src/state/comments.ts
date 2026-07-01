@@ -8,7 +8,9 @@ import {
   type ViviComment,
 } from "../domain/comments.js";
 import type { FilePayload } from "../domain/fs-node.js";
+import type { ViewerKind } from "../domain/viewer-kind.js";
 import type { LineRange } from "./code-viewer.js";
+import type { ViewerMode } from "./viewer-mode.js";
 
 export interface CommentDraft {
   threadId?: string;
@@ -71,6 +73,26 @@ export function commentViewerKindForFile(file: FilePayload): CommentViewerKind {
     return "text";
   }
   return "unknown";
+}
+
+export function activeCommentRendersInViewerThread({
+  comment,
+  diffEnabled,
+  viewerKind,
+  viewerMode,
+}: {
+  comment: Pick<ViviComment, "anchor"> | null | undefined;
+  diffEnabled: boolean;
+  viewerKind?: ViewerKind | null;
+  viewerMode?: ViewerMode;
+}): boolean {
+  if (diffEnabled || !comment || !viewerKind) return false;
+  if (viewerKind === "markdown" && viewerMode === "rendered") return true;
+  if (!comment.anchor.canonical.lineStart) return false;
+  if (viewerKind === "code") return true;
+  if (viewerKind === "markdown" && viewerMode === "source") return true;
+  if (viewerKind === "html" && viewerMode === "source") return true;
+  return false;
 }
 
 export function commentAnchorSourceChanged(
