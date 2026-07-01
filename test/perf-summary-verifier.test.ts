@@ -69,6 +69,7 @@ describe("perf summary verifier", () => {
       ".github/workflows/performance.yml",
       "utf8",
     );
+    const packageJson = JSON.parse(await readFile("package.json", "utf8"));
 
     expect(workflow).toContain("name: Performance");
     expect(workflow).toContain("pull_request:");
@@ -79,6 +80,12 @@ describe("perf summary verifier", () => {
     expect(workflow).toContain("VIVI_PERF_REQUIRE_SYNTHETIC");
     expect(workflow).toContain("actions/upload-artifact@");
     expect(workflow).toContain("path: artifacts/perf");
+    expect(packageJson.scripts["build:go:otel"]).toContain(
+      "npm --prefix ui run build",
+    );
+    expect(packageJson.scripts["build:go:otel"]).toContain(
+      "go build -tags otel",
+    );
   });
 });
 

@@ -22,7 +22,7 @@
     "postinstall": "node scripts/prepare-go-workspace.mjs",
     "build": "npm run clean:dist && npm run prepare:ui-assets && tsc -p tsconfig.node.json && npm --prefix ui run build",
     "build:go": "npm run prepare:go && node scripts/run-go-build.mjs",
-    "build:go:otel": "npm run prepare:go && go build -tags otel -o vivi-otel ./cli",
+    "build:go:otel": "npm run prepare:go && npm run prepare:ui-assets && npm --prefix ui run build && go build -tags otel -o vivi-otel ./cli",
     "typecheck": "npm --prefix ui run typecheck && tsc -p tsconfig.node.json --noEmit",
     "test:go": "npm run prepare:go && node scripts/run-go-test.mjs",
     "test": "vitest run",
