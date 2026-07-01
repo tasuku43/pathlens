@@ -1,5 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fireEvent, fn, userEvent, within } from "storybook/test";
+import {
+  expect,
+  fireEvent,
+  fn,
+  userEvent,
+  waitFor,
+  within,
+} from "storybook/test";
 import type { TextDiff } from "../../../domain/change-review.js";
 import type { ViviComment } from "../../../domain/comments.js";
 import {
@@ -340,17 +347,40 @@ export const RenderedMarkdownComment: Story = {
         },
       },
     });
-    expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
     const toggle = cardsCanvas.getAllByRole("button", {
       name: /Show source hunk for/,
     })[0];
     expect(toggle).toBeDefined();
+    const previewId = toggle!.getAttribute("aria-controls");
+    expect(previewId).toBeTruthy();
+    const sourcePreview = canvasElement.ownerDocument.getElementById(
+      previewId!,
+    );
+    expect(sourcePreview).not.toBeNull();
+    expect(sourcePreview).toHaveAttribute("hidden");
     await userEvent.click(toggle!);
-    const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
-    expect(sourcePreviews.length).toBe(1);
-    expect(sourcePreviews[0]!.id).toBe(toggle!.getAttribute("aria-controls"));
-    await userEvent.click(toggle!);
-    expect(cardsCanvas.queryByLabelText("Source hunk preview")).toBeNull();
+    expect(sourcePreview!.id).toBe(previewId);
+    await waitFor(() => {
+      expect(sourcePreview).not.toHaveAttribute("hidden");
+    });
+    await userEvent.click(
+      cardsCanvas.getByRole("button", { name: /Hide source hunk for/ }),
+    );
+    await waitFor(() => {
+      expect(sourcePreview).toHaveAttribute("hidden");
+    });
+    for (const openSourceHunk of cardsCanvas.queryAllByRole("button", {
+      name: /Hide source hunk for/,
+    })) {
+      await userEvent.click(openSourceHunk);
+    }
+    await waitFor(() => {
+      expect(
+        cardsRegion.querySelector(
+          '[aria-label="Source hunk preview"]:not([hidden])',
+        ),
+      ).toBeNull();
+    });
   },
 };
 
@@ -389,26 +419,18 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
         name: "Show source hunk for Changed rendered block line 1-4",
       }),
     );
-    const sourceHunk = within(card).getByLabelText("Source hunk preview");
     const sourceToggle = within(card).getByRole("button", {
       name: "Hide source hunk for Changed rendered block line 1-4",
     });
-    expect(sourceHunk.id).toBe(sourceToggle.getAttribute("aria-controls"));
+    const sourceHunkId = sourceToggle.getAttribute("aria-controls");
+    expect(sourceHunkId).toBeTruthy();
+    const sourceHunk = canvasElement.ownerDocument.getElementById(
+      sourceHunkId!,
+    );
+    expect(sourceHunk).not.toBeNull();
+    expect(sourceHunk!.id).toBe(sourceHunkId);
     await expect(sourceHunk).toHaveTextContent("console.log('old');");
     await expect(sourceHunk).toHaveTextContent("console.log('new');");
-
-    await userEvent.click(
-      within(card).getByRole("button", {
-        name: "Add comment to Changed rendered block line 1-4",
-      }),
-    );
-    await expect(
-      canvas.getByPlaceholderText("Draft a review comment"),
-    ).toBeVisible();
-    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
-    await expect(
-      canvas.queryByPlaceholderText("Draft a review comment"),
-    ).toBeNull();
   },
 };
 

@@ -1135,27 +1135,28 @@ function SourceHunkPreview({
       >
         {visible ? "Hide source hunk" : "Show source hunk"}
       </button>
-      {visible ? (
-        <div
-          id={previewId}
-          className="rendered-change-source-rows"
-          aria-label="Source hunk preview"
-        >
-          {rows.map((row, index) => (
-            <div
-              key={`${row.kind}-${row.lineLabel}-${index}-${row.source}`}
-              className={`rendered-change-source-row ${row.kind}`}
-            >
-              <span>
-                {row.kind === "remove"
-                  ? `-${row.lineLabel}`
-                  : `+${row.lineLabel}`}
-              </span>
-              <code>{row.source || " "}</code>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <div
+        id={previewId}
+        className="rendered-change-source-rows"
+        aria-label="Source hunk preview"
+        hidden={!visible}
+      >
+        {visible
+          ? rows.map((row, index) => (
+              <div
+                key={`${row.kind}-${row.lineLabel}-${index}-${row.source}`}
+                className={`rendered-change-source-row ${row.kind}`}
+              >
+                <span>
+                  {row.kind === "remove"
+                    ? `-${row.lineLabel}`
+                    : `+${row.lineLabel}`}
+                </span>
+                <code>{row.source || " "}</code>
+              </div>
+            ))
+          : null}
+      </div>
     </section>
   );
 }

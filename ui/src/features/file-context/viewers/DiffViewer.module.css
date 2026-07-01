@@ -480,6 +480,10 @@
   font-size: 11px;
 }
 
+.diffViewer :global(.rendered-change-source-rows[hidden]) {
+  display: none;
+}
+
 .diffViewer :global(.rendered-change-source-row) {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
