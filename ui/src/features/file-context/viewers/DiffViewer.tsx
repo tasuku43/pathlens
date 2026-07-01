@@ -734,7 +734,7 @@ function RenderedChangeCardView({
   const commentThread = range
     ? preferredCodeCommentThread(
         codeCommentThreads(
-          commentsForLineRange(comments, range.start, range.end),
+          commentsForRenderedDiffLineRange(comments, range.start, range.end),
         ),
         activeCommentId,
       )
@@ -822,12 +822,13 @@ function RenderedChangeCardView({
   );
 }
 
-function commentsForLineRange(
+function commentsForRenderedDiffLineRange(
   comments: ViviComment[],
   start: number,
   end: number,
 ): ViviComment[] {
   return comments.filter((comment) => {
+    if (comment.anchor.surface === "source") return false;
     const commentStart = comment.anchor.canonical.lineStart;
     if (!commentStart) return false;
     const commentEnd = comment.anchor.canonical.lineEnd ?? commentStart;

@@ -4618,6 +4618,54 @@ it("labels rendered diff comment markers from any line in the change card", () =
   expect(html).toContain('data-comment-id="rendered-card-resolved-reply"');
 });
 
+it("keeps source-only comments out of rendered diff card markers", () => {
+  const sourceOnlyComment: ViviComment = {
+    ...codeLineComment,
+    id: "source-only-rendered-card-line",
+    threadId: "thread-source-only-rendered-card-line",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "source",
+      canonical: {
+        path: "README.md",
+        lineStart: 3,
+        lineEnd: 3,
+        quote: "new second sentence",
+      },
+    },
+    body: "This source comment belongs to the source viewer, not the rendered diff card.",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      comments={[sourceOnlyComment]}
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -1,4 +1,4 @@",
+          " # Notes",
+          "-Old first sentence",
+          "-old second sentence",
+          "+New first sentence",
+          "+new second sentence",
+          " trailing",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("rendered-change-card changed");
+  expect(html).not.toContain("rendered-diff-comment-marker");
+  expect(html).not.toContain(
+    'data-comment-id="source-only-rendered-card-line"',
+  );
+});
+
 it("labels terminal diff comment markers as reopenable", () => {
   const resolvedDiffComment: ViviComment = {
     ...codeLineComment,
