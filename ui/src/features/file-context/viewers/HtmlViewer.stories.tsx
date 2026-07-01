@@ -42,11 +42,18 @@ export const SourceHtmlComment: Story = {
   tags: ["interaction"],
   args: {
     mode: "source",
+    theme: "dark",
     comments: [],
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("list")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        canvasElement.querySelectorAll(".line-code span[style*='color']")
+          .length,
+      ).toBeGreaterThan(4);
+    });
     await expect(
       canvasElement.querySelector(".source-comment-surface"),
     ).toBeInTheDocument();

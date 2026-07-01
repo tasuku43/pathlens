@@ -17,6 +17,7 @@ import {
   type CommentStatusChangeHandler,
 } from "../../../state/comments.js";
 import type { LineRange } from "../../../state/code-viewer.js";
+import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import {
   renderedCommentSummaryForComment,
   type RenderedCommentBlockTarget,
@@ -95,11 +96,24 @@ export function HtmlViewer({
   >([]);
   const [renderedThreadPosition, setRenderedThreadPosition] =
     useState<HtmlRenderedThreadPosition | null>(null);
+  const [highlightedSourceHtml, setHighlightedSourceHtml] = useState<{
+    content: string;
+    theme: ResolvedTheme;
+    html: string;
+  } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const mode =
     controlledMode === "source" || controlledMode === "preview"
       ? controlledMode
       : localMode;
+  const highlightedSourceLines = useMemo(
+    () =>
+      highlightedSourceHtml?.content === file.content &&
+      highlightedSourceHtml.theme === theme
+        ? extractHighlightedLines(highlightedSourceHtml.html)
+        : null,
+    [file.content, highlightedSourceHtml, theme],
+  );
   const htmlSourceBlocks = renderedCommentBlocksForHtml(file.content);
   const visibleRenderedComments = useMemo(
     () => visibleThreadComments(comments),
@@ -115,7 +129,30 @@ export function HtmlViewer({
   useEffect(() => {
     setSourceSelectedRange(null);
     setRenderedThreadTargets([]);
+    setHighlightedSourceHtml(null);
   }, [file.content, file.path]);
+
+  useEffect(() => {
+    if (mode !== "source" || diffEnabled) return;
+    let cancelled = false;
+    import("../../../state/highlighter.js")
+      .then(({ highlightCode }) => highlightCode(file.content, "html", theme))
+      .then((highlighted) => {
+        if (!cancelled) {
+          setHighlightedSourceHtml({
+            content: file.content,
+            theme,
+            html: highlighted,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setHighlightedSourceHtml(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [diffEnabled, file.content, mode, theme]);
 
   const postRenderedCommentState = () => {
     const frame = iframeRef.current?.contentWindow;
@@ -370,6 +407,7 @@ export function HtmlViewer({
       ) : (
         <SourceCommentSurface
           file={file}
+          highlightedLines={highlightedSourceLines}
           className={`markdown-source ${surfaceStyles.markdownSource}`}
           selectedRange={sourceSelectedRange}
           focusLineNumber={focusLineNumber}
@@ -465,8 +503,7 @@ function renderedTargetFromMessage(
 
 function rectFromIframe(
   rect:
-    | { left: number; top: number; width: number; height: number }
-    | undefined,
+    { left: number; top: number; width: number; height: number } | undefined,
   iframe: HTMLIFrameElement | null,
 ): DOMRectLike | null {
   const iframeRect = iframe?.getBoundingClientRect();

@@ -67,6 +67,7 @@ export const HtmlSource: Story = {
   tags: ["interaction"],
   args: {
     file: sampleFiles.html,
+    theme: "dark",
     viewerMode: "source",
     diff: htmlDiff,
     selectedCodeRange: null,
@@ -75,6 +76,12 @@ export const HtmlSource: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByRole("list")).toBeInTheDocument());
+    await waitFor(() => {
+      expect(
+        canvasElement.querySelectorAll(".line-code span[style*='color']")
+          .length,
+      ).toBeGreaterThan(4);
+    });
     const line7Thread = canvas.getByRole("button", {
       name: "Open comment thread on line 7 with 1 message",
     });
