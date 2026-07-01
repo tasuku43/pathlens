@@ -440,6 +440,7 @@ const renderedChangeCards: RenderedChangeCard[] = [
 
 export const RenderedChangeCards: Story = {
   name: "Rendered change cards facade",
+  tags: ["interaction"],
   render: () => (
     <RenderedChangeCardsFacade
       markdownFile={sampleFiles.markdown}
@@ -450,16 +451,14 @@ export const RenderedChangeCards: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("region", { name: "Rendered change cards facade" }),
+      canvas.getByRole("region", { name: "Rendered change cards" }),
     ).toBeInTheDocument();
     await expect(
       canvas.getByTestId("rendered-change-cards-subtitle"),
-    ).toHaveTextContent("source diff remains canonical");
+    ).toHaveTextContent("Rendered diff");
     await expect(
       canvas.getByLabelText("Rendered diff summary"),
-    ).toHaveTextContent(
-      "unchanged rendered blocks stay out of the review path",
-    );
+    ).toHaveTextContent("rendered change cards");
 
     const addedStatus = canvas.getByRole("button", {
       name: "Select Added review contract",
@@ -471,6 +470,9 @@ export const RenderedChangeCards: Story = {
       name: "Added review contract rendered change card",
     });
     const addedCardCanvas = within(addedCard);
+    await userEvent.click(
+      addedCardCanvas.getByRole("button", { name: "Show source hunk" }),
+    );
     await expect(
       addedCardCanvas.getByLabelText("Source hunk preview"),
     ).toBeVisible();
@@ -480,12 +482,6 @@ export const RenderedChangeCards: Story = {
     await expect(
       addedCardCanvas.queryByLabelText("Source hunk preview"),
     ).not.toBeInTheDocument();
-    await userEvent.click(
-      addedCardCanvas.getByRole("button", { name: "Show source hunk" }),
-    );
-    await expect(
-      addedCardCanvas.getByLabelText("Source hunk preview"),
-    ).toBeVisible();
   },
 };
 

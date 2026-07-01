@@ -52,20 +52,17 @@ export function RenderedChangeCardsFacade({
 }) {
   const [activeCardId, setActiveCardId] = useState(cards[0]?.id ?? "");
   const [sourceVisible, setSourceVisible] = useState<Record<string, boolean>>(
-    Object.fromEntries(cards.map((card) => [card.id, true])),
+    Object.fromEntries(cards.map((card) => [card.id, false])),
   );
 
   return (
-    <section
-      className={styles.facade}
-      aria-label="Rendered change cards facade"
-    >
+    <section className={styles.facade} aria-label="Rendered change cards">
       <header className={styles.toolbar}>
         <div className={styles.fileTitle}>
           <strong>{markdownFile.path}</strong>
           <span data-testid="rendered-change-cards-subtitle">
-            Rendered diff facade · {markdownDiff.baseLabel} -&gt;{" "}
-            {markdownDiff.compareLabel} · source diff remains canonical
+            Rendered diff · {markdownDiff.baseLabel} -&gt;{" "}
+            {markdownDiff.compareLabel}
           </span>
         </div>
         <div className={styles.segmented} aria-label="Viewer mode">
@@ -81,10 +78,7 @@ export function RenderedChangeCardsFacade({
         <div className={styles.cardColumn}>
           <div className={styles.summaryBar} aria-label="Rendered diff summary">
             <strong>{cards.length}</strong>
-            <span>
-              rendered change cards · source diff remains canonical · unchanged
-              rendered blocks stay out of the review path
-            </span>
+            <span>rendered change cards</span>
           </div>
 
           <div className={styles.cardStack}>
