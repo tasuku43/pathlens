@@ -30,6 +30,7 @@
     "e2e": "VIVI_E2E=1 vitest run test/e2e",
     "harness:agent-loop": "tsx harness/run-local-agent-loop.ts",
     "perf:otel": "node scripts/run-perf-harness.mjs",
+    "perf:verify": "node scripts/verify-perf-summary.mjs",
     "verify:comment-ui": "npm run build && node scripts/verify-comment-ui-cdp.mjs",
     "format:check": "prettier --check .",
     "lint": "npm --prefix ui run lint",

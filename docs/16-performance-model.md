@@ -146,6 +146,34 @@ Use `VIVI_PERF_RUN_NAME=<name>` to keep a named copy of the summary at:
 artifacts/perf/<name>.summary.json
 ```
 
+### GitHub Actions performance gate
+
+The `Performance` workflow runs the harness on GitHub Actions for pull requests
+and pushes to `main`. It uses a small synthetic workspace profile so the job is
+cheap enough for routine CI while still exercising the server watcher, browser
+workspace smoke path, review CLI, search paths, burst writes, and coding-agent
+storm scenario.
+
+The CI job runs:
+
+```bash
+npm run perf:otel
+npm run perf:verify
+```
+
+`npm run perf:verify` reads `artifacts/perf/summary.json` and fails the job if
+the harness reports scenario errors, misses expected watcher events, exceeds the
+configured latency/runtime budgets, or uses a non-synthetic workspace when
+`VIVI_PERF_REQUIRE_SYNTHETIC=1` is set. The workflow always uploads
+`artifacts/perf` as a run artifact so regressions can be inspected from the
+summary and raw OTLP JSONL output.
+
+The default Actions profile is intentionally a regression gate, not a production
+benchmark. Use the manual `workflow_dispatch` `large` profile for a heavier
+synthetic run, and continue to use local `VIVI_PERF_WORKSPACE=...` runs for
+linux-scale repository measurements where GitHub-hosted runner noise would make
+hard thresholds misleading.
+
 ### Reading Results
 
 Codex should start with `artifacts/perf/summary.json` because it is stable and
