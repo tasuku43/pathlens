@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fireEvent, fn, userEvent, within } from "storybook/test";
 import type { TextDiff } from "../../../domain/change-review.js";
 import {
   commentsForPath,
@@ -52,6 +52,24 @@ const fencedCodeMarkdownDiff: TextDiff = {
     "-console.log('old');",
     "+console.log('new');",
     " ```",
+  ].join("\n"),
+};
+
+const removedMarkdownDiff: TextDiff = {
+  path: sampleFiles.markdown.path,
+  status: "available",
+  baseLabel: "HEAD",
+  baseRef: "HEAD",
+  compareLabel: "working tree",
+  diffHash: "diff-markdown-removed-42",
+  content: [
+    "diff --git a/docs/product-review.md b/docs/product-review.md",
+    "index 5050505..6060606 100644",
+    "--- a/docs/product-review.md",
+    "+++ b/docs/product-review.md",
+    "@@ -8,2 +7,0 @@",
+    "-## Draft review comments",
+    "-Draft comments stay private until the reviewer publishes a batch.",
   ].join("\n"),
 };
 
@@ -328,6 +346,72 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
     await expect(
       canvas.queryByPlaceholderText("Draft a review comment"),
     ).toBeNull();
+  },
+};
+
+export const RenderedMarkdownRemovedComment: Story = {
+  tags: ["interaction"],
+  args: {
+    path: sampleFiles.markdown.path,
+    renderKind: "markdown",
+    file: sampleFiles.markdown,
+    diff: removedMarkdownDiff,
+    comments: [],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const cardsRegion = canvas.getByRole("region", {
+      name: `Rendered Markdown change cards for ${sampleFiles.markdown.path}`,
+    });
+    await expect(cardsRegion).toBeVisible();
+
+    const removedCard = within(cardsRegion).getByRole("article", {
+      name: "Removed rendered block 8-9",
+    });
+    await expect(removedCard).toBeVisible();
+    await expect(removedCard).toHaveTextContent("Removed · HEAD");
+    await expect(removedCard).toHaveTextContent("Draft review comments");
+    await expect(removedCard).toHaveTextContent(
+      "Draft comments stay private until the reviewer publishes a batch.",
+    );
+
+    await userEvent.click(
+      within(removedCard).getByRole("button", {
+        name: "Add comment to Removed rendered block line 8-9",
+      }),
+    );
+    fireEvent.change(canvas.getByPlaceholderText("Draft a review comment"), {
+      target: {
+        value: "This removed review section should keep an old-side anchor.",
+      },
+    });
+    await userEvent.click(canvas.getByRole("button", { name: "Save draft" }));
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    const draft = (
+      args.onCreateComment as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls.at(-1)?.[0];
+    await expect(draft).toMatchObject({
+      path: sampleFiles.markdown.path,
+      viewerKind: "markdown",
+      anchor: {
+        surface: "diff",
+        canonical: {
+          path: sampleFiles.markdown.path,
+          lineStart: 8,
+          lineEnd: 9,
+          quote:
+            "## Draft review comments\nDraft comments stay private until the reviewer publishes a batch.",
+        },
+        diff: {
+          path: sampleFiles.markdown.path,
+          hunkId: "@@ -8,2 +7,0 @@",
+          side: "old",
+          oldLineStart: 8,
+          oldLineEnd: 9,
+          diffHash: "diff-markdown-removed-42",
+        },
+      },
+    });
   },
 };
 
