@@ -127,7 +127,12 @@ export function CsvViewer({
           onOpenComment={onOpenComment}
         />
       ) : mode === "table" ? (
-        <div className={`${surfaceStyles.csvTableWrap} csv-table-wrap`}>
+        <div
+          className={`${surfaceStyles.csvTableWrap} csv-table-wrap`}
+          role="region"
+          aria-label={`Scrollable CSV table for ${file.path}`}
+          tabIndex={0}
+        >
           <table className={`${surfaceStyles.csvTable} csv-table`}>
             <thead>
               <tr>

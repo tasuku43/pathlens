@@ -5342,6 +5342,11 @@ it("renders CSV files as a bounded review table", () => {
   );
 
   expect(html).toContain("reports/results.csv");
+  expect(html).toContain('role="region"');
+  expect(html).toContain(
+    'aria-label="Scrollable CSV table for reports/results.csv"',
+  );
+  expect(html).toContain('tabindex="0"');
   expect(html).toContain("<th>name</th>");
   expect(html).toContain("<td>true</td>");
 });
