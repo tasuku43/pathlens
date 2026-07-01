@@ -341,7 +341,7 @@ export const RenderedHtmlComment: Story = {
     comments: commentsForPath(sampleFiles.html.path),
     activeCommentId: "comment-html-rendered",
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const cardsRegion = canvas.getByRole("region", {
       name: `Rendered HTML change cards for ${sampleFiles.html.path}`,
@@ -359,6 +359,41 @@ export const RenderedHtmlComment: Story = {
     await expect(changedCard).toHaveTextContent(
       "HTML rendered comments should be visible as source-mapped review metadata.",
     );
+
+    await userEvent.click(
+      within(changedCard).getByRole("button", {
+        name: "Add comment to Changed rendered block line 6-7",
+      }),
+    );
+    await userEvent.type(
+      canvas.getByPlaceholderText("Draft a review comment"),
+      "Keep the preview CTA mapped to this rendered card.",
+    );
+    await userEvent.click(canvas.getByRole("button", { name: "Save draft" }));
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    const draft = (
+      args.onCreateComment as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls.at(-1)?.[0];
+    await expect(draft).toMatchObject({
+      path: sampleFiles.html.path,
+      viewerKind: "html",
+      anchor: {
+        surface: "diff",
+        canonical: {
+          path: sampleFiles.html.path,
+          lineStart: 6,
+          lineEnd: 7,
+        },
+        diff: {
+          path: sampleFiles.html.path,
+          hunkId: "@@ -4,6 +4,7 @@",
+          side: "new",
+          newLineStart: 6,
+          newLineEnd: 7,
+          diffHash: "diff-html-42",
+        },
+      },
+    });
   },
 };
 
