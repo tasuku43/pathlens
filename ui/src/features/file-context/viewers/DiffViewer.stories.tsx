@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { expect, fireEvent, fn, userEvent, within } from "storybook/test";
 import type { TextDiff } from "../../../domain/change-review.js";
+import type { ViviComment } from "../../../domain/comments.js";
 import {
   commentsForPath,
   htmlDiff,
@@ -72,6 +73,32 @@ const removedMarkdownDiff: TextDiff = {
     "-Draft comments stay private until the reviewer publishes a batch.",
   ].join("\n"),
 };
+
+const renderedMarkdownDiffComment = {
+  ...sampleComments.find((comment) => comment.id === "comment-md-rendered")!,
+  anchor: {
+    surface: "diff",
+    canonical: {
+      path: sampleFiles.markdown.path,
+      lineStart: 7,
+      lineEnd: 7,
+      quote: "Comment threads are the shared contract",
+      fileHash: sampleFiles.markdown.etag,
+    },
+    diff: {
+      path: sampleFiles.markdown.path,
+      base: "HEAD",
+      ref: "working tree",
+      hunkId: "@@ -1,8 +1,12 @@",
+      side: "new",
+      newLineStart: 7,
+      newLineEnd: 7,
+      diffHash: markdownDiff.diffHash,
+      fileHash: sampleFiles.markdown.etag,
+      changeKind: "added",
+    },
+  },
+} satisfies ViviComment;
 
 export const DiffCommentOnAddedLine: Story = {
   name: "Added diff line opens an inline review thread",
@@ -254,10 +281,10 @@ export const RenderedMarkdownComment: Story = {
     renderKind: "markdown",
     file: sampleFiles.markdown,
     diff: markdownDiff,
-    comments: commentsForPath(sampleFiles.markdown.path),
+    comments: [renderedMarkdownDiffComment],
     activeCommentId: "comment-md-rendered",
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const cardsRegion = canvas.getByRole("region", {
       name: `Rendered Markdown change cards for ${sampleFiles.markdown.path}`,
@@ -280,6 +307,39 @@ export const RenderedMarkdownComment: Story = {
     await expect(activeCard).toHaveTextContent(
       "This sentence captures the feedback layer well; keep it visible in the inspector outline story.",
     );
+    await userEvent.type(
+      activeCardCanvas.getByLabelText("Continue thread"),
+      "Keep this follow-up on the rendered diff card.",
+    );
+    await userEvent.click(
+      activeCardCanvas.getByRole("button", { name: "Add follow-up" }),
+    );
+    await expect(args.onCreateComment).toHaveBeenCalled();
+    const draft = (
+      args.onCreateComment as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls.at(-1)?.[0];
+    await expect(draft).toMatchObject({
+      threadId: "thread-md-rendered",
+      path: sampleFiles.markdown.path,
+      viewerKind: "markdown",
+      anchor: {
+        surface: "diff",
+        canonical: {
+          path: sampleFiles.markdown.path,
+          lineStart: 7,
+          lineEnd: 7,
+        },
+        diff: {
+          path: sampleFiles.markdown.path,
+          hunkId: "@@ -1,8 +1,12 @@",
+          side: "new",
+          newLineStart: 7,
+          newLineEnd: 7,
+          diffHash: "diff-markdown-42",
+          changeKind: "added",
+        },
+      },
+    });
     const sourcePreviews = cardsCanvas.getAllByLabelText("Source hunk preview");
     expect(sourcePreviews.length).toBeGreaterThan(0);
     const toggle = cardsCanvas.getAllByRole("button", {
