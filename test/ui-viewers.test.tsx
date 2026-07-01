@@ -351,6 +351,12 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain("Cmd/Ctrl Shift U");
   expect(html).toContain("Cmd/Ctrl Shift J");
   expect(html).toContain("Cmd/Ctrl Shift K");
+  expect(html).not.toContain("Cmd/Ctrl Alt R");
+  expect(html).not.toContain("Cmd/Ctrl Alt T");
+  expect(html).not.toContain("Cmd/Ctrl Alt M");
+  expect(html).not.toContain("Review queue mode");
+  expect(html).not.toContain("Comment threads mode");
+  expect(html).not.toContain("File map mode");
   expect(html).not.toContain("Cmd/Ctrl Shift R");
   expect(html).not.toContain("Cmd/Ctrl Shift C");
   expect(html).not.toContain("Open Attention / Comments");
