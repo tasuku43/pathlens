@@ -895,15 +895,45 @@ function commentsForRenderedDiffLineRange(
   end: number,
   side: "old" | "new",
 ): ViviComment[] {
-  return comments.filter((comment) => {
-    if (comment.anchor.surface === "source") return false;
-    if (comment.anchor.diff && comment.anchor.diff.side !== side) return false;
-    if (!comment.anchor.diff && side === "old") return false;
-    const commentStart = comment.anchor.canonical.lineStart;
-    if (!commentStart) return false;
-    const commentEnd = comment.anchor.canonical.lineEnd ?? commentStart;
-    return commentStart <= end && commentEnd >= start;
+  return comments.flatMap((comment) => {
+    if (comment.anchor.surface === "source") return [];
+    if (comment.anchor.diff && comment.anchor.diff.side !== side) return [];
+    if (!comment.anchor.diff && side === "old") return [];
+    const commentRange = renderedDiffCommentLineRange(comment, side);
+    if (!commentRange) return [];
+    if (commentRange.start > end || commentRange.end < start) return [];
+    return [
+      {
+        ...comment,
+        anchor: {
+          ...comment.anchor,
+          canonical: {
+            ...comment.anchor.canonical,
+            lineStart: commentRange.start,
+            lineEnd: commentRange.end,
+          },
+        },
+      },
+    ];
   });
+}
+
+function renderedDiffCommentLineRange(
+  comment: ViviComment,
+  side: "old" | "new",
+): { start: number; end: number } | null {
+  const diff = comment.anchor.diff;
+  if (diff) {
+    const start = side === "old" ? diff.oldLineStart : diff.newLineStart;
+    if (!start) return null;
+    return {
+      start,
+      end: (side === "old" ? diff.oldLineEnd : diff.newLineEnd) ?? start,
+    };
+  }
+  const start = comment.anchor.canonical.lineStart;
+  if (!start) return null;
+  return { start, end: comment.anchor.canonical.lineEnd ?? start };
 }
 
 function RenderedChangePane({

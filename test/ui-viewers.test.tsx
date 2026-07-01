@@ -4722,6 +4722,55 @@ it("shows old-side diff comments on removed rendered change cards", () => {
   expect(html).toContain('data-comment-id="rendered-removed-old-side"');
 });
 
+it("uses old-side diff anchors when canonical lines are missing", () => {
+  const removedDiffComment: ViviComment = {
+    ...codeLineComment,
+    id: "rendered-removed-old-side-anchor",
+    threadId: "thread-rendered-removed-old-side-anchor",
+    path: "README.md",
+    viewerKind: "markdown",
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: "README.md",
+        quote: "removed second sentence",
+      },
+      diff: {
+        path: "README.md",
+        base: "HEAD",
+        ref: "working tree",
+        hunkId: "@@ -2,2 +2,0 @@",
+        side: "old",
+        oldLineStart: 3,
+        oldLineEnd: 3,
+      },
+    },
+    body: "Old-side anchor should survive without canonical line numbers.",
+  };
+  const html = renderToStaticMarkup(
+    <DiffViewer
+      path="README.md"
+      renderKind="markdown"
+      comments={[removedDiffComment]}
+      activeCommentId={removedDiffComment.id}
+      diff={{
+        path: "README.md",
+        status: "available",
+        baseLabel: "HEAD",
+        compareLabel: "working tree",
+        content: [
+          "@@ -2,2 +2,0 @@",
+          "-Removed first sentence",
+          "-removed second sentence",
+        ].join("\n"),
+      }}
+    />,
+  );
+
+  expect(html).toContain("rendered-change-card removed has-comment");
+  expect(html).toContain('data-comment-id="rendered-removed-old-side-anchor"');
+});
+
 it("keeps rendered comments out of old-side removed change cards", () => {
   const renderedComment: ViviComment = {
     ...codeLineComment,
