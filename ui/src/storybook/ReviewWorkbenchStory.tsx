@@ -38,6 +38,7 @@ import {
   reviewQueueItemState,
   type ReviewFileState,
 } from "../state/review-state.js";
+import type { ResolvedTheme } from "../state/theme.js";
 import type { OpenTab } from "../state/tabs.js";
 import {
   commentsForPath,
@@ -58,11 +59,7 @@ import {
 const noop = () => undefined;
 
 export type WorkbenchStoryState =
-  | "ready"
-  | "empty"
-  | "loading"
-  | "error"
-  | "disconnected";
+  "ready" | "empty" | "loading" | "error" | "disconnected";
 
 export interface ReviewWorkbenchStoryProps {
   state?: WorkbenchStoryState;
@@ -92,6 +89,7 @@ export interface ReviewWorkbenchStoryProps {
   compactInspector?: boolean;
   reviewLoading?: boolean;
   treeChangedOnly?: boolean;
+  theme?: ResolvedTheme;
 }
 
 export function ReviewWorkbenchStory({
@@ -122,6 +120,7 @@ export function ReviewWorkbenchStory({
   compactInspector = false,
   reviewLoading = false,
   treeChangedOnly = false,
+  theme = "dark",
 }: ReviewWorkbenchStoryProps) {
   const [storyState, setStoryState] = useState(state);
   const [storyFile, setStoryFile] = useState(file);
@@ -379,7 +378,7 @@ export function ReviewWorkbenchStory({
                 <FileViewer
                   file={storyState === "empty" ? null : storyFile}
                   allowHtmlScripts={false}
-                  theme="light"
+                  theme={theme}
                   selectedCodeRange={
                     storyFile?.viewerKind === "code"
                       ? { start: 9, end: 12 }
