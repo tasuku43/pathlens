@@ -309,6 +309,35 @@
   white-space: nowrap;
 }
 
+.diffViewer :global(.rendered-change-card-actions) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.diffViewer :global(.rendered-change-card-comment-action) {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 6px;
+  background: var(--vivi-color-surface-panel-raised);
+  color: var(--vivi-color-content-primary);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.diffViewer :global(.rendered-change-card-comment-action:hover),
+.diffViewer :global(.rendered-change-card-comment-action:focus-visible) {
+  border-color: var(--vivi-color-accent-border);
+  outline: 2px solid var(--vivi-color-focus-ring);
+  outline-offset: 2px;
+}
+
 .diffViewer :global(.rendered-change-card-content) {
   display: grid;
   gap: 12px;

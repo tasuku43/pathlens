@@ -12,6 +12,7 @@ import { extractHighlightedLines } from "../../../state/highlighted-lines.js";
 import {
   codeCommentThreadKey,
   codeCommentThreads,
+  commentViewerKindForFile,
   commentsForLine,
   diffCommentDraft,
   lineCommentThreadActionLabel,
@@ -647,6 +648,16 @@ function RenderedChangeCards({
     setOpenThreadKeys((keys) => keys.filter((key) => key !== threadKey));
   }
 
+  function startCardComment(card: RenderedChangeCard, target: HTMLElement) {
+    if (!file) return;
+    const draft = renderedChangeCardCommentDraft(file, diff, card);
+    if (!draft) return;
+    setSelectionComment({
+      draft,
+      rect: rectLikeFromElement(target),
+    });
+  }
+
   useEffect(() => {
     if (!activeCommentId) return;
     const marker = cardListRef.current?.querySelector<HTMLElement>(
@@ -722,8 +733,10 @@ function RenderedChangeCards({
             comments={comments}
             activeCommentId={activeCommentId}
             openThreadKeys={openThreadKeys}
+            canStartCardComment={Boolean(file && onCreateComment)}
             currentActorId={currentActorId}
             onOpenComment={onOpenComment}
+            onStartCardComment={startCardComment}
             onToggleCommentThread={toggleCommentThread}
             onCloseCommentThread={closeCommentThread}
             onCreateComment={onCreateComment}
@@ -732,14 +745,12 @@ function RenderedChangeCards({
           />
         ))}
       </div>
-      {renderKind === "markdown" ? (
-        <SelectionCommentComposer
-          draft={selectionComment?.draft ?? null}
-          rect={selectionComment?.rect ?? null}
-          onSave={onCreateComment}
-          onDismiss={() => setSelectionComment(null)}
-        />
-      ) : null}
+      <SelectionCommentComposer
+        draft={selectionComment?.draft ?? null}
+        rect={selectionComment?.rect ?? null}
+        onSave={onCreateComment}
+        onDismiss={() => setSelectionComment(null)}
+      />
     </div>
   );
 }
@@ -754,11 +765,12 @@ export function diffCommentContextForRange(
   diff: TextDiff,
   lineStart: number,
   lineEnd = lineStart,
+  side: "old" | "new" = "new",
 ): { base?: string; ref?: string; hunkId?: string; diffHash?: string } {
   return {
     base: diff.baseRef ?? diff.baseLabel,
     ref: diff.compareLabel,
-    hunkId: hunkIdForDiffRange(diff.content, lineStart, lineEnd),
+    hunkId: hunkIdForDiffRange(diff.content, lineStart, lineEnd, side),
     diffHash: diff.diffHash,
   };
 }
@@ -767,6 +779,7 @@ function hunkIdForDiffRange(
   content: string,
   lineStart: number,
   lineEnd: number,
+  side: "old" | "new" = "new",
 ): string {
   let currentHunk: string | undefined;
   for (const line of parseUnifiedDiff(content)) {
@@ -774,12 +787,9 @@ function hunkIdForDiffRange(
       currentHunk = line.text;
       continue;
     }
-    if (
-      line.kind !== "remove" &&
-      line.newLine &&
-      line.newLine >= lineStart &&
-      line.newLine <= lineEnd
-    ) {
+    const lineNumber = side === "old" ? line.oldLine : line.newLine;
+    if (line.kind !== (side === "old" ? "add" : "remove") && lineNumber) {
+      if (lineNumber < lineStart || lineNumber > lineEnd) continue;
       return currentHunk ?? fallbackHunkIdForRange(lineStart, lineEnd);
     }
   }
@@ -821,8 +831,10 @@ function RenderedChangeCardView({
   comments,
   activeCommentId,
   openThreadKeys,
+  canStartCardComment,
   currentActorId,
   onOpenComment,
+  onStartCardComment,
   onToggleCommentThread,
   onCloseCommentThread,
   onCreateComment,
@@ -834,8 +846,10 @@ function RenderedChangeCardView({
   comments: ViviComment[];
   activeCommentId?: string | null;
   openThreadKeys: string[];
+  canStartCardComment: boolean;
   currentActorId?: string;
   onOpenComment?: (id: string, rect: DOMRectLike) => void;
+  onStartCardComment: (card: RenderedChangeCard, target: HTMLElement) => void;
   onToggleCommentThread: (thread: CodeCommentThreadModel) => void;
   onCloseCommentThread: (threadKey: string) => void;
   onCreateComment?: CommentCreateHandler;
@@ -881,6 +895,9 @@ function RenderedChangeCardView({
   const threadPanelId = commentThread
     ? renderedChangeThreadPanelId(commentThread.key)
     : undefined;
+  const addCommentLabel = `Add comment to ${cardTitle}${
+    anchorRow?.lineLabel ? ` line ${anchorRow.lineLabel}` : ""
+  }`;
   return (
     <article
       className={`rendered-change-card ${card.kind}${commentThread ? " has-comment" : ""}`}
@@ -896,30 +913,45 @@ function RenderedChangeCardView({
             {cardTitle}
             {anchorRow?.lineLabel ? ` · line ${anchorRow.lineLabel}` : ""}
           </span>
-          {markerComment && commentThread ? (
-            <button
-              className="comment-gutter-marker rendered-diff-comment-marker"
-              type="button"
-              data-comment-id={markerComment.id}
-              aria-expanded={threadOpen}
-              aria-controls={threadPanelId}
-              aria-label={lineCommentThreadActionLabel(
-                commentThread.lineStart,
-                commentThread,
-              )}
-              title={lineCommentThreadActionLabel(
-                commentThread.lineStart,
-                commentThread,
-              )}
-              onClick={(event) => {
-                onToggleCommentThread(commentThread);
-                onOpenComment?.(
-                  markerComment.id,
-                  rectLikeFromElement(event.currentTarget),
-                );
-              }}
-            />
-          ) : null}
+          <span className="rendered-change-card-actions">
+            {canStartCardComment ? (
+              <button
+                className="rendered-change-card-comment-action"
+                type="button"
+                aria-label={addCommentLabel}
+                title={addCommentLabel}
+                onClick={(event) =>
+                  onStartCardComment(card, event.currentTarget)
+                }
+              >
+                +
+              </button>
+            ) : null}
+            {markerComment && commentThread ? (
+              <button
+                className="comment-gutter-marker rendered-diff-comment-marker"
+                type="button"
+                data-comment-id={markerComment.id}
+                aria-expanded={threadOpen}
+                aria-controls={threadPanelId}
+                aria-label={lineCommentThreadActionLabel(
+                  commentThread.lineStart,
+                  commentThread,
+                )}
+                title={lineCommentThreadActionLabel(
+                  commentThread.lineStart,
+                  commentThread,
+                )}
+                onClick={(event) => {
+                  onToggleCommentThread(commentThread);
+                  onOpenComment?.(
+                    markerComment.id,
+                    rectLikeFromElement(event.currentTarget),
+                  );
+                }}
+              />
+            ) : null}
+          </span>
         </header>
         <div
           className={`rendered-change-card-content ${
@@ -1121,6 +1153,57 @@ function renderedCommentLineRangeForCard(
   const range = lineRangeForRenderedRow(row);
   if (!range) return null;
   return { ...range, side: card.after ? "new" : "old" };
+}
+
+export function renderedChangeCardCommentDraft(
+  file: FilePayload,
+  diff: TextDiff,
+  card: RenderedChangeCard,
+): CommentDraft | null {
+  const range = renderedCommentLineRangeForCard(card);
+  if (!range) return null;
+  const quote = (range.side === "old" ? card.before : card.after)?.source;
+  const context = diffCommentContextForRange(
+    diff,
+    range.start,
+    range.end,
+    range.side,
+  );
+  if (range.side === "new") {
+    return diffCommentDraft(
+      file,
+      range.start,
+      range.end,
+      card.kind === "added" ? "added" : "context",
+      quote,
+      context,
+    );
+  }
+  return {
+    path: file.path,
+    viewerKind: commentViewerKindForFile(file),
+    anchor: {
+      surface: "diff",
+      canonical: {
+        path: file.path,
+        lineStart: range.start,
+        lineEnd: range.end,
+        quote: quote?.trim() || undefined,
+        fileHash: file.etag,
+      },
+      diff: {
+        path: file.path,
+        base: context.base ?? "HEAD",
+        ref: context.ref ?? "working-tree",
+        hunkId: context.hunkId ?? `old:${range.start}-${range.end}`,
+        side: "old",
+        oldLineStart: range.start,
+        oldLineEnd: range.end,
+        diffHash: context.diffHash,
+        fileHash: file.etag,
+      },
+    },
+  };
 }
 
 function selectableRenderedLineRangeForRow(

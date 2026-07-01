@@ -31,6 +31,7 @@ const meta = {
     comments: commentsForPath(sampleFiles.code.path),
     threadActivities: sampleThreadActivities,
     onOpenComment: fn(),
+    onCreateComment: fn(),
   },
 } satisfies Meta<typeof DiffViewer>;
 
@@ -318,6 +319,19 @@ export const RenderedMarkdownCodeFenceReplacement: Story = {
     await expect(
       within(card).getByLabelText("Source hunk preview"),
     ).toHaveTextContent("console.log('new');");
+
+    await userEvent.click(
+      within(card).getByRole("button", {
+        name: "Add comment to Changed rendered block line 1-4",
+      }),
+    );
+    await expect(
+      canvas.getByPlaceholderText("Draft a review comment"),
+    ).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
+    await expect(
+      canvas.queryByPlaceholderText("Draft a review comment"),
+    ).toBeNull();
   },
 };
 
