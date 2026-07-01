@@ -166,7 +166,11 @@ export function CodeCommentThread({
         </button>
       </header>
       {activity?.inline.length ? (
-        <div className="comment-activity-summary" aria-label="Thread activity">
+        <div
+          className="comment-activity-summary"
+          role="group"
+          aria-label="Thread activity"
+        >
           {activity.inline.map((label) => (
             <span key={label}>{label}</span>
           ))}
@@ -191,6 +195,7 @@ export function CodeCommentThread({
       {thread.comments.length ? (
         <div
           className="code-comment-thread-messages"
+          role="group"
           aria-label="Thread messages"
           tabIndex={0}
         >

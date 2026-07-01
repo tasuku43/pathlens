@@ -2163,6 +2163,9 @@ it("renders comment activity in inline thread headers without changing lifecycle
   expect(html).toContain('class="code-thread-comment open active"');
   expect(html).toContain('aria-current="true"');
   expect(html).not.toContain("Current stop");
+  expect(html).toContain(
+    '<div class="comment-activity-summary" role="group" aria-label="Thread activity">',
+  );
   expect(html).toContain("Claude Code read 12s ago");
   expect(html).toContain("Codex replied 1m ago");
   expect(html).toContain("comment-status open");
@@ -2307,6 +2310,9 @@ it("renders draft and published messages in the same inline thread", () => {
   );
 
   expect(html).toContain("2 messages");
+  expect(html).toContain(
+    '<div class="code-comment-thread-messages" role="group" aria-label="Thread messages" tabindex="0">',
+  );
   expect(html).toContain("Check this return");
   expect(html).toContain("Still unpublished in this thread");
   expect(html).toContain("comment-status published");
