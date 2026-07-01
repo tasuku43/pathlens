@@ -51,6 +51,9 @@ export function RenderedChangeCardsFacade({
   cards: RenderedChangeCard[];
 }) {
   const [activeCardId, setActiveCardId] = useState(cards[0]?.id ?? "");
+  const [openCommentCardId, setOpenCommentCardId] = useState<string | null>(
+    null,
+  );
   const [sourceVisible, setSourceVisible] = useState<Record<string, boolean>>(
     Object.fromEntries(cards.map((card) => [card.id, false])),
   );
@@ -88,8 +91,16 @@ export function RenderedChangeCardsFacade({
                 card={card}
                 index={index}
                 active={card.id === activeCardId}
+                commentOpen={card.id === openCommentCardId}
                 sourceVisible={sourceVisible[card.id] ?? true}
                 onSelect={() => setActiveCardId(card.id)}
+                onToggleComment={() => {
+                  setActiveCardId(card.id);
+                  if (!card.comment) return;
+                  setOpenCommentCardId((current) =>
+                    current === card.id ? null : card.id,
+                  );
+                }}
                 onToggleSource={() =>
                   setSourceVisible((state) => ({
                     ...state,
@@ -109,21 +120,26 @@ function RenderedChangeCardView({
   card,
   index,
   active,
+  commentOpen,
   sourceVisible,
   onSelect,
+  onToggleComment,
   onToggleSource,
 }: {
   card: RenderedChangeCard;
   index: number;
   active: boolean;
+  commentOpen: boolean;
   sourceVisible: boolean;
   onSelect: () => void;
+  onToggleComment: () => void;
   onToggleSource: () => void;
 }) {
   const statusLabel =
     card.surface === "html" && card.kind === "changed"
       ? "HTML changed"
       : card.kind;
+  const commentPanelId = `${card.id}-comment`;
   return (
     <article
       className={`${styles.changeCard} ${styles[card.kind]} ${
@@ -156,6 +172,9 @@ function RenderedChangeCardView({
                   ? `Open comment for ${card.title}`
                   : `Add comment for ${card.title}`
               }
+              aria-controls={card.comment ? commentPanelId : undefined}
+              aria-expanded={card.comment ? commentOpen : undefined}
+              onClick={onToggleComment}
             >
               {card.comment ? "1" : "◌"}
             </button>
@@ -205,6 +224,14 @@ function RenderedChangeCardView({
           ) : null}
 
           {sourceVisible ? <SourceRows rows={card.sourceRows} /> : null}
+
+          {card.comment && commentOpen ? (
+            <RenderedCommentNote
+              comment={card.comment}
+              id={commentPanelId}
+              title={card.title}
+            />
+          ) : null}
         </div>
       </div>
     </article>
@@ -258,5 +285,27 @@ function SourceRows({ rows }: { rows: RenderedSourceRow[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function RenderedCommentNote({
+  comment,
+  id,
+  title,
+}: {
+  comment: ViviComment;
+  id: string;
+  title: string;
+}) {
+  return (
+    <aside
+      className={styles.commentNote}
+      id={id}
+      aria-label={`Comment for ${title}`}
+    >
+      <strong>Comment thread</strong>
+      <p>{comment.body}</p>
+      <span>{comment.status}</span>
+    </aside>
   );
 }

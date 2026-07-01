@@ -418,6 +418,38 @@
   font-size: 12px;
 }
 
+.commentNote {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--vivi-color-accent-border);
+  border-radius: 7px;
+  background: var(--vivi-color-selection-surface);
+  color: var(--vivi-color-content-primary);
+  padding: 10px 12px;
+}
+
+.commentNote strong {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.commentNote p {
+  margin: 0;
+  color: var(--vivi-color-content-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.commentNote span {
+  justify-self: start;
+  border: 1px solid var(--vivi-color-border-default);
+  border-radius: 999px;
+  color: var(--vivi-color-content-muted);
+  font-size: 11px;
+  padding: 2px 7px;
+}
+
 @media (max-width: 960px) {
   .facade {
     min-height: auto;

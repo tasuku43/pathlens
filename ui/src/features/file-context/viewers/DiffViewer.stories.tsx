@@ -470,6 +470,17 @@ export const RenderedChangeCards: Story = {
       name: "Added review contract rendered change card",
     });
     const addedCardCanvas = within(addedCard);
+    const commentButton = addedCardCanvas.getByRole("button", {
+      name: "Open comment for Added review contract",
+    });
+    await userEvent.click(commentButton);
+    await expect(commentButton).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      addedCardCanvas.getByLabelText("Comment for Added review contract"),
+    ).toHaveTextContent(
+      "This sentence captures the feedback layer well; keep it visible in the inspector outline story.",
+    );
+
     await userEvent.click(
       addedCardCanvas.getByRole("button", { name: "Show source hunk" }),
     );
