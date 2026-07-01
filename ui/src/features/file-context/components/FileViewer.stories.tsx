@@ -17,13 +17,16 @@ const meta = {
   component: FileViewer,
   parameters: {
     layout: "fullscreen",
-    a11y: { test: "todo" },
+    a11y: { test: "error" },
   },
   decorators: [
     (Story) => (
-      <div style={{ minHeight: "100vh", background: "#090d15" }}>
+      <main
+        aria-label="File viewer story"
+        style={{ minHeight: "100vh", background: "#090d15" }}
+      >
         <Story />
-      </div>
+      </main>
     ),
   ],
   args: {
@@ -93,13 +96,10 @@ export const CodeWithLocalOutline: Story = {
       );
       expect(reviewState).toBeInTheDocument();
       expect(reviewState).toHaveTextContent("Queued");
-      expect(reviewState).toHaveAttribute(
-        "aria-label",
-        "Review state: Queued",
-      );
-      expect(canvasElement.querySelector(".mark-reviewed-button")).toHaveTextContent(
-        "Mark as reviewed",
-      );
+      expect(reviewState).toHaveAttribute("aria-label", "Review state: Queued");
+      expect(
+        canvasElement.querySelector(".mark-reviewed-button"),
+      ).toHaveTextContent("Mark as reviewed");
     });
   },
 };
@@ -279,7 +279,9 @@ export const ViewerToolbarStickyByExtension: Story = {
             <strong>{item.extension}</strong>
             <span>{item.file.path}</span>
           </header>
-          <div className={`${styles.toolbarStickyScroll} toolbar-sticky-scroll`}>
+          <div
+            className={`${styles.toolbarStickyScroll} toolbar-sticky-scroll`}
+          >
             <FileViewer
               {...args}
               file={item.file}

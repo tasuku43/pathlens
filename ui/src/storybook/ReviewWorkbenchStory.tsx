@@ -487,7 +487,9 @@ export function ReviewWorkbenchStory({
         }}
       />
       {inspectorTitle ? (
-        <div className="story-state-note">{inspectorTitle}</div>
+        <aside className="story-state-note" aria-label="Story context">
+          {inspectorTitle}
+        </aside>
       ) : null}
       <CommandPalette
         open={storyCommandPaletteOpen}
@@ -535,14 +537,16 @@ export function ReviewWorkbenchStory({
         open={storyShortcutHelpOpen}
         onClose={() => setStoryShortcutHelpOpen(false)}
       />
-      <InlineCommentCard
-        comment={inlineComment}
-        rect={
-          inlineComment ? { left: 720, top: 168, width: 220, height: 26 } : null
-        }
-        onClose={noop}
-        onStatusChange={noop}
-      />
+      {inlineComment ? (
+        <aside aria-label="Floating comment preview">
+          <InlineCommentCard
+            comment={inlineComment}
+            rect={{ left: 720, top: 168, width: 220, height: 26 }}
+            onClose={noop}
+            onStatusChange={noop}
+          />
+        </aside>
+      ) : null}
     </div>
   );
 }

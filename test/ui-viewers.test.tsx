@@ -328,6 +328,7 @@ it("renders the shortcut guide as one bundled reference", () => {
   expect(html).toContain('aria-labelledby="shortcut-help-title"');
   expect(html).toContain('aria-describedby="shortcut-help-description"');
   expect(html).toContain('aria-label="Close keyboard shortcuts"');
+  expect(html).not.toContain("<header");
   expect(html).toContain("Cmd/Ctrl W");
   expect(html).toMatch(
     /<kbd class="[^"]+" aria-label="Command or Control W">Cmd\/Ctrl W<\/kbd>/,

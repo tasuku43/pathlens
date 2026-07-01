@@ -83,7 +83,7 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
         aria-describedby="shortcut-help-description"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className={styles.header}>
+        <div className={styles.header}>
           <div>
             <p>Keyboard</p>
             <h2 id="shortcut-help-title">Shortcuts</h2>
@@ -104,7 +104,7 @@ export function ShortcutHelp({ open, onClose }: ShortcutHelpProps) {
           >
             Close
           </button>
-        </header>
+        </div>
         {shortcutGroups.map((group) => (
           <ShortcutGroup
             items={group.items}

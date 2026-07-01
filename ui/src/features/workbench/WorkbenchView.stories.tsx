@@ -89,9 +89,6 @@ export const EmptyWorkspace: Story = {
 
 export const WorkspaceWithFileTreeAndSelectedFile: Story = {
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     file: sampleFiles.code,
     activeCommentId: "comment-workbench-open-1",
@@ -144,9 +141,6 @@ export const ReviewQueueFocused: Story = {
 export const CompactInspectorCanReopenReviewQueue: Story = {
   name: "Compact inspector can reopen the review queue",
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     file: sampleFiles.queue,
     viewerMode: "rendered",
@@ -274,9 +268,6 @@ export const FileWithOpenComments: Story = {
 
 export const FileWithDraftComments: Story = {
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     file: sampleFiles.code,
     activeCommentId: "draft:draft-review-1",
@@ -509,9 +500,6 @@ export const MissingSourceErrorState: Story = {
 export const MissingSourceRecoversFromReviewQueue: Story = {
   name: "Missing source recovers from the review queue",
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     state: "error",
     file: missingReadmeFile,
@@ -549,9 +537,6 @@ export const MissingSourceRecoversFromReviewQueue: Story = {
 export const ReviewQueueOpenKeepsWorkspaceChrome: Story = {
   name: "Open review queue keeps workspace chrome visible",
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     state: "error",
     file: missingReadmeFile,
@@ -636,9 +621,6 @@ export const DisconnectedState: Story = {
 export const ViewerHeaderSummarizesScopedCommentHistory: Story = {
   name: "Viewer header summarizes scoped comment history",
   tags: ["interaction"],
-  parameters: {
-    a11y: { test: "todo" },
-  },
   args: {
     file: sampleFiles.code,
     comments: [resolvedWorkbenchHistoryComment],

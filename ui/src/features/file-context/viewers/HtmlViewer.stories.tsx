@@ -17,8 +17,15 @@ const meta = {
   component: HtmlViewer,
   parameters: {
     layout: "fullscreen",
-    a11y: { test: "todo" },
+    a11y: { test: "error" },
   },
+  decorators: [
+    (Story) => (
+      <main aria-label="HTML viewer story">
+        <Story />
+      </main>
+    ),
+  ],
   args: {
     file: sampleFiles.html,
     allowHtmlScripts: false,
@@ -462,6 +469,7 @@ export const RenderedHtmlDiffComment: Story = {
 export const SourceDiffMode: Story = {
   args: {
     mode: "source",
+    theme: "dark",
     diffEnabled: true,
     diff: htmlDiff,
   },
